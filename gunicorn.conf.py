@@ -4,10 +4,10 @@
 import os
 
 # ── Workers ────────────────────────────────────────────────────────────────────
-# Free tier: 2 workers es el punto óptimo.
-# Más workers = más RAM consumida pero mejor concurrencia.
-# Menos workers = requests en cola si hay varios usuarios simultáneos.
-workers = 2
+# App de un único administrador → 1 worker es suficiente y NECESARIO.
+# Con 2+ workers cada proceso tiene su propio caché en memoria:
+# una escritura en Worker A no invalida el caché de Worker B → datos stale.
+workers = 1
 
 # Worker class sync es la correcta para Flask standard (no async)
 worker_class = "sync"

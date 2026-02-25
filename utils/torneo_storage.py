@@ -81,9 +81,10 @@ class TorneoStorage:
     _TABLE = 'torneo_actual'
 
     # TTL del caché en memoria (segundos).
-    # Durante ese tiempo los reads NO van a Supabase → latencia ~0 ms.
+    # Con 1 worker en producción el caché es seguro.
     # Se invalida automáticamente en cada guardar().
-    _CACHE_TTL = 30
+    # Con múltiples workers esto causaría datos stale entre procesos.
+    _CACHE_TTL = 5  # Reducido: evita datos stale, sigue aliviando ráfagas rápidas
 
     def __init__(self) -> None:
         self._cache: Optional[Dict] = None

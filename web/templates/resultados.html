@@ -298,6 +298,12 @@
         border-bottom-color: #9b7fed;
     }
     
+    #series-tercera-tab.active,
+    #finales-tercera-tab.active {
+        background: linear-gradient(135deg, #e83e8c, #c2185b);
+        border-bottom-color: #e83e8c;
+    }
+    
     /* Sección de Calendario */
     .calendario-section {
         background: white;
@@ -2154,7 +2160,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Cargar parejas no asignadas para cada categoría visible
-    const categorias = ['Cuarta', 'Quinta', 'Sexta', 'Séptima'];
+    const categorias = ['Cuarta', 'Quinta', 'Sexta', 'Séptima', 'Tercera'];
     categorias.forEach(cat => cargarParejasNoAsignadas(cat));
 });
 
@@ -2185,7 +2191,8 @@ function renderizarParejasNoAsignadas(categoria, parejas) {
         'Cuarta': { border: '#28a745', bg: '#d4edda', emoji: '🟢' },
         'Quinta': { border: '#ffc107', bg: '#fff3cd', emoji: '🟡' },
         'Sexta': { border: '#17a2b8', bg: '#d1ecf1', emoji: '🔵' },
-        'Séptima': { border: '#9b7fed', bg: '#e7e3ff', emoji: '🟣' }
+        'Séptima': { border: '#9b7fed', bg: '#e7e3ff', emoji: '🟣' },
+        'Tercera': { border: '#e83e8c', bg: '#fce4ef', emoji: '🔴' }
     };
     
     const color = coloresCategoria[categoria] || { border: '#6c757d', bg: '#f8f9fa', emoji: '⚪' };

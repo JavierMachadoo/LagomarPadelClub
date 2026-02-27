@@ -147,12 +147,17 @@ class Pareja:
     @classmethod
     def from_dict(cls, data: dict):
         posicion = data.get('posicion_grupo')
+        # Normalizar franjas_disponibles: puede venir como string vacío o lista
+        franjas_raw = data.get('franjas_disponibles', [])
+        if isinstance(franjas_raw, str):
+            # Convertir string a lista; string vacío → lista vacía
+            franjas_raw = [f.strip() for f in franjas_raw.split(',') if f.strip()] if franjas_raw else []
         return cls(
             id=data['id'],
             nombre=data['nombre'],
             telefono=data.get('telefono', 'Sin teléfono'),
             categoria=data['categoria'],
-            franjas_disponibles=data.get('franjas_disponibles', []),
+            franjas_disponibles=franjas_raw,
             grupo_asignado=data.get('grupo_asignado'),
             posicion_grupo=PosicionGrupo(posicion) if posicion else None,
             jugador1=data.get('jugador1', ''),

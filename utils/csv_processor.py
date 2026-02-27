@@ -69,8 +69,18 @@ class CSVProcessor:
                     if not es_vacio:
                         categoria = valor_str.title()
 
-                # Franjas horarias: cada columna lleva el nombre exacto del horario.
-                # Si la celda tiene contenido, la opción fue seleccionada.
+                # Franjas horarias – dos formatos posibles:
+                #   a) Columna única "Horarios" con valores separados por ";"
+                #      Ej: "Sábado 12:00 a 15:00; Viernes 21:00 a 00:00"
+                #   b) Google Forms: una columna por franja; celda con contenido = seleccionada.
+                elif 'horario' in col_lower:
+                    if not es_vacio:
+                        for parte in re.split(r'[;,]', valor_str):
+                            parte = parte.strip()
+                            if parte:
+                                franja = CSVProcessor._normalizar_franja(parte)
+                                if franja and franja not in franjas:
+                                    franjas.append(franja)
                 else:
                     if not es_vacio:
                         franja = CSVProcessor._normalizar_franja(col)

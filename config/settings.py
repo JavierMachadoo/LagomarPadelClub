@@ -44,7 +44,7 @@ FRANJAS_HORARIAS = [
     "Sábado 19:00"       # Sábado 19:00 a 22:00
 ]
 
-CATEGORIAS = ["Cuarta", "Quinta", "Sexta", "Séptima", "Tercera"]
+CATEGORIAS = ["Tercera", "Cuarta", "Quinta", "Sexta", "Séptima"]
 
 # Tipos de torneo: define qué categorías se juegan cada fin de semana
 TIPOS_TORNEO = {

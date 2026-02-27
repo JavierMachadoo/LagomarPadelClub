@@ -87,9 +87,9 @@ class CSVProcessor:
                         if franja and franja not in franjas:
                             franjas.append(franja)
 
-            # Validar datos mínimos: al menos jugador1 y categoría
-            if jugador1 and categoria:
-                nombre = f"{jugador1} / {jugador2}" if jugador2 else jugador1
+            # Validar datos mínimos: jugador1, jugador2 y categoría
+            if jugador1 and jugador2 and categoria:
+                nombre = f"{jugador1} / {jugador2}"
                 parejas.append({
                     'categoria': categoria,
                     'franjas_disponibles': franjas,

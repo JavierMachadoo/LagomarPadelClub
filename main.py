@@ -14,7 +14,8 @@ from config import (
     EMOJI_CATEGORIA, 
     COLORES_CATEGORIA,
     ADMIN_USERNAME,
-    ADMIN_PASSWORD
+    ADMIN_PASSWORD,
+    TIPOS_TORNEO
 )
 from config.settings import BASE_DIR, DEBUG
 from api import api_bp
@@ -167,16 +168,21 @@ def crear_app():
             parejas_enriquecidas.append(pareja_info)
         
         # Ordenar parejas por categoría
-        orden_categorias = ['Cuarta', 'Quinta', 'Sexta', 'Séptima']
+        orden_categorias = ['Cuarta', 'Quinta', 'Sexta', 'Séptima', 'Tercera']
         parejas_ordenadas = sorted(parejas_enriquecidas, 
-                                  key=lambda p: orden_categorias.index(p.get('categoria', 'Cuarta')))
-        
+                                  key=lambda p: orden_categorias.index(p.get('categoria', 'Cuarta')) if p.get('categoria') in orden_categorias else 99)
+
+        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
+        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+
         response = make_response(render_template('inicio.html', 
                              parejas=parejas_ordenadas,
                              resultado=resultado,
                              torneo=torneo,
-                             categorias=CATEGORIAS,
-                             franjas=FRANJAS_HORARIAS))
+                             categorias=categorias_torneo,
+                             franjas=FRANJAS_HORARIAS,
+                             tipo_torneo=tipo_torneo,
+                             tipos_torneo=TIPOS_TORNEO))
         
         return response
     
@@ -191,13 +197,16 @@ def crear_app():
             return redirect(url_for('inicio'))
         
         torneo = storage.cargar()
+        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
+        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
         
         response = make_response(render_template('resultados.html', 
                              resultado=resultado,
-                             categorias=CATEGORIAS,
+                             categorias=categorias_torneo,
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
-                             torneo=torneo))
+                             torneo=torneo,
+                             tipo_torneo=tipo_torneo))
         
         return response
     
@@ -213,14 +222,17 @@ def crear_app():
         
         torneo = storage.cargar()
         fixtures = torneo.get('fixtures_finales', {})
+        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
+        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
         
         response = make_response(render_template('finales.html',
                              fixtures=fixtures,
-                             categorias=CATEGORIAS,
+                             categorias=categorias_torneo,
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
                              resultado=resultado,
-                             torneo=torneo))
+                             torneo=torneo,
+                             tipo_torneo=tipo_torneo))
         
         return response
     

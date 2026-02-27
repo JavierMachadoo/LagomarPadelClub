@@ -108,20 +108,12 @@ class TorneoStorage:
             'nombre': f"Torneo {datetime.now().strftime('%d/%m/%Y')}",
             'fecha_creacion': now,
             'fecha_modificacion': now,
-            'fecha_creacion': now,
-            'fecha_modificacion': now,
             'parejas': [],
             'resultado_algoritmo': None,
             'num_canchas': 2,
             'estado': 'creando',
-            'estado': 'creando',
+            'tipo_torneo': 'fin1',
         }
-
-    def _crear_torneo_default(self) -> None:
-        self.guardar(self._torneo_vacio())
-
-    # ── API pública ───────────────────────────────────────────────────────────
-
 
     def _crear_torneo_default(self) -> None:
         self.guardar(self._torneo_vacio())
@@ -189,25 +181,34 @@ class TorneoStorage:
                 return datos
         except (json.JSONDecodeError, IOError) as e:
             logger.error('Error al cargar torneo JSON: %s', e)
-            logger.error('Error al cargar torneo JSON: %s', e)
             self._crear_torneo_default()
             return self.cargar()
 
 
     def limpiar(self) -> None:
-        """Reinicia el torneo manteniendo nombre y fecha de creación."""
-        """Reinicia el torneo manteniendo nombre y fecha de creación."""
+        """Reinicia el torneo preservando el tipo de torneo activo."""
         torneo = self.cargar()
+        tipo_actual = torneo.get('tipo_torneo', 'fin1')
         torneo['parejas'] = []
         torneo['resultado_algoritmo'] = None
         torneo['fixtures_finales'] = {}
-        torneo['fixtures_finales'] = {}
         torneo['estado'] = 'creando'
+        torneo['tipo_torneo'] = tipo_actual
+        self.guardar(torneo)
+
+    def get_tipo_torneo(self) -> str:
+        """Devuelve el tipo de torneo activo ('fin1' o 'fin2')."""
+        torneo = self.cargar()
+        return torneo.get('tipo_torneo', 'fin1')
+
+    def set_tipo_torneo(self, tipo: str) -> None:
+        """Cambia el tipo de torneo activo."""
+        torneo = self.cargar()
+        torneo['tipo_torneo'] = tipo
         self.guardar(torneo)
 
 
     def actualizar_nombre(self, nuevo_nombre: str) -> bool:
-        """Actualiza el nombre del torneo. Devuelve True si tuvo éxito."""
         """Actualiza el nombre del torneo. Devuelve True si tuvo éxito."""
         try:
             torneo = self.cargar()
@@ -215,7 +216,6 @@ class TorneoStorage:
             self.guardar(torneo)
             return True
         except Exception as e:
-            logger.error('Error al actualizar nombre: %s', e)
             logger.error('Error al actualizar nombre: %s', e)
             return False
 

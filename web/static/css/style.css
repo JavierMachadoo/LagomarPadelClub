@@ -4,6 +4,7 @@
     --quinta-color: #ffc107;
     --sexta-color: #17a2b8;
     --septima-color: #9b7fed;
+    --tercera-color: #e83e8c;
 }
 
 /* Navbar Mejorado */
@@ -47,6 +48,11 @@
 .stat-septima {
     border-left: 5px solid var(--septima-color);
     background: linear-gradient(135deg, #e7e3ff 0%, #fff0ff 100%);
+}
+
+.stat-tercera {
+    border-left: 5px solid var(--tercera-color);
+    background: linear-gradient(135deg, #fce4ec 0%, #fff0f5 100%);
 }
 
 /* Hover Effects */
@@ -287,6 +293,11 @@ footer {
 .partido-septima {
     background-color: #e7e3ff;
     border-left-color: #9b7fed;
+}
+
+.partido-tercera {
+    background-color: #fce4ec;
+    border-left-color: #e83e8c;
 }
 
 .badge-categoria {

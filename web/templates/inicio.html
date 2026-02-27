@@ -20,11 +20,6 @@
     <div class="row justify-content-center mb-4">
         <div class="col-lg-8">
             <div class="action-bar">
-                {% if not resultado %}
-                <button class="btn-generar-grupos" onclick="ejecutarAlgoritmo()">
-                    <i class="bi bi-cpu me-2"></i>Generar Grupos
-                </button>
-                {% endif %}
                 {% if resultado %}
                 <a href="{{ url_for('resultados') }}" class="btn-ver-resultados">
                     <i class="bi bi-trophy me-2"></i>Ver Grupos Generados
@@ -37,6 +32,27 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Selector de tipo de torneo (switch) -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-8">
+            <div class="torneo-switch-wrapper">
+                <span class="torneo-switch-label">Tipo de torneo:</span>
+                <div class="torneo-switch">
+                    <button id="btnSwitchFin1"
+                            class="torneo-switch-btn {% if tipo_torneo == 'fin1' %}active{% endif %}"
+                            onclick="cambiarTipoTorneo('fin1')">
+                        🔴 &nbsp;3era &middot; 5ta &middot; 7ma
+                    </button>
+                    <button id="btnSwitchFin2"
+                            class="torneo-switch-btn {% if tipo_torneo == 'fin2' %}active{% endif %}"
+                            onclick="cambiarTipoTorneo('fin2')">
+                        🟢 &nbsp;4ta &middot; 6ta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Sección de Carga de Datos -->
     <div class="row justify-content-center">
@@ -103,19 +119,26 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">
-                                        Nombre de la pareja <span class="text-danger">*</span>
+                                        Jugador 1 <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" class="form-control" name="nombre" 
-                                           placeholder="Ej: Juan Pérez / María López" required>
+                                    <input type="text" class="form-control" name="jugador1" 
+                                           placeholder="Ej: Juan Pérez" required>
                                 </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        Jugador 2 <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="form-control" name="jugador2" 
+                                           placeholder="Ej: María López" required>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Teléfono</label>
                                     <input type="text" class="form-control" name="telefono" 
                                            placeholder="Ej: 099123456">
                                 </div>
-                            </div>
-
-                            <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">
                                         Categoría <span class="text-danger">*</span>
@@ -227,11 +250,11 @@
                                 </div>
                                 
                                 <div class="pareja-card-body">
-                                    {% if not pareja.esta_asignada %}
+                                    {% if resultado and not pareja.esta_asignada %}
                                     <div class="pareja-alert alert-danger">
                                         <i class="bi bi-exclamation-triangle-fill"></i> Sin grupo asignado
                                     </div>
-                                    {% elif pareja.fuera_de_horario %}
+                                    {% elif resultado and pareja.fuera_de_horario %}
                                     <div class="pareja-alert alert-warning">
                                         <i class="bi bi-exclamation-circle-fill"></i> Fuera de horario preferido
                                     </div>
@@ -281,10 +304,10 @@
                                 {% for pareja in parejas %}
                                 {% set clase_estado = '' %}
                                 {% set icono_estado = '' %}
-                                {% if not pareja.esta_asignada %}
+                                {% if resultado and not pareja.esta_asignada %}
                                     {% set clase_estado = 'pareja-sin-asignar' %}
                                     {% set icono_estado = '<i class="bi bi-exclamation-triangle-fill text-danger me-2" title="Sin grupo asignado"></i>' %}
-                                {% elif pareja.fuera_de_horario %}
+                                {% elif resultado and pareja.fuera_de_horario %}
                                     {% set clase_estado = 'pareja-fuera-horario' %}
                                     {% set icono_estado = '<i class="bi bi-exclamation-circle-fill text-warning me-2" title="Fuera de horario preferido"></i>' %}
                                 {% endif %}
@@ -365,31 +388,6 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-danger" onclick="confirmarEliminarPareja()">
                     <i class="bi bi-trash me-1"></i>Sí, eliminar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Confirmar Generar Grupos -->
-<div class="modal fade" id="modalConfirmarGenerar" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">
-                    <i class="bi bi-cpu text-success me-2"></i>
-                    Generar grupos
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">¿Deseas generar los grupos automáticamente?</p>
-                <p class="text-muted small mb-0">El algoritmo formará grupos optimizados según las franjas horarias.</p>
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" onclick="confirmarGenerarGrupos()">
-                    <i class="bi bi-check-circle me-1"></i>Sí, generar
                 </button>
             </div>
         </div>
@@ -723,12 +721,63 @@
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
+/* Switch de tipo de torneo */
+.torneo-switch-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.torneo-switch-label {
+    font-weight: 600;
+    color: #495057;
+    white-space: nowrap;
+    font-size: 0.95rem;
+}
+
+.torneo-switch {
+    display: inline-flex;
+    background: #e9ecef;
+    border-radius: 50px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.torneo-switch-btn {
+    border: none;
+    background: transparent;
+    border-radius: 50px;
+    padding: 0.5rem 1.4rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+.torneo-switch-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.6);
+    color: #343a40;
+}
+
+.torneo-switch-btn.active {
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    color: #212529;
+}
+
+#btnSwitchFin1.active { color: #e83e8c; }
+#btnSwitchFin2.active { color: #28a745; }
+
 /* Badges de categoría */
 .badge.bg-cuarta { background-color: #28a745 !important; }
 .badge.bg-quinta { background-color: #ffc107 !important; color: #000 !important; }
 .badge.bg-sexta { background-color: #17a2b8 !important; }
 .badge.bg-septima,
 .badge.bg-séptima { background-color: #9b7fed !important; color: white !important; }
+.badge.bg-tercera { background-color: #e83e8c !important; color: white !important; }
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -822,18 +871,19 @@ document.getElementById('formAgregarPareja').addEventListener('submit', function
     e.preventDefault();
     
     const formData = new FormData(this);
-    const nombre = formData.get('nombre').trim();
+    const jugador1 = (formData.get('jugador1') || '').trim();
+    const jugador2 = (formData.get('jugador2') || '').trim();
     const telefono = formData.get('telefono').trim();
     const categoria = formData.get('categoria');
     const franjas = formData.getAll('franjas[]');
     
-    if (!nombre) {
-        Toast.error('El nombre es obligatorio');
+    if (!jugador1) {
+        Toast.error('El nombre del Jugador 1 es obligatorio');
         return;
     }
     
     if (franjas.length === 0) {
-        Toast.error('Selecciona al menos una franja horaria');
+        Toast.error('Seleccioná al menos una franja horaria');
         return;
     }
     
@@ -843,7 +893,8 @@ document.getElementById('formAgregarPareja').addEventListener('submit', function
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            nombre: nombre,
+            jugador1: jugador1,
+            jugador2: jugador2,
             telefono: telefono || 'Sin teléfono',
             categoria: categoria,
             franjas: franjas
@@ -902,6 +953,21 @@ function confirmarEliminarPareja() {
     parejaIdAEliminar = null;
 }
 
+// ==================== TIPO DE TORNEO ====================
+function cambiarTipoTorneo(tipo) {
+    fetch('/api/cambiar-tipo-torneo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo_torneo: tipo })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) location.reload();
+        else Toast.error('Error al cambiar tipo de torneo');
+    })
+    .catch(() => Toast.error('Error al cambiar tipo de torneo'));
+}
+
 // ==================== LIMPIAR DATOS ====================
 function limpiarDatos() {
     const modal = new bootstrap.Modal(document.getElementById('modalConfirmarLimpiar'));
@@ -909,31 +975,24 @@ function limpiarDatos() {
 }
 
 function confirmarLimpiarDatos() {
-    // Cerrar modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarLimpiar'));
     modal.hide();
-    
-    fetch('/api/limpiar-datos', {
-        method: 'POST'
-    })
+
+    fetch('/api/limpiar-datos', { method: 'POST' })
     .then(response => response.json())
     .then(data => {
         Toast.success(data.mensaje || 'Datos eliminados');
         setTimeout(() => location.reload(), 500);
     })
-    .catch(error => {
-        Toast.error('Error al limpiar datos');
-    });
+    .catch(() => Toast.error('Error al limpiar datos'));
 }
 
 // ==================== EJECUTAR ALGORITMO ====================
-function ejecutarAlgoritmo() {
-    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarGenerar'));
-    modal.show();
-}
-
 function ejecutarAlgoritmoAutomatico() {
-    // Ejecutar sin confirmación (llamado después de cargar CSV)
+    // Se ejecuta automáticamente después de cargar el CSV
+    const modalLoading = new bootstrap.Modal(document.getElementById('loadingModal'));
+    modalLoading.show();
+
     fetch('/api/ejecutar-algoritmo', {
         method: 'POST',
         headers: {
@@ -943,6 +1002,7 @@ function ejecutarAlgoritmoAutomatico() {
     })
     .then(response => response.json())
     .then(data => {
+        modalLoading.hide();
         if (data.success) {
             Toast.success(data.mensaje);
             setTimeout(() => window.location.href = '/resultados', 800);
@@ -952,36 +1012,9 @@ function ejecutarAlgoritmoAutomatico() {
         }
     })
     .catch(error => {
+        modalLoading.hide();
         Toast.error('Error al ejecutar algoritmo');
         setTimeout(() => location.reload(), 500);
-    });
-}
-
-function confirmarGenerarGrupos() {
-    // Cerrar modal de confirmación
-    const modalConfirm = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarGenerar'));
-    modalConfirm.hide();
-    
-    // Mostrar modal de loading
-    const modalLoading = new bootstrap.Modal(document.getElementById('loadingModal'));
-    modalLoading.show();
-    
-    fetch('/api/ejecutar-algoritmo', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ num_canchas: 2 })
-    })
-    .then(response => response.json())
-    .then(data => {
-        modalLoading.hide();
-        Toast.success(data.mensaje);
-        setTimeout(() => window.location.href = '/resultados', 800);
-    })
-    .catch(error => {
-        modalLoading.hide();
-        Toast.error('Error al ejecutar algoritmo');
     });
 }
 
@@ -1039,7 +1072,7 @@ function renderizarTablaParejas(parejas) {
     if (!tbody && !mobileContainer) return;
     
     // Ordenar parejas por categoría
-    const ordenCategorias = ['Cuarta', 'Quinta', 'Sexta', 'Séptima'];
+    const ordenCategorias = ['Tercera', 'Cuarta', 'Quinta', 'Sexta', 'Séptima'];
     const parejasOrdenadas = [...parejas].sort((a, b) => {
         const indexA = ordenCategorias.indexOf(a.categoria);
         const indexB = ordenCategorias.indexOf(b.categoria);
@@ -1060,12 +1093,15 @@ function renderizarTablaParejas(parejas) {
             let claseEstado = '';
             let iconoEstado = '';
             
-            if (!pareja.esta_asignada) {
-                claseEstado = 'pareja-sin-asignar';
-                iconoEstado = '<i class="bi bi-exclamation-triangle-fill text-danger me-2" title="Sin grupo asignado"></i>';
-            } else if (pareja.fuera_de_horario) {
-                claseEstado = 'pareja-fuera-horario';
-                iconoEstado = '<i class="bi bi-exclamation-circle-fill text-warning me-2" title="Fuera de horario preferido"></i>';
+            // Solo mostrar estado (rojo/amarillo) si el algoritmo ya corrió
+            if (tieneResultado) {
+                if (!pareja.esta_asignada) {
+                    claseEstado = 'pareja-sin-asignar';
+                    iconoEstado = '<i class="bi bi-exclamation-triangle-fill text-danger me-2" title="Sin grupo asignado"></i>';
+                } else if (pareja.fuera_de_horario) {
+                    claseEstado = 'pareja-fuera-horario';
+                    iconoEstado = '<i class="bi bi-exclamation-circle-fill text-warning me-2" title="Fuera de horario preferido"></i>';
+                }
             }
             
             const tr = document.createElement('tr');
@@ -1108,10 +1144,13 @@ function renderizarTablaParejas(parejas) {
             const categoriaClass = pareja.categoria.toLowerCase();
             
             let alertHtml = '';
-            if (!pareja.esta_asignada) {
-                alertHtml = '<div class="pareja-alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> Sin grupo asignado</div>';
-            } else if (pareja.fuera_de_horario) {
-                alertHtml = '<div class="pareja-alert alert-warning"><i class="bi bi-exclamation-circle-fill"></i> Fuera de horario preferido</div>';
+            // Solo mostrar alert si el algoritmo ya corrió
+            if (tieneResultado) {
+                if (!pareja.esta_asignada) {
+                    alertHtml = '<div class="pareja-alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> Sin grupo asignado</div>';
+                } else if (pareja.fuera_de_horario) {
+                    alertHtml = '<div class="pareja-alert alert-warning"><i class="bi bi-exclamation-circle-fill"></i> Fuera de horario preferido</div>';
+                }
             }
             
             const card = document.createElement('div');

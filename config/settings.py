@@ -36,8 +36,6 @@ ALLOWED_EXTENSIONS = {'csv', 'xlsx'}
 
 # Franjas horarias exactas del formulario de Google Forms
 FRANJAS_HORARIAS = [
-    "Jueves 18:00",      # Jueves 18:00 a 21:00
-    "Jueves 20:00",      # Jueves 20:00 a 23:00
     "Viernes 18:00",     # Viernes 18:00 a 21:00
     "Viernes 21:00",     # Viernes 21:00 a 00:00
     "Sábado 09:00",      # Sábado 9:00 a 12:00
@@ -46,20 +44,28 @@ FRANJAS_HORARIAS = [
     "Sábado 19:00"       # Sábado 19:00 a 22:00
 ]
 
-CATEGORIAS = ["Cuarta", "Quinta", "Sexta", "Séptima"]
+CATEGORIAS = ["Cuarta", "Quinta", "Sexta", "Séptima", "Tercera"]
+
+# Tipos de torneo: define qué categorías se juegan cada fin de semana
+TIPOS_TORNEO = {
+    "fin1": ["Tercera", "Quinta", "Séptima"],   # 1er fin de semana
+    "fin2": ["Cuarta", "Sexta"],                 # 2do fin de semana
+}
 
 COLORES_CATEGORIA = {
     "Cuarta": "#28a745",
     "Quinta": "#ffc107",
     "Sexta": "#007bff",
-    "Séptima": "#6f42c1"
+    "Séptima": "#6f42c1",
+    "Tercera": "#e83e8c"
 }
 
 EMOJI_CATEGORIA = {
     "Cuarta": "🟢",
     "Quinta": "🟡",
     "Sexta": "🔵",
-    "Séptima": "🟣"
+    "Séptima": "🟣",
+    "Tercera": "🔴"
 }
 
 NUM_CANCHAS_DEFAULT = 2
@@ -67,7 +73,6 @@ DURACION_PARTIDO_DEFAULT = 1
 
 # Horarios por día según las franjas del formulario
 HORARIOS_POR_DIA = {
-    'Jueves': ['18:00', '19:00', '20:00', '21:00', '22:00'],
     'Viernes': ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'],
     'Sábado': ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', 
                '16:00', '17:00', '18:00', '19:00', '20:00', '21:00']

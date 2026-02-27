@@ -58,8 +58,6 @@ class CalendarioBuilder:
     
     def _mapear_franjas_a_horas(self) -> Dict:
         return {
-            'Jueves 18:00': ('Jueves', ['18:00', '19:00', '20:00']),
-            'Jueves 20:00': ('Jueves', ['20:00', '21:00', '22:00']),
             'Viernes 18:00': ('Viernes', ['18:00', '19:00', '20:00']),
             'Viernes 21:00': ('Viernes', ['21:00', '22:00', '23:00']),
             'Sábado 09:00': ('Sábado', ['09:00', '10:00', '11:00']),

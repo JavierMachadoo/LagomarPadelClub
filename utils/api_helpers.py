@@ -117,12 +117,18 @@ def sincronizar_con_storage_y_token(datos):
     """
     Guarda datos en storage Y actualiza el token.
     Helper para mantener consistencia entre storage y JWT.
-    
+
+    Realiza un MERGE con el torneo existente para no perder campos
+    como tipo_torneo, nombre, fecha_creacion, etc. que no forman
+    parte del dict parcial recibido.
+
     Args:
-        datos: Dict con datos a guardar (debe incluir las claves del torneo)
+        datos: Dict con datos a guardar (puede ser parcial, ej: solo parejas + resultado)
     """
-    # Guardar en storage
-    storage.guardar(datos)
-    
+    # Cargar torneo completo y fusionar — así se preservan tipo_torneo y metadata
+    torneo_actual = storage.cargar()
+    torneo_actual.update(datos)
+    storage.guardar(torneo_actual)
+
     # Los datos del token se actualizarán en la respuesta
     logger.info("Datos sincronizados con storage")

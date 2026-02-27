@@ -1,148 +1,107 @@
 import pandas as pd
 import re
-from typing import List, Dict, Set
+from typing import List, Dict
 from config import FRANJAS_HORARIAS
 
 
 class CSVProcessor:
     @staticmethod
-    def _extraer_hora_inicio(texto: str) -> str:
+    def _normalizar_franja(texto: str):
         """
-        Extrae la hora de inicio de un texto con formato 'Día HH:MM a HH:MM' o 'Día H:MM'.
-        Normaliza la hora con cero a la izquierda si es necesario.
-        Retorna formato 'Día HH:MM'.
-        Ejemplo: 'Sábado 9:00 a 12:00' -> 'Sábado 09:00'
-        Ejemplo: 'Sábado 12:00 a 15:00' -> 'Sábado 12:00'
+        Dado el encabezado de una columna de horario (ej. 'Viernes 18:00 a 21:00'
+        o 'Sábado 9:00 a 12:00'), retorna la clave normalizada que corresponde a
+        FRANJAS_HORARIAS (ej. 'Viernes 18:00', 'Sábado 09:00'), o None si no coincide.
         """
-        # Buscar patrón: Día seguido de hora (1 o 2 dígitos) : minutos
         match = re.search(r'(\w+)\s+(\d{1,2}):(\d{2})', texto)
-        if match:
-            dia = match.group(1)
-            hora = match.group(2).zfill(2)  # Agregar cero a la izquierda si es necesario
-            minutos = match.group(3)
-            return f"{dia} {hora}:{minutos}"
-        return texto.strip()
-    
-    @staticmethod
-    def _extraer_franjas_de_texto(texto: str) -> List[str]:
-        """
-        Extrae todas las franjas horarias de un texto que puede contener múltiples horarios
-        separados por punto y coma (;) o saltos de línea.
-        
-        Ejemplo: "Jueves 20:00 a 23:00;Viernes 21:00 a 00:00;Sábado 9:00 a 12:00"
-        Retorna: ["Jueves 20:00", "Viernes 21:00", "Sábado 09:00"]
-        """
-        franjas_encontradas = []
-        
-        # Separar por punto y coma o salto de línea
-        segmentos = re.split(r'[;\n]', texto)
-        
-        for segmento in segmentos:
-            segmento = segmento.strip()
-            if not segmento:
-                continue
-            
-            # Extraer hora de inicio del segmento
-            hora_inicio = CSVProcessor._extraer_hora_inicio(segmento)
-            
-            # Buscar coincidencia con franjas conocidas
-            for franja_base in FRANJAS_HORARIAS:
-                if hora_inicio == franja_base or franja_base in hora_inicio:
-                    if franja_base not in franjas_encontradas:
-                        franjas_encontradas.append(franja_base)
-                    break
-        
-        return franjas_encontradas
-    
+        if not match:
+            return None
+        dia = match.group(1)
+        hora = match.group(2).zfill(2)
+        minutos = match.group(3)
+        clave = f"{dia} {hora}:{minutos}"
+        return clave if clave in FRANJAS_HORARIAS else None
+
     @staticmethod
     def procesar_dataframe(df: pd.DataFrame) -> List[Dict]:
+        """
+        Procesa un DataFrame exportado desde el Google Form del torneo.
+
+        Formato esperado de columnas (en cualquier orden):
+          - Marca temporal                          (ignorada)
+          - Nombre y apellido integrante 1          → jugador1
+          - Nombre y apellido integrante 2          → jugador2
+          - Un celular de contacto                  → telefono
+          - Categoría                               → categoria
+          - <franja horaria> (ej. Viernes 18:00 a 21:00)  → franjas_disponibles
+            (una columna por opción; celda con texto = seleccionada, vacía = no)
+        """
         parejas = []
-        
-        for idx, fila in df.iterrows():
-            nombre = None
+
+        for _, fila in df.iterrows():
+            jugador1 = ''
+            jugador2 = ''
             telefono = None
             categoria = None
-            franjas = []
-            
-            for key, value in fila.items():
-                key_lower = key.lower()
-                
-                # Detectar columna de nombre (puede incluir "nombre", "pareja", etc.)
-                if 'nombre' in key_lower or 'pareja' in key_lower:
-                    if pd.notna(value):
-                        nombre = str(value).strip()
-                
-                # Detectar teléfono con múltiples variantes
-                elif any(palabra in key_lower for palabra in ['tel', 'teléfono', 'telefono', 'phone', 'celular', 'contacto']):
-                    if pd.notna(value):
-                        telefono_str = str(value).strip()
-                        # Eliminar espacios y caracteres no numéricos excepto + al inicio
-                        if telefono_str and telefono_str not in ['nan', 'NaN', '']:
-                            telefono = telefono_str
-                
-                # Detectar categoría
-                elif 'categor' in key_lower:
-                    if pd.notna(value):
-                        categoria = str(value).strip().title()
-                
-                # Detectar franjas horarias
-                # Puede ser en columnas separadas O en una sola columna con punto y coma
-                elif any(palabra in key_lower for palabra in ['horario', 'franja', 'disponib', 'hora']):
-                    if pd.notna(value):
-                        valor_str = str(value).strip()
-                        if valor_str and valor_str not in ['nan', 'NaN', '']:
-                            # Si el valor contiene punto y coma, procesarlo como múltiples franjas
-                            if ';' in valor_str:
-                                franjas_extraidas = CSVProcessor._extraer_franjas_de_texto(valor_str)
-                                franjas.extend([f for f in franjas_extraidas if f not in franjas])
-                            else:
-                                # Procesamiento individual
-                                hora_inicio = CSVProcessor._extraer_hora_inicio(valor_str)
-                                for franja_base in FRANJAS_HORARIAS:
-                                    if hora_inicio == franja_base or franja_base in hora_inicio:
-                                        if franja_base not in franjas:
-                                            franjas.append(franja_base)
-                                        break
+            franjas: List[str] = []
+
+            for col, valor in fila.items():
+                col_lower = col.lower()
+                valor_str = str(valor).strip() if pd.notna(valor) else ''
+                es_vacio = valor_str in ('', 'nan', 'NaN')
+
+                # Integrante 1
+                if 'integrante 1' in col_lower or 'integrante1' in col_lower:
+                    if not es_vacio:
+                        jugador1 = valor_str
+
+                # Integrante 2
+                elif 'integrante 2' in col_lower or 'integrante2' in col_lower:
+                    if not es_vacio:
+                        jugador2 = valor_str
+
+                # Teléfono / celular de contacto
+                elif any(p in col_lower for p in ['celular', 'teléfono', 'telefono', 'tel', 'phone']):
+                    if not es_vacio:
+                        telefono = valor_str
+
+                # Categoría
+                elif 'categor' in col_lower:
+                    if not es_vacio:
+                        categoria = valor_str.title()
+
+                # Franjas horarias – dos formatos posibles:
+                #   a) Columna única "Horarios" con valores separados por ";"
+                #      Ej: "Sábado 12:00 a 15:00; Viernes 21:00 a 00:00"
+                #   b) Google Forms: una columna por franja; celda con contenido = seleccionada.
+                elif 'horario' in col_lower:
+                    if not es_vacio:
+                        for parte in re.split(r'[;,]', valor_str):
+                            parte = parte.strip()
+                            if parte:
+                                franja = CSVProcessor._normalizar_franja(parte)
+                                if franja and franja not in franjas:
+                                    franjas.append(franja)
                 else:
-                    # Detectar franjas en columnas tipo checkbox (columna = horario, valor = horario si está marcado)
-                    if pd.notna(value) and str(value).strip():
-                        valor_str = str(value).strip()
-                        if valor_str not in ['nan', 'NaN', '']:
-                            # Intentar extraer franja de la columna o del valor
-                            # Si el valor contiene múltiples franjas con punto y coma
-                            if ';' in valor_str:
-                                franjas_extraidas = CSVProcessor._extraer_franjas_de_texto(valor_str)
-                                franjas.extend([f for f in franjas_extraidas if f not in franjas])
-                            else:
-                                # Buscar en el nombre de la columna
-                                hora_inicio = CSVProcessor._extraer_hora_inicio(key)
-                                for franja_base in FRANJAS_HORARIAS:
-                                    if hora_inicio == franja_base or franja_base in key:
-                                        if franja_base not in franjas:
-                                            franjas.append(franja_base)
-                                        break
-                                
-                                # Si no encontró en la columna, buscar en el valor
-                                if not franjas or franja_base not in franjas:
-                                    hora_inicio = CSVProcessor._extraer_hora_inicio(valor_str)
-                                    for franja_base in FRANJAS_HORARIAS:
-                                        if hora_inicio == franja_base or franja_base in valor_str:
-                                            if franja_base not in franjas:
-                                                franjas.append(franja_base)
-                                            break
-            
-            # Validar que tengamos los datos mínimos
-            if nombre and categoria:
+                    if not es_vacio:
+                        franja = CSVProcessor._normalizar_franja(col)
+                        if franja and franja not in franjas:
+                            franjas.append(franja)
+
+            # Validar datos mínimos: al menos jugador1 y categoría
+            if jugador1 and categoria:
+                nombre = f"{jugador1} / {jugador2}" if jugador2 else jugador1
                 parejas.append({
                     'categoria': categoria,
                     'franjas_disponibles': franjas,
                     'id': len(parejas) + 1,
                     'nombre': nombre,
+                    'jugador1': jugador1,
+                    'jugador2': jugador2,
                     'telefono': telefono or 'Sin teléfono'
                 })
-        
+
         return parejas
-    
+
     @staticmethod
     def validar_archivo(filename: str) -> bool:
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'csv', 'xlsx'}

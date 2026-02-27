@@ -102,6 +102,7 @@
     .categoria-btn-quinta { color: #ffc107; }
     .categoria-btn-sexta { color: #17a2b8; }
     .categoria-btn-septima { color: #9b7fed; }
+    .categoria-btn-tercera { color: #e83e8c; }
     
     .categoria-btn .categoria-emoji {
         font-size: 2rem;
@@ -608,27 +609,22 @@
                     </div>
                     
                     <!-- Selector de Categoría -->
+                    {%- set cat_meta = {
+                        'Tercera': {'abrev': '3era', 'css': 'tercera', 'emoji': '🔴'},
+                        'Cuarta':  {'abrev': '4ta',  'css': 'cuarta',  'emoji': '🟢'},
+                        'Quinta':  {'abrev': '5ta',  'css': 'quinta',  'emoji': '🟡'},
+                        'Sexta':   {'abrev': '6ta',  'css': 'sexta',   'emoji': '🔵'},
+                        'Séptima': {'abrev': '7ma',  'css': 'septima', 'emoji': '🟣'}
+                    } %}
                     <div class="categorias-selector" id="categoriasSelector">
-                        <div class="categoria-btn categoria-btn-cuarta active" onclick="cambiarCategoria('4ta', event)">
-                            <span class="categoria-emoji">🟢</span>
-                            <h3 class="categoria-nombre">4ta</h3>
-                            <p class="categoria-fases mb-0" id="fases-4ta">Cargando...</p>
+                        {% for cat_nombre in categorias %}
+                        {%- set meta = cat_meta[cat_nombre] %}
+                        <div class="categoria-btn categoria-btn-{{ meta.css }}{% if loop.first %} active{% endif %}" onclick="cambiarCategoria('{{ meta.abrev }}', event)">
+                            <span class="categoria-emoji">{{ meta.emoji }}</span>
+                            <h3 class="categoria-nombre">{{ meta.abrev }}</h3>
+                            <p class="categoria-fases mb-0" id="fases-{{ meta.abrev }}">Cargando...</p>
                         </div>
-                        <div class="categoria-btn categoria-btn-quinta" onclick="cambiarCategoria('5ta', event)">
-                            <span class="categoria-emoji">🟡</span>
-                            <h3 class="categoria-nombre">5ta</h3>
-                            <p class="categoria-fases mb-0" id="fases-5ta">Cargando...</p>
-                        </div>
-                        <div class="categoria-btn categoria-btn-sexta" onclick="cambiarCategoria('6ta', event)">
-                            <span class="categoria-emoji">🔵</span>
-                            <h3 class="categoria-nombre">6ta</h3>
-                            <p class="categoria-fases mb-0" id="fases-6ta">Cargando...</p>
-                        </div>
-                        <div class="categoria-btn categoria-btn-septima" onclick="cambiarCategoria('7ma', event)">
-                            <span class="categoria-emoji">🟣</span>
-                            <h3 class="categoria-nombre">7ma</h3>
-                            <p class="categoria-fases mb-0" id="fases-7ma">Cargando...</p>
-                        </div>
+                        {% endfor %}
                     </div>
                     
                     <!-- Contenedor de Llaves -->
@@ -772,7 +768,18 @@
 
 {% block extra_js %}
 <script>
-let currentCategoria = '4ta';
+// Categorías activas para este tipo de torneo (inyectadas desde el servidor)
+const CAT_MAP = {
+    'Tercera': '3era',
+    'Cuarta':  '4ta',
+    'Quinta':  '5ta',
+    'Sexta':   '6ta',
+    'Séptima': '7ma'
+};
+const CATEGORIAS_TORNEO = {{ categorias | tojson }};
+const CATS_ACTIVAS = CATEGORIAS_TORNEO.map(c => CAT_MAP[c]).filter(Boolean);
+
+let currentCategoria = CATS_ACTIVAS[0] || '4ta';
 let fixtures = {};
 
 // Cargar fixtures al inicio
@@ -811,10 +818,11 @@ async function cargarFixtures(silencioso = false) {
         if (data.success) {
             // Mapear nombres de categorías del backend al frontend
             fixtures = {};
-            if (data.fixtures['Cuarta']) fixtures['4ta'] = data.fixtures['Cuarta'];
-            if (data.fixtures['Quinta']) fixtures['5ta'] = data.fixtures['Quinta'];
-            if (data.fixtures['Sexta']) fixtures['6ta'] = data.fixtures['Sexta'];
-            if (data.fixtures['Séptima']) fixtures['7ma'] = data.fixtures['Séptima'];
+            if (data.fixtures['Tercera']) fixtures['3era'] = data.fixtures['Tercera'];
+            if (data.fixtures['Cuarta'])  fixtures['4ta']  = data.fixtures['Cuarta'];
+            if (data.fixtures['Quinta'])  fixtures['5ta']  = data.fixtures['Quinta'];
+            if (data.fixtures['Sexta'])   fixtures['6ta']  = data.fixtures['Sexta'];
+            if (data.fixtures['Séptima']) fixtures['7ma']  = data.fixtures['Séptima'];
             
             // Si no hay mapeo, usar los datos tal cual (por si ya vienen con el nombre correcto)
             if (Object.keys(fixtures).length === 0) {
@@ -822,7 +830,7 @@ async function cargarFixtures(silencioso = false) {
             }
             
             actualizarDetallesCategorias();
-            cambiarCategoria(currentCategoria || '4ta'); // Mantener categoría actual o mostrar 4ta
+            cambiarCategoria(currentCategoria || CATS_ACTIVAS[0]); // Mantener categoría actual o primera disponible
         }
     } catch (error) {
         if (!silencioso) console.error('Error al cargar fixtures:', error);
@@ -831,9 +839,7 @@ async function cargarFixtures(silencioso = false) {
 
 // Actualizar detalles de categorías (fases disponibles)
 function actualizarDetallesCategorias() {
-    const categorias = ['4ta', '5ta', '6ta', '7ma'];
-    
-    categorias.forEach(cat => {
+    CATS_ACTIVAS.forEach(cat => {
         const fixture = fixtures[cat];
         let fases = [];
         

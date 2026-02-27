@@ -65,8 +65,8 @@ class GeneradorCalendarioFinales:
     DURACION_PARTIDO = 60  # minutos por partido
     TIEMPO_CAMBIO = 10     # minutos entre partidos
     
-    # Orden de prioridad de categorías (empezar por 7ma)
-    ORDEN_CATEGORIAS = ["7ma", "6ta", "5ta", "4ta"]
+    # Orden de prioridad de categorías (empezar por Séptima, terminar por Tercera)
+    ORDEN_CATEGORIAS = ["Séptima", "Sexta", "Quinta", "Cuarta", "Tercera"]
     
     # Orden de fases (de menor a mayor importancia)
     ORDEN_FASES = {

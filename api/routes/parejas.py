@@ -307,16 +307,24 @@ def agregar_pareja():
     """Agrega una pareja manualmente al torneo."""
     try:
         data = request.json
-        
+
+        jugador1 = data.get('jugador1', '').strip()
+        jugador2 = data.get('jugador2', '').strip()
         nombre = data.get('nombre', '').strip()
         telefono = data.get('telefono', '').strip()
         categoria = data.get('categoria', 'Cuarta')
         franjas = data.get('franjas', [])
         desde_resultados = data.get('desde_resultados', False)
-        
+
+        # Construir nombre combinado desde jugador1/jugador2 si se proveen
+        if jugador1 and jugador2:
+            nombre = f"{jugador1} / {jugador2}"
+        elif jugador1 and not nombre:
+            nombre = jugador1
+
         if not nombre:
             return jsonify({'error': 'El nombre es obligatorio'}), 400
-        
+
         if not franjas:
             return jsonify({'error': 'Selecciona al menos una franja horaria'}), 400
         
@@ -330,6 +338,8 @@ def agregar_pareja():
             'franjas_disponibles': franjas,
             'id': max_id + 1,
             'nombre': nombre,
+            'jugador1': jugador1 if jugador1 else nombre,
+            'jugador2': jugador2,
             'telefono': telefono or 'Sin teléfono'
         }
         
@@ -482,10 +492,9 @@ def remover_pareja_de_grupo():
 
 @api_bp.route('/limpiar-datos', methods=['POST'])
 def limpiar_datos():
-    """Limpia todos los datos del torneo actual."""
-    # Limpiar storage
+    """Limpia todos los datos del torneo actual, preservando el tipo de torneo."""
     storage.limpiar()
-    
+
     # Crear token con datos vacíos
     datos_limpios = {
         'parejas': [],
@@ -497,6 +506,17 @@ def limpiar_datos():
         'success': True,
         'mensaje': 'Datos limpiados correctamente'
     }, datos_limpios)
+
+
+@api_bp.route('/cambiar-tipo-torneo', methods=['POST'])
+def cambiar_tipo_torneo():
+    """Cambia el tipo de torneo activo sin borrar datos."""
+    data = request.json or {}
+    tipo = data.get('tipo_torneo', 'fin1')
+    if tipo not in ('fin1', 'fin2'):
+        return jsonify({'error': 'Tipo de torneo inválido'}), 400
+    storage.set_tipo_torneo(tipo)
+    return jsonify({'success': True, 'tipo_torneo': tipo})
 
 
 @api_bp.route('/obtener-parejas', methods=['GET'])
@@ -547,7 +567,8 @@ def obtener_parejas():
             'Cuarta': sum(1 for p in parejas if p.get('categoria') == 'Cuarta'),
             'Quinta': sum(1 for p in parejas if p.get('categoria') == 'Quinta'),
             'Sexta': sum(1 for p in parejas if p.get('categoria') == 'Sexta'),
-            'Séptima': sum(1 for p in parejas if p.get('categoria') == 'Séptima')
+            'Séptima': sum(1 for p in parejas if p.get('categoria') == 'Séptima'),
+            'Tercera': sum(1 for p in parejas if p.get('categoria') == 'Tercera')
         }
     }
     

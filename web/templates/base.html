@@ -23,9 +23,19 @@
     {% block extra_css %}{% endblock %}
     
     <style>
+        :root {
+            --brand-black: #111111;
+            --brand-green: #22c55e;
+            --brand-green-dark: #16a34a;
+            --brand-white: #ffffff;
+        }
         .navbar .nav-link:hover {
-            background: rgba(255,255,255,0.25) !important;
+            background: rgba(34, 197, 94, 0.2) !important;
             transform: translateY(-2px);
+        }
+        .navbar .nav-link.active-link {
+            background: rgba(34, 197, 94, 0.25) !important;
+            border-bottom: 2px solid var(--brand-green);
         }
         .toast-container {
             position: fixed;
@@ -42,47 +52,63 @@
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 1rem 0;">
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: var(--brand-black); box-shadow: 0 4px 20px rgba(0,0,0,0.3); padding: 1rem 0;">
         <div class="container">
-            <a class="navbar-brand fw-bold d-flex align-items-center" href="{{ url_for('inicio') }}" style="font-size: 1.5rem;">
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2"
+               href="{{ url_for('inicio') }}"
+               style="font-size: 1.4rem; text-decoration: none;">
+                <span style="color: var(--brand-green); font-size: 1.6rem;">●</span>
                 <span class="text-white">Torneo de Pádel</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    style="outline: none; box-shadow: none;">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto gap-2">
+                <ul class="navbar-nav ms-auto gap-1 align-items-center">
+
+                    <!-- Torneo: siempre visible -->
                     <li class="nav-item">
-                        <a class="nav-link text-white px-4 py-2 rounded-pill {{ 'active' if request.endpoint == 'inicio' or request.endpoint == 'datos' else '' }}" 
-                           href="{{ url_for('inicio') }}" 
-                           style="font-weight: 600; font-size: 1.1rem; transition: all 0.3s ease; {{ 'background: rgba(255,255,255,0.2);' if request.endpoint == 'inicio' or request.endpoint == 'datos' else '' }}">
-                            <i class="bi bi-table me-2"></i>Datos
+                        <a class="nav-link text-white px-3 py-2 rounded
+                            {{ 'active-link' if request.endpoint in ('grupos_publico', 'cuadro_publico') else '' }}"
+                           href="{{ url_for('grupos_publico') }}"
+                           style="font-weight: 600; font-size: 1rem; transition: all 0.2s ease;">
+                            <i class="bi bi-grid-3x3-gap-fill me-1"></i>Torneo
                         </a>
                     </li>
-                    {% if resultado %}
+
+                    {% if es_admin %}
+                    <!-- Panel Admin (solo admin) -->
                     <li class="nav-item">
-                        <a class="nav-link text-white px-4 py-2 rounded-pill {{ 'active' if request.endpoint == 'resultados' else '' }}" 
-                           href="{{ url_for('resultados') }}" 
-                           style="font-weight: 600; font-size: 1.1rem; transition: all 0.3s ease; {{ 'background: rgba(255,255,255,0.2);' if request.endpoint == 'resultados' else '' }}">
-                            <i class="bi bi-grid-3x3-gap-fill me-2"></i>Grupos
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white px-4 py-2 rounded-pill {{ 'active' if request.endpoint == 'finales' else '' }}" 
-                           href="{{ url_for('finales') }}" 
-                           style="font-weight: 600; font-size: 1.1rem; transition: all 0.3s ease; {{ 'background: rgba(255,255,255,0.2);' if request.endpoint == 'finales' else '' }}">
-                            <i class="bi bi-trophy-fill me-2"></i>Finales
+                        <a class="nav-link text-white px-3 py-2 rounded
+                            {{ 'active-link' if request.endpoint == 'admin_panel' else '' }}"
+                           href="{{ url_for('admin_panel') }}"
+                           style="font-weight: 600; font-size: 1rem; transition: all 0.2s ease;">
+                            <i class="bi bi-sliders me-1"></i>Panel Admin
                         </a>
                     </li>
                     {% endif %}
-                    <li class="nav-item">
-                        <a class="nav-link text-white px-4 py-2 rounded-pill" 
-                           href="{{ url_for('logout') }}" 
-                           style="font-weight: 600; font-size: 1.1rem; transition: all 0.3s ease; background: rgba(220, 53, 69, 0.3);"
-                           title="Cerrar sesión">
-                            <i class="bi bi-box-arrow-right me-2"></i>Salir
+
+                    {% if es_autenticado %}
+                    <!-- Salir (cualquier usuario logueado) -->
+                    <li class="nav-item ms-1">
+                        <a class="nav-link px-3 py-2 rounded"
+                           href="{{ url_for('logout') }}"
+                           style="font-weight: 600; font-size: 1rem; color: #f87171; border: 1px solid rgba(248,113,113,0.3); transition: all 0.2s ease;">
+                            <i class="bi bi-box-arrow-right me-1"></i>Salir
                         </a>
                     </li>
+                    {% else %}
+                    <!-- Login (sin sesión) -->
+                    <li class="nav-item ms-2">
+                        <a class="nav-link px-4 py-2 rounded"
+                           href="{{ url_for('login') }}"
+                           style="font-weight: 700; font-size: 0.95rem; background: var(--brand-green); color: var(--brand-black); border-radius: 30px; transition: all 0.2s ease;">
+                            <i class="bi bi-person-fill me-1"></i>Login
+                        </a>
+                    </li>
+                    {% endif %}
+
                 </ul>
             </div>
         </div>

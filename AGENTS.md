@@ -10,24 +10,39 @@
 
 Use these skills for detailed patterns on-demand:
 
-### Project Skills
+### Business Logic Skills (`skills/business-logic/`)
+Lógica específica del dominio — no reemplazable por skills genéricas.
+
 | Skill | Description | File |
 |-------|-------------|------|
-| `flask-torneos` | JWT middleware, blueprints, respuestas API | [SKILL.md](skills/flask-torneos.md) |
-| `algoritmo-torneos` | Backtracking, scoring de compatibilidad, fallback greedy | [SKILL.md](skills/algoritmo-torneos.md) |
-| `torneo-storage` | Single-tournament model, cache TTL, Supabase/JSON fallback | [SKILL.md](skills/torneo-storage.md) |
-| `modelos-torneos` | Dataclasses, serialización, Grupo/Pareja/ResultadoPartido | [SKILL.md](skills/modelos-torneos.md) |
-| `frontend-torneos` | Jinja2, Bootstrap 5, JWT helper, Toast notifications | [SKILL.md](skills/frontend-torneos.md) |
-| `csv-torneos` | Procesamiento CSV/Excel, normalización de columnas | [SKILL.md](skills/csv-torneos.md) |
-| `pytest-torneos` | Fixtures Flask, mock storage, parametrize por categoría | [SKILL.md](skills/pytest-torneos.md) |
-| `skill-creator` | Crear nuevas skills con el formato estándar del proyecto | [SKILL.md](skills/skill-creator.md) |
-| `commit-torneos` | git add . + commit con mensaje conventional commits en español | [SKILL.md](skills/commit-torneos.md) |
+| `algoritmo-torneos` | Backtracking, scoring de compatibilidad, fallback greedy | [SKILL.md](skills/business-logic/algoritmo-torneos.md) |
+| `torneo-storage` | Single-tournament model, cache TTL, Supabase/JSON fallback | [SKILL.md](skills/business-logic/torneo-storage.md) |
+| `modelos-torneos` | Dataclasses, serialización, Grupo/Pareja/ResultadoPartido | [SKILL.md](skills/business-logic/modelos-torneos.md) |
+| `csv-torneos` | Procesamiento CSV/Excel, normalización de columnas | [SKILL.md](skills/business-logic/csv-torneos.md) |
+| `supabase-torneos` | Upsert JSONB, detección de backend, schema de una sola fila, fallback graceful | [SKILL.md](skills/business-logic/supabase-torneos.md) |
+| `dataclasses-torneos` | to_dict/from_dict en par, Enum.value, field(default_factory), .get() con default | [SKILL.md](skills/business-logic/dataclasses-torneos.md) |
+
+### Stack Skills (`skills/stack/`)
+Patrones del stack tecnológico — complementan las skills instaladas globalmente.
+
+| Skill | Description | File |
+|-------|-------------|------|
+| `flask-torneos` | JWT middleware, blueprints, respuestas API | [SKILL.md](skills/stack/flask-torneos.md) |
+| `frontend-torneos` | Jinja2, Bootstrap 5, JWT helper, Toast notifications | [SKILL.md](skills/stack/frontend-torneos.md) |
+| `pytest-torneos` | Fixtures Flask, mock storage, parametrize por categoría | [SKILL.md](skills/stack/pytest-torneos.md) |
+| `commit-torneos` | git add . + commit con mensaje conventional commits en español | [SKILL.md](skills/stack/commit-torneos.md) |
+| `skill-creator` | Crear nuevas skills con el formato estándar del proyecto | [SKILL.md](skills/stack/skill-creator.md) |
+| `debug-torneos` | Inspeccionar estado del torneo, reproducir algoritmo, testear endpoints con curl | [SKILL.md](skills/stack/debug-torneos.md) |
+| `security-torneos` | JWT HttpOnly cookies, validación de CSV upload, XSS con tojson, rutas públicas | [SKILL.md](skills/stack/security-torneos.md) |
 
 ### Generic Skills (Any Project)
+Instaladas globalmente vía `npx skills`.
+
 | Skill | Description |
 |-------|-------------|
 | `tdd` | Test-Driven Development workflow |
 | `simplify` | Review changed code for reuse, quality, and efficiency |
+| `pytest` | Pytest avanzado: fixtures, parametrize, mocking, async (instalada globalmente) |
 
 ### Auto-invoke Skills
 
@@ -48,6 +63,10 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 | Implementing a feature | `tdd` |
 | Refactoring code | `tdd` |
 | Reviewing code quality | `simplify` |
+| Modifying Supabase schema or queries | `supabase-torneos` |
+| Adding fields to existing models or modifying serialization in core/models.py | `dataclasses-torneos` |
+| Debugging algorithm output or tournament state | `debug-torneos` |
+| Modifying authentication, file upload validation, or rendering user data in templates | `security-torneos` |
 
 ---
 
@@ -62,6 +81,7 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 | Storage | `utils/torneo_storage.py` | Supabase (JSONB) / local JSON fallback |
 | API Blueprints | `api/routes/` | Flask, JWT auth |
 | Frontend | `web/templates/`, `web/static/` | Bootstrap 5, vanilla JS |
+| ⚠️ Template grande | `web/templates/resultados.html` | ~215KB con lógica embebida — usar Grep antes de editar |
 | Configuration | `config/` | `.env`, categories, time slots |
 
 ---
@@ -127,6 +147,15 @@ python generar_datos_prueba.py
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Run tests
+pytest
+
+# Run tests for a specific module
+pytest tests/test_algoritmo.py -v
+
+# Run tests with coverage
+pytest --cov=core --cov=utils --cov-report=term-missing
 ```
 
 ### Environment Setup

@@ -92,7 +92,7 @@ def crear_app():
                     g.es_admin = True
 
         # Rutas públicas: no requieren autenticación
-        rutas_publicas_prefijos = ['/login', '/static/', '/_health', '/grupos', '/cuadro', '/calendario']
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 

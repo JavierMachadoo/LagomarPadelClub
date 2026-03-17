@@ -201,21 +201,21 @@ def crear_app():
         
         return response
     
-    @app.route('/resultados')
-    def resultados():
-        """Página de resultados - Visualización de grupos generados."""
+    @app.route('/dashboard')
+    def dashboard():
+        """Dashboard - Visualización de grupos generados."""
         datos = obtener_datos_torneo()
         resultado = datos.get('resultado_algoritmo')
-        
+
         if not resultado:
             flash('Primero debes generar los grupos', 'warning')
             return redirect(url_for('admin_panel'))
-        
+
         torneo = storage.cargar()
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
-        
-        response = make_response(render_template('resultados.html', 
+
+        response = make_response(render_template('dashboard.html',
                              resultado=resultado,
                              categorias=categorias_torneo,
                              colores=COLORES_CATEGORIA,

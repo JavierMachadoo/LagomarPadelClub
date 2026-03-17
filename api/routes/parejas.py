@@ -202,7 +202,7 @@ def obtener_parejas():
                 if info["esta_asignada"]:
                     break
         parejas_enriquecidas.append(info)
-    cats = ["Cuarta", "Quinta", "Sexta", "Septima", "Tercera"]
+    cats = ["Cuarta", "Quinta", "Sexta", "Séptima", "Tercera"]
     stats = {
         "total": len(parejas),
         "por_categoria": {c: sum(1 for p in parejas if p.get("categoria") == c) for c in cats},

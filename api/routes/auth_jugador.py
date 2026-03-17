@@ -190,10 +190,11 @@ def login():
 @auth_jugador_bp.route("/logout", methods=["POST"])
 def logout():
     """
-    Cierra la sesión del jugador borrando la cookie sb_token.
+    Cierra la sesión borrando las cookies de autenticación sb_token y token.
     """
     response = make_response(jsonify({"message": "Sesión cerrada"}), 200)
     response.delete_cookie("sb_token")
+    response.delete_cookie("token")
     return response
 
 

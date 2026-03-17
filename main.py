@@ -97,10 +97,17 @@ def crear_app():
                 role = data.get('role')
                 if role is None or role == 'admin':
                     g.es_admin = True
-        # Detectar jugadores autenticados via Supabase (sb_token)
-        if not g.es_autenticado and request.cookies.get('sb_token'):
-            g.es_autenticado = True
-            g.es_jugador = True
+        # Detectar jugadores autenticados via Supabase (sb_token).
+        # Verificamos la firma del JWT con Supabase antes de marcar al usuario
+        # como autenticado — confiar solo en la existencia de la cookie permitiría
+        # a cualquiera fabricar una cookie 'sb_token' con valor arbitrario.
+        if not g.es_autenticado:
+            sb_token = request.cookies.get('sb_token')
+            if sb_token:
+                from utils.api_helpers import _verificar_supabase_jwt
+                if _verificar_supabase_jwt(sb_token):
+                    g.es_autenticado = True
+                    g.es_jugador = True
 
         # Rutas públicas: no requieren autenticación
         rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/']

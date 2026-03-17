@@ -154,14 +154,18 @@ def login():
 
     # ── 1. Intentar Supabase Auth ─────────────────────────────────────────────
     try:
-        sb = _get_supabase_admin()
-        auth_response = sb.auth.sign_in_with_password({"email": email, "password": password})
+        # sign_in_with_password solo necesita ANON_KEY — usar SERVICE_ROLE aquí
+        # violaría el principio de mínimo privilegio (service_role bypasea RLS).
+        sb_anon = _get_supabase_anon()
+        auth_response = sb_anon.auth.sign_in_with_password({"email": email, "password": password})
 
         if auth_response.session:
-            session   = auth_response.session
-            user      = auth_response.user
-            jwt_token = session.access_token
-            expires   = session.expires_in
+            # Renombrado a sb_session para no pisar el objeto `session` de Flask
+            # importado en la línea 19 — shadow silencioso que causa bugs difíciles de rastrear.
+            sb_session = auth_response.session
+            user       = auth_response.user
+            jwt_token  = sb_session.access_token
+            expires    = sb_session.expires_in
 
             # Verificar si el usuario tiene rol admin en Supabase
             app_meta  = user.app_metadata or {}
@@ -183,8 +187,9 @@ def login():
                 logger.info("Admin autenticado via Supabase: %s", user.id)
                 return response
 
-            # Jugador regular → usar Supabase JWT directamente
-            perfil = sb.table("jugadores").select("nombre,apellido").eq("id", user.id).single().execute()
+            # Jugador regular → usar SERVICE_ROLE solo para leer el perfil server-side
+            sb_admin = _get_supabase_admin()
+            perfil = sb_admin.table("jugadores").select("nombre,apellido").eq("id", user.id).single().execute()
             nombre_completo = ""
             if perfil.data:
                 nombre_completo = f"{perfil.data['nombre']} {perfil.data['apellido']}"

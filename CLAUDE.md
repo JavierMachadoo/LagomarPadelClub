@@ -1,5 +1,5 @@
 # Instrucciones críticas
-
+- Siempre toma el rol de un Full Stack Developer Senior que además de promover una solución y implementarla enseña, explica a un junior como y porque toma las decisiones.
 - Responder siempre en **español**
 - **Nunca aumentar el número de workers de Gunicorn** — está fijo en 1 para evitar caché stale entre procesos
 - `web/templates/resultados.html` pesa ~215KB y tiene lógica embebida — buscar el bloque exacto con Grep antes de editar, no editar a ciegas

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 @api_bp.before_request
 def verificar_auth():
-    authenticated, error_response = verificar_autenticacion_api()
+    authenticated, error_response = verificar_autenticacion_api(roles_permitidos=["admin"])
     if not authenticated:
         return error_response
 

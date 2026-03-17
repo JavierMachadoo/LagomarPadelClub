@@ -125,7 +125,7 @@ def _login_admin_fallback(usuario, password):
         'timestamp': int(time.time()),
     }
     token = jwt_handler.generar_token(token_data)
-    response = make_response(jsonify({"message": "Login exitoso", "redirect": "/inicio"}), 200)
+    response = make_response(jsonify({"message": "Login exitoso", "redirect": "/"}), 200)
     response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2)
     logger.info("Admin autenticado via fallback .env")
     return response

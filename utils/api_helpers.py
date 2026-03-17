@@ -41,7 +41,8 @@ def verificar_autenticacion_api(roles_permitidos=None):
                           Si es None, por defecto se restringe a ['admin'].
 
     Returns:
-        Tuple (authenticated: bool, error_response: Response|None)
+        Tuple (authenticated: bool, error_response: Response | tuple[Response, int] | None)
+        donde `error_response` puede ser una Response directa o una tupla (Response, status_code).
     """
     # Si no se especifican roles, por seguridad asumir solo-admin
     if roles_permitidos is None:

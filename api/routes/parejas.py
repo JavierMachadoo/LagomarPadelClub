@@ -302,10 +302,10 @@ def obtener_franjas_disponibles():
         "Jueves 20:00": ["Jueves 20:00", "Jueves 21:00", "Jueves 22:00"],
         "Viernes 18:00": ["Viernes 18:00", "Viernes 19:00", "Viernes 20:00"],
         "Viernes 21:00": ["Viernes 21:00", "Viernes 22:00", "Viernes 23:00"],
-        "Sabado 09:00": ["Sabado 09:00", "Sabado 10:00", "Sabado 11:00"],
-        "Sabado 12:00": ["Sabado 12:00", "Sabado 13:00", "Sabado 14:00"],
-        "Sabado 16:00": ["Sabado 16:00", "Sabado 17:00", "Sabado 18:00"],
-        "Sabado 19:00": ["Sabado 19:00", "Sabado 20:00", "Sabado 21:00"],
+        "Sábado 09:00": ["Sábado 09:00", "Sábado 10:00", "Sábado 11:00"],
+        "Sábado 12:00": ["Sábado 12:00", "Sábado 13:00", "Sábado 14:00"],
+        "Sábado 16:00": ["Sábado 16:00", "Sábado 17:00", "Sábado 18:00"],
+        "Sábado 19:00": ["Sábado 19:00", "Sábado 20:00", "Sábado 21:00"],
     }
     franjas_ocupadas = {}
     for cat, grupos in grupos_dict.items():

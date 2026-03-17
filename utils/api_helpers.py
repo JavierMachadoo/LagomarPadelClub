@@ -38,11 +38,15 @@ def verificar_autenticacion_api(roles_permitidos=None):
 
     Args:
         roles_permitidos: lista de roles aceptados, p.ej. ['admin'] o ['admin', 'jugador'].
-                          Si es None, acepta cualquier sesión válida.
+                          Si es None, por defecto se restringe a ['admin'].
 
     Returns:
         Tuple (authenticated: bool, error_response: Response|None)
     """
+    # Si no se especifican roles, por seguridad asumir solo-admin
+    if roles_permitidos is None:
+        roles_permitidos = ['admin']
+
     # ── 1. Intentar con el JWT custom del admin ──────────────────────────────
     jwt_handler = current_app.jwt_handler
     admin_token = jwt_handler.obtener_token_desde_request()
@@ -51,7 +55,7 @@ def verificar_autenticacion_api(roles_permitidos=None):
         data = jwt_handler.verificar_token(admin_token)
         if data and data.get('authenticated'):
             role = data.get('role', 'admin')
-            if roles_permitidos is None or role in roles_permitidos:
+            if role in roles_permitidos:
                 return True, None
 
     # ── 2. Intentar con el JWT de Supabase (jugador) ─────────────────────────
@@ -60,7 +64,7 @@ def verificar_autenticacion_api(roles_permitidos=None):
     if sb_token:
         user = _verificar_supabase_jwt(sb_token)
         if user:
-            if roles_permitidos is None or 'jugador' in roles_permitidos:
+            if 'jugador' in roles_permitidos:
                 return True, None
             # Token válido pero rol no permitido (p.ej. ruta solo-admin)
             return False, (jsonify({'error': 'Acceso restringido a administradores'}), 403)

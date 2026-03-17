@@ -178,7 +178,7 @@ def login():
                     'timestamp': int(time.time()),
                 }
                 token = jwt_handler.generar_token(token_data)
-                response = make_response(jsonify({"message": "Login exitoso", "redirect": "/inicio"}), 200)
+                response = make_response(jsonify({"message": "Login exitoso", "redirect": "/admin"}), 200)
                 response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2)
                 logger.info("Admin autenticado via Supabase: %s", user.id)
                 return response

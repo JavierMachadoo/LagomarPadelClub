@@ -443,10 +443,7 @@
 /* Header de la App */
 .app-logo i {
     font-size: 4rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--brand-green);
     animation: pulse 2s ease-in-out infinite;
 }
 
@@ -486,23 +483,25 @@
 .btn-generar-grupos {
     flex: 1;
     min-width: 250px;
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-    color: white;
+    background: var(--brand-green);
+    color: var(--brand-black);
     border: none;
     padding: 1.25rem 2.5rem;
     font-size: 1.25rem;
     font-weight: 700;
-    border-radius: 15px;
+    border-radius: 30px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+    transition: all 0.2s ease;
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .btn-generar-grupos:hover {
     transform: translateY(-3px);
-    box-shadow: 0 10px 30px rgba(72, 187, 120, 0.5);
+    box-shadow: 0 10px 30px rgba(34, 197, 94, 0.45);
+    background: var(--brand-green-dark);
+    color: var(--brand-white);
 }
 
 .btn-generar-grupos:active {
@@ -511,16 +510,16 @@
 
 /* Botón Ver Resultados */
 .btn-ver-resultados {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--brand-green);
+    color: var(--brand-black);
     border: none;
     padding: 0.875rem 1.75rem;
     font-size: 1rem;
-    font-weight: 600;
-    border-radius: 12px;
+    font-weight: 700;
+    border-radius: 30px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(34, 197, 94, 0.35);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -528,8 +527,9 @@
 
 .btn-ver-resultados:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
-    color: white;
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.45);
+    background: var(--brand-green-dark);
+    color: var(--brand-white);
 }
 
 /* Botón Limpiar */
@@ -570,9 +570,9 @@
 }
 
 .custom-tabs .nav-link.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    background: var(--brand-black);
+    color: var(--brand-white);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
 }
 
 /* Card de Upload */
@@ -587,16 +587,13 @@
 }
 
 .upload-card:hover {
-    border-color: #667eea;
-    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.15);
+    border-color: var(--brand-green);
+    box-shadow: 0 8px 30px rgba(34, 197, 94, 0.15);
 }
 
 .upload-icon i {
     font-size: 4rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--brand-green);
 }
 
 .upload-card h3 {
@@ -636,26 +633,28 @@
 }
 
 .file-name {
-    color: #667eea;
+    color: var(--brand-green);
     font-weight: 600;
 }
 
 .btn-upload {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--brand-green);
+    color: var(--brand-black);
     border: none;
     padding: 1rem 2.5rem;
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: 700;
     border-radius: 50px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(34, 197, 94, 0.35);
 }
 
 .btn-upload:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+    box-shadow: 0 8px 25px rgba(34, 197, 94, 0.45);
+    background: var(--brand-green-dark);
+    color: var(--brand-white);
 }
 
 .btn-upload:disabled {
@@ -687,38 +686,40 @@
 }
 
 .franja-check:hover {
-    border-color: #667eea;
+    border-color: var(--brand-green);
     background: #edf2f7;
 }
 
 .franja-check input:checked ~ label,
 .franja-check:has(input:checked) {
-    border-color: #667eea;
-    background: #f0f4ff;
+    border-color: var(--brand-green);
+    background: rgba(34, 197, 94, 0.07);
 }
 
 .btn-submit {
     width: 100%;
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-    color: white;
+    background: var(--brand-green);
+    color: var(--brand-black);
     border: none;
     padding: 1rem;
     font-size: 1.1rem;
-    font-weight: 600;
-    border-radius: 12px;
+    font-weight: 700;
+    border-radius: 30px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(34, 197, 94, 0.35);
 }
 
 .btn-submit:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(72, 187, 120, 0.5);
+    box-shadow: 0 8px 25px rgba(34, 197, 94, 0.45);
+    background: var(--brand-green-dark);
+    color: var(--brand-white);
 }
 
 /* Header de tabla con gradiente */
 .bg-gradient-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--brand-black);
 }
 
 /* Switch de tipo de torneo */

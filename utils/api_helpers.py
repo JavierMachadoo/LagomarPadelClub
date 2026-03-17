@@ -9,25 +9,64 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def verificar_autenticacion_api():
+def _verificar_supabase_jwt(sb_token: str):
+    """
+    Verifica un JWT de Supabase Auth llamando a get_user().
+    Devuelve el objeto user si es válido, None en caso contrario.
+
+    Nota: usamos el cliente con ANON_KEY para verificar — get_user() acepta
+    el access_token del jugador directamente sin necesitar service_role.
+    """
+    try:
+        from config.settings import SUPABASE_URL, SUPABASE_ANON_KEY
+        from supabase import create_client
+        sb = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        response = sb.auth.get_user(sb_token)
+        return response.user if response and response.user else None
+    except Exception as e:
+        logger.debug("Supabase JWT inválido: %s", e)
+        return None
+
+
+def verificar_autenticacion_api(roles_permitidos=None):
     """
     Verifica que la petición a la API esté autenticada.
-    
+
+    Acepta dos tipos de sesión:
+      - Cookie 'token'    → JWT custom del admin
+      - Cookie 'sb_token' → JWT de Supabase (jugador registrado)
+
+    Args:
+        roles_permitidos: lista de roles aceptados, p.ej. ['admin'] o ['admin', 'jugador'].
+                          Si es None, acepta cualquier sesión válida.
+
     Returns:
         Tuple (authenticated: bool, error_response: Response|None)
-        Si authenticated es False, error_response contiene la respuesta de error
     """
+    # ── 1. Intentar con el JWT custom del admin ──────────────────────────────
     jwt_handler = current_app.jwt_handler
-    token = jwt_handler.obtener_token_desde_request()
-    
-    if not token:
-        return False, jsonify({'error': 'No autenticado', 'redirect': '/login'}), 401
-    
-    data = jwt_handler.verificar_token(token)
-    if not data or not data.get('authenticated'):
-        return False, jsonify({'error': 'Sesión inválida o expirada', 'redirect': '/login'}), 401
-    
-    return True, None
+    admin_token = jwt_handler.obtener_token_desde_request()
+
+    if admin_token:
+        data = jwt_handler.verificar_token(admin_token)
+        if data and data.get('authenticated'):
+            role = data.get('role', 'admin')
+            if roles_permitidos is None or role in roles_permitidos:
+                return True, None
+
+    # ── 2. Intentar con el JWT de Supabase (jugador) ─────────────────────────
+    sb_token = request.cookies.get('sb_token')
+
+    if sb_token:
+        user = _verificar_supabase_jwt(sb_token)
+        if user:
+            if roles_permitidos is None or 'jugador' in roles_permitidos:
+                return True, None
+            # Token válido pero rol no permitido (p.ej. ruta solo-admin)
+            return False, (jsonify({'error': 'Acceso restringido a administradores'}), 403)
+
+    # ── 3. Sin sesión válida ──────────────────────────────────────────────────
+    return False, (jsonify({'error': 'No autenticado', 'redirect': '/login'}), 401)
 
 
 def obtener_datos_desde_token():

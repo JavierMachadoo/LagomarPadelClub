@@ -156,7 +156,7 @@
     }
     
     .stat-icon-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--brand-black);
     }
     
     .stat-icon-success {
@@ -208,10 +208,10 @@
     }
     
     #mainTabs .nav-link.active {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: 2px solid #667eea;
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        background: var(--brand-black);
+        color: var(--brand-white);
+        border: 2px solid var(--brand-black);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
     }
     
     #mainTabs .nav-link small {
@@ -350,7 +350,8 @@
     }
     
     .btn-float-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--brand-green);
+        color: var(--brand-black) !important;
     }
     
     /* Botón de Regresar dentro de Categoría */
@@ -360,18 +361,18 @@
         gap: 0.5rem;
         padding: 0.75rem 1.5rem;
         background: white;
-        color: #667eea;
-        border: 2px solid #667eea;
+        color: var(--brand-green-dark);
+        border: 2px solid var(--brand-green);
         border-radius: 50px;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
         text-decoration: none;
     }
-    
+
     .btn-back-categoria:hover {
-        background: #667eea;
-        color: white;
+        background: var(--brand-green);
+        color: var(--brand-black);
         transform: translateX(-5px);
     }
     
@@ -552,8 +553,8 @@
     }
     
     #disponibilidadCard .card-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: var(--brand-black);
+        color: var(--brand-white);
         font-weight: 600;
     }
     
@@ -707,7 +708,7 @@
 
     <!-- Botón de Acción Flotante -->
     <div class="floating-actions">
-        <a href="{{ url_for('inicio') }}" class="btn-float btn-float-primary" title="Volver al inicio">
+        <a href="{{ url_for('admin_panel') }}" class="btn-float btn-float-primary" title="Volver al panel">
             <i class="bi bi-house-fill"></i>
         </a>
     </div>

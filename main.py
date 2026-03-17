@@ -3,7 +3,7 @@ Aplicación Flask para gestión de torneos de pádel.
 Genera grupos optimizados según categorías y disponibilidad horaria.
 """
 
-from flask import Flask, render_template, request, redirect, url_for, flash, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, make_response, g
 import os
 import logging
 
@@ -63,26 +63,41 @@ def crear_app():
             'num_canchas': torneo.get('num_canchas', 2)
         }
     
+    # Context processor: inyecta es_admin y torneo_tiene_datos en todos los templates
+    @app.context_processor
+    def inject_globals():
+        torneo = storage.cargar()
+        tiene_datos = bool(torneo.get('resultado_algoritmo'))
+        return dict(
+            es_admin=getattr(g, 'es_admin', False),
+            es_autenticado=getattr(g, 'es_autenticado', False),
+            torneo_tiene_datos=tiene_datos
+        )
+
     # Middleware: Verificar autenticación
     @app.before_request
     def verificar_autenticacion():
-        """Verifica que el usuario esté autenticado antes de acceder a rutas protegidas."""
-        # Rutas públicas que no requieren autenticación
-        rutas_publicas = ['/login', '/static/', '/_health']
-        
-        # Permitir acceso a rutas públicas
-        if any(request.path.startswith(ruta) for ruta in rutas_publicas):
-            return
-        
-        # Verificar token JWT
+        """Verifica autenticación. Siempre resuelve g.es_admin; solo bloquea rutas privadas."""
+        # Siempre intentar determinar si el usuario es admin (para navbar condicional)
+        g.es_autenticado = False
+        g.es_admin = False
         token = jwt_handler.obtener_token_desde_request()
-        
-        if not token:
-            return redirect(url_for('login'))
-        
-        # Verificar que el token sea válido y contenga authenticated=True
-        data = jwt_handler.verificar_token(token)
-        if not data or not data.get('authenticated'):
+        if token:
+            data = jwt_handler.verificar_token(token)
+            if data and data.get('authenticated'):
+                g.es_autenticado = True
+                # Compatibilidad: tokens previos sin campo 'role' eran siempre admin
+                role = data.get('role')
+                if role is None or role == 'admin':
+                    g.es_admin = True
+
+        # Rutas públicas: no requieren autenticación
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario']
+        if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
+            return
+
+        # Rutas privadas: redirigir si no es admin
+        if not g.es_admin:
             return redirect(url_for('login'))
     
     # Rutas de autenticación
@@ -100,11 +115,12 @@ def crear_app():
                 data = {
                     'authenticated': True,
                     'username': username,
+                    'role': 'admin',
                     'timestamp': int(time.time())
                 }
                 token = jwt_handler.generar_token(data)
                 
-                response = make_response(redirect(url_for('inicio')))
+                response = make_response(redirect(url_for('admin_panel')))
                 response.set_cookie('token', token,
                                   httponly=True,
                                   samesite='Lax',
@@ -120,15 +136,30 @@ def crear_app():
     @app.route('/logout')
     def logout():
         """Cerrar sesión."""
-        response = make_response(redirect(url_for('login')))
+        response = make_response(redirect(url_for('inicio')))
         response.set_cookie('token', '', expires=0)
         flash('Sesión cerrada', 'info')
         return response
     
-    # Rutas principales
+    # Landing pública
     @app.route('/')
     def inicio():
-        """Página de inicio - Carga de datos."""
+        """Página de inicio pública — información del torneo y acceso."""
+        torneo = storage.cargar()
+        resultado = torneo.get('resultado_algoritmo')
+        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
+        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+        return make_response(render_template('inicio.html',
+                             torneo=torneo,
+                             resultado=resultado,
+                             categorias=categorias_torneo,
+                             emojis=EMOJI_CATEGORIA,
+                             tipo_torneo=tipo_torneo))
+
+    # Panel de administración (antes era /)
+    @app.route('/admin')
+    def admin_panel():
+        """Panel de administración - Carga de datos."""
         datos = obtener_datos_torneo()
         parejas = datos.get('parejas', [])
         resultado = datos.get('resultado_algoritmo')
@@ -175,7 +206,7 @@ def crear_app():
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
 
-        response = make_response(render_template('inicio.html', 
+        response = make_response(render_template('homePanel.html',
                              parejas=parejas_ordenadas,
                              resultado=resultado,
                              torneo=torneo,
@@ -194,7 +225,7 @@ def crear_app():
         
         if not resultado:
             flash('Primero debes generar los grupos', 'warning')
-            return redirect(url_for('inicio'))
+            return redirect(url_for('admin_panel'))
         
         torneo = storage.cargar()
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
@@ -218,7 +249,7 @@ def crear_app():
         
         if not resultado:
             flash('Primero debes generar los grupos', 'warning')
-            return redirect(url_for('inicio'))
+            return redirect(url_for('admin_panel'))
         
         torneo = storage.cargar()
         fixtures = torneo.get('fixtures_finales', {})
@@ -236,6 +267,59 @@ def crear_app():
         
         return response
     
+    # Rutas públicas (sin login)
+    @app.route('/grupos')
+    def grupos_publico():
+        """Vista pública de grupos — sin teléfonos ni franjas de disponibilidad."""
+        datos = obtener_datos_torneo()
+        resultado = datos.get('resultado_algoritmo')
+        torneo = storage.cargar()
+        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
+        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+
+        return make_response(render_template('grupos_publico.html',
+                             resultado=resultado,
+                             categorias=categorias_torneo,
+                             colores=COLORES_CATEGORIA,
+                             emojis=EMOJI_CATEGORIA,
+                             torneo=torneo,
+                             tipo_torneo=tipo_torneo))
+
+    @app.route('/calendario')
+    def calendario_publico():
+        """Vista pública del calendario de partidos — sin controles de admin."""
+        torneo = storage.cargar()
+        resultado = torneo.get('resultado_algoritmo')
+        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
+        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+
+        return make_response(render_template('calendario_publico.html',
+                             resultado=resultado,
+                             categorias=categorias_torneo,
+                             colores=COLORES_CATEGORIA,
+                             emojis=EMOJI_CATEGORIA,
+                             torneo=torneo,
+                             tipo_torneo=tipo_torneo))
+
+    @app.route('/cuadro')
+    def cuadro_publico():
+        """Vista pública del bracket de finales — sin controles de admin."""
+        datos = obtener_datos_torneo()
+        resultado = datos.get('resultado_algoritmo')
+        torneo = storage.cargar()
+        fixtures = torneo.get('fixtures_finales', {})
+        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
+        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+
+        return make_response(render_template('finales_publico.html',
+                             fixtures=fixtures,
+                             categorias=categorias_torneo,
+                             colores=COLORES_CATEGORIA,
+                             emojis=EMOJI_CATEGORIA,
+                             resultado=resultado,
+                             torneo=torneo,
+                             tipo_torneo=tipo_torneo))
+
     return app
 
 

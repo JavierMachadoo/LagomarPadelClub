@@ -1,1256 +1,210 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio - Torneo de Pádel{% endblock %}
+{% block title %}Torneo de Pádel{% endblock %}
 
-{% block content %}
-<div class="container inicio-page">
-    <!-- Header Principal - Simple y Elegante -->
-    <div class="row justify-content-center">
-        <div class="col-lg-8 text-center mb-5 mt-4">
-            <div class="app-logo mb-4">
-                <i class="bi bi-trophy-fill"></i>
-            </div>
-            <h1 class="app-title mb-2">Generador de Grupos</h1>
-            <p class="app-subtitle">Torneo de Pádel</p>
-        </div>
-    </div>
-
-    <!-- Botón de Acción Principal -->
-    {% if parejas %}
-    <div class="row justify-content-center mb-4">
-        <div class="col-lg-8">
-            <div class="action-bar">
-                {% if resultado %}
-                <a href="{{ url_for('resultados') }}" class="btn-ver-resultados">
-                    <i class="bi bi-trophy me-2"></i>Ver Grupos Generados
-                </a>
-                {% endif %}
-                <button class="btn-limpiar" onclick="limpiarDatos()">
-                    <i class="bi bi-trash me-2"></i>Limpiar Datos
-                </button>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Selector de tipo de torneo (switch) -->
-    <div class="row justify-content-center mb-4">
-        <div class="col-lg-8">
-            <div class="torneo-switch-wrapper">
-                <span class="torneo-switch-label">Tipo de torneo:</span>
-                <div class="torneo-switch">
-                    <button id="btnSwitchFin1"
-                            class="torneo-switch-btn {% if tipo_torneo == 'fin1' %}active{% endif %}"
-                            onclick="cambiarTipoTorneo('fin1')">
-                        🔴 &nbsp;3era &middot; 5ta &middot; 7ma
-                    </button>
-                    <button id="btnSwitchFin2"
-                            class="torneo-switch-btn {% if tipo_torneo == 'fin2' %}active{% endif %}"
-                            onclick="cambiarTipoTorneo('fin2')">
-                        🟢 &nbsp;4ta &middot; 6ta
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sección de Carga de Datos -->
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <!-- Tabs de Carga -->
-            <ul class="nav nav-pills nav-fill mb-4 custom-tabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="csv-tab" data-bs-toggle="pill" 
-                            data-bs-target="#csv" type="button">
-                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>Cargar CSV
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="manual-tab" data-bs-toggle="pill" 
-                            data-bs-target="#manual" type="button">
-                        <i class="bi bi-pencil-square me-2"></i>Entrada Manual
-                    </button>
-                </li>
-            </ul>
-
-            <!-- Contenido de Tabs -->
-            <div class="tab-content">
-                <!-- Tab CSV -->
-                <div class="tab-pane fade show active" id="csv" role="tabpanel">
-                    <div class="upload-card">
-                        <div class="upload-icon mb-3">
-                            <i class="bi bi-cloud-arrow-up"></i>
-                        </div>
-                        <h3 class="mb-3">Cargar archivo CSV</h3>
-                        <p class="text-muted mb-4">
-                            Arrastra tu archivo aquí o haz clic para seleccionar
-                        </p>
-                        
-                        <form id="formCargarCSV" enctype="multipart/form-data">
-                            <div class="file-input-wrapper">
-                                <input type="file" class="file-input" id="archivoCSV" 
-                                       name="archivo" accept=".csv" required>
-                                <label for="archivoCSV" class="file-label">
-                                    <i class="bi bi-folder2-open me-2"></i>Seleccionar Archivo
-                                </label>
-                            </div>
-                            <div id="fileName" class="file-name mt-3"></div>
-                            <button type="submit" class="btn-upload mt-3" id="btnUpload" disabled>
-                                <i class="bi bi-upload me-2"></i>Cargar Datos
-                            </button>
-                        </form>
-
-                        <div class="alert alert-info mt-4 text-start">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <small>
-                                <strong>Formato requerido:</strong> El CSV debe incluir columnas para 
-                                Nombre, Teléfono, Categoría y franjas horarias disponibles.
-                            </small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tab Manual -->
-                <div class="tab-pane fade" id="manual" role="tabpanel">
-                    <div class="manual-card">
-                        <h3 class="mb-4">Agregar pareja manualmente</h3>
-                        
-                        <form id="formAgregarPareja">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">
-                                        Jugador 1 <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="text" class="form-control" name="jugador1" 
-                                           placeholder="Ej: Juan Pérez" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">
-                                        Jugador 2 <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="text" class="form-control" name="jugador2" 
-                                           placeholder="Ej: María López" required>
-                                </div>
-                            </div>
-
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Teléfono</label>
-                                    <input type="text" class="form-control" name="telefono" 
-                                           placeholder="Ej: 099123456">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">
-                                        Categoría <span class="text-danger">*</span>
-                                    </label>
-                                    <select class="form-select" name="categoria" required>
-                                        {% for cat in categorias %}
-                                        <option value="{{ cat }}">{{ cat }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="mb-4">
-                                <label class="form-label fw-bold mb-3">
-                                    Franjas horarias disponibles <span class="text-danger">*</span>
-                                </label>
-                                <div class="row g-2">
-                                    {% for franja in franjas %}
-                                    <div class="col-md-6">
-                                        <div class="franja-check">
-                                            <input class="form-check-input" type="checkbox" 
-                                                   name="franjas[]" value="{{ franja }}" 
-                                                   id="franja{{ loop.index }}">
-                                            <label class="form-check-label" for="franja{{ loop.index }}">
-                                                {{ franja }}
-                                            </label>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-
-                            <button type="submit" class="btn-submit">
-                                <i class="bi bi-plus-circle me-2"></i>Agregar Pareja
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Lista de Parejas Cargadas -->
-    {% if parejas %}
-    <!-- Leyenda de Estados -->
-    {% if resultado %}
-    {% set sin_asignar_count = namespace(value=0) %}
-    {% set fuera_horario_count = namespace(value=0) %}
-    {% for p in parejas %}
-        {% if not p.esta_asignada %}
-            {% set sin_asignar_count.value = sin_asignar_count.value + 1 %}
-        {% endif %}
-        {% if p.fuera_de_horario %}
-            {% set fuera_horario_count.value = fuera_horario_count.value + 1 %}
-        {% endif %}
-    {% endfor %}
-    <div class="row justify-content-center mt-5" {% if sin_asignar_count.value == 0 and fuera_horario_count.value == 0 %}style="display:none;"{% endif %}>
-        <div class="col-lg-10">
-            <div class="alert alert-light border d-flex align-items-center justify-content-center" role="alert">
-                <div class="d-flex gap-4 flex-wrap">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
-                        <span><strong>Rojo:</strong> Sin grupo asignado</span>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-exclamation-circle-fill text-warning me-2"></i>
-                        <span><strong>Amarillo:</strong> Fuera de horario preferido</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    <div class="row justify-content-center mt-3">
-        <div class="col-lg-10">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-gradient-primary">
-                    <h5 class="mb-0 text-white" id="headerTablaParejas">
-                        <i class="bi bi-people-fill me-2"></i>Parejas Cargadas ({{ parejas|length }})
-                        {% if resultado %}
-                        {% set sin_asignar = namespace(count=0) %}
-                        {% set fuera_horario = namespace(count=0) %}
-                        {% for p in parejas %}
-                            {% if not p.esta_asignada %}
-                                {% set sin_asignar.count = sin_asignar.count + 1 %}
-                            {% endif %}
-                            {% if p.fuera_de_horario %}
-                                {% set fuera_horario.count = fuera_horario.count + 1 %}
-                            {% endif %}
-                        {% endfor %}
-                        {% if sin_asignar.count > 0 %}
-                        <span class="badge bg-danger ms-2">{{ sin_asignar.count }} sin grupo</span>
-                        {% endif %}
-                        {% if fuera_horario.count > 0 %}
-                        <span class="badge bg-warning text-dark ms-2">{{ fuera_horario.count }} fuera de horario</span>
-                        {% endif %}
-                        {% endif %}
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    <!-- Vista Móvil: Cards -->
-                    <div class="parejas-mobile-list d-none">
-                        <div id="parejasCardsContainer">
-                            {% for pareja in parejas %}
-                            <div class="pareja-card-mobile" data-id="{{ pareja.id }}" data-categoria="{{ pareja.categoria }}">
-                                <div class="pareja-card-header">
-                                    <div class="pareja-numero">#{{ loop.index }}</div>
-                                    <span class="badge bg-{{ pareja.categoria|lower }}">{{ pareja.categoria }}</span>
-                                </div>
-                                
-                                <div class="pareja-card-body">
-                                    {% if resultado and not pareja.esta_asignada %}
-                                    <div class="pareja-alert alert-danger">
-                                        <i class="bi bi-exclamation-triangle-fill"></i> Sin grupo asignado
-                                    </div>
-                                    {% elif resultado and pareja.fuera_de_horario %}
-                                    <div class="pareja-alert alert-warning">
-                                        <i class="bi bi-exclamation-circle-fill"></i> Fuera de horario preferido
-                                    </div>
-                                    {% endif %}
-                                    
-                                    <div class="pareja-nombre">
-                                        <i class="bi bi-people-fill"></i>
-                                        <strong>{{ pareja.nombre }}</strong>
-                                    </div>
-                                    
-                                    <div class="pareja-info-row">
-                                        <div class="pareja-info-item">
-                                            <i class="bi bi-telephone-fill"></i>
-                                            <span>{{ pareja.telefono }}</span>
-                                        </div>
-                                        <div class="pareja-info-item">
-                                            <i class="bi bi-clock-fill"></i>
-                                            <span>{{ pareja.franjas_disponibles|length }} franjas</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="pareja-card-footer">
-                                    <button class="btn btn-danger btn-sm w-100" onclick="eliminarPareja({{ pareja.id }})">
-                                        <i class="bi bi-trash me-1"></i>Eliminar
-                                    </button>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    
-                    <!-- Vista Desktop: Tabla -->
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Nombre</th>
-                                    <th>Teléfono</th>
-                                    <th>Categoría</th>
-                                    <th>Franjas</th>
-                                    <th width="80">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tablaParejas">
-                                {% for pareja in parejas %}
-                                {% set clase_estado = '' %}
-                                {% set icono_estado = '' %}
-                                {% if resultado and not pareja.esta_asignada %}
-                                    {% set clase_estado = 'pareja-sin-asignar' %}
-                                    {% set icono_estado = '<i class="bi bi-exclamation-triangle-fill text-danger me-2" title="Sin grupo asignado"></i>' %}
-                                {% elif resultado and pareja.fuera_de_horario %}
-                                    {% set clase_estado = 'pareja-fuera-horario' %}
-                                    {% set icono_estado = '<i class="bi bi-exclamation-circle-fill text-warning me-2" title="Fuera de horario preferido"></i>' %}
-                                {% endif %}
-                                <tr class="{{ clase_estado }}" data-id="{{ pareja.id }}" data-categoria="{{ pareja.categoria }}">
-                                    <td>{{ loop.index }}</td>
-                                    <td><strong>{{ icono_estado|safe }}{{ pareja.nombre }}</strong></td>
-                                    <td>{{ pareja.telefono }}</td>
-                                    <td>
-                                        <span class="badge bg-{{ pareja.categoria|lower }}">
-                                            {{ pareja.categoria }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">
-                                            {{ pareja.franjas_disponibles|length }} disponibles
-                                        </small>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-danger" 
-                                                onclick="eliminarPareja({{ pareja.id }})">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</div>
-
-<!-- Modales de Confirmación -->
-<!-- Modal: Confirmar Limpiar Datos -->
-<div class="modal fade" id="modalConfirmarLimpiar" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>
-                    Confirmar acción
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">¿Estás seguro de limpiar todos los datos?</p>
-                <p class="text-muted small mb-0">Esta acción eliminará todas las parejas y grupos generados.</p>
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" onclick="confirmarLimpiarDatos()">
-                    <i class="bi bi-trash me-1"></i>Sí, limpiar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Confirmar Eliminar Pareja -->
-<div class="modal fade" id="modalConfirmarEliminar" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">
-                    <i class="bi bi-trash text-danger me-2"></i>
-                    Eliminar pareja
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">¿Deseas eliminar esta pareja?</p>
-                <p class="text-muted small mb-0">Esta acción no se puede deshacer.</p>
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" onclick="confirmarEliminarPareja()">
-                    <i class="bi bi-trash me-1"></i>Sí, eliminar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Loading -->
-<div class="modal fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-body text-center py-5">
-                <div class="spinner-border text-success mb-3" style="width: 3rem; height: 3rem;" role="status">
-                    <span class="visually-hidden">Cargando...</span>
-                </div>
-                <h5>Generando grupos...</h5>
-                <p class="text-muted mb-0">Por favor espera</p>
-            </div>
-        </div>
-    </div>
-</div>
-
+{% block extra_css %}
 <style>
-/* Estilos para modales */
-.modal-content {
-    border-radius: 20px;
-    border: none;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-}
-
-.modal-header {
-    padding: 1.5rem 1.5rem 1rem;
-}
-
-.modal-body {
-    padding: 1rem 1.5rem;
-}
-
-.modal-footer {
-    padding: 1rem 1.5rem 1.5rem;
-}
-
-.modal-title {
-    font-weight: 700;
-    font-size: 1.25rem;
-}
-
-/* Página de Inicio - Diseño Moderno y Minimalista */
-.inicio-page {
-    min-height: 90vh;
-    padding: 1rem 0 3rem;
-}
-
-/* Header de la App */
-.app-logo i {
-    font-size: 4rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-}
-
-.app-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: #2d3748;
-    letter-spacing: -1px;
-    margin: 0;
-}
-
-.app-subtitle {
-    font-size: 1.1rem;
-    color: #718096;
-    font-weight: 400;
-}
-
-/* Barra de Acciones */
-.action-bar {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-    padding: 1rem;
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-/* Botón Generar Grupos - Verde y Grande */
-.btn-generar-grupos {
-    flex: 1;
-    min-width: 250px;
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-    color: white;
-    border: none;
-    padding: 1.25rem 2.5rem;
-    font-size: 1.25rem;
-    font-weight: 700;
-    border-radius: 15px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.btn-generar-grupos:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 30px rgba(72, 187, 120, 0.5);
-}
-
-.btn-generar-grupos:active {
-    transform: translateY(-1px);
-}
-
-/* Botón Ver Resultados */
-.btn-ver-resultados {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 0.875rem 1.75rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-}
-
-.btn-ver-resultados:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
-    color: white;
-}
-
-/* Botón Limpiar */
-.btn-limpiar {
-    background: white;
-    color: #e53e3e;
-    border: 2px solid #fc8181;
-    padding: 0.875rem 1.75rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.btn-limpiar:hover {
-    background: #e53e3e;
-    color: white;
-    border-color: #e53e3e;
-    transform: translateY(-2px);
-}
-
-/* Tabs Personalizados */
-.custom-tabs {
-    background: white;
-    border-radius: 50px;
-    padding: 0.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.custom-tabs .nav-link {
-    border-radius: 50px;
-    padding: 0.75rem 2rem;
-    font-weight: 600;
-    color: #718096;
-    border: none;
-    transition: all 0.3s ease;
-}
-
-.custom-tabs .nav-link.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-/* Card de Upload */
-.upload-card {
-    background: white;
-    border-radius: 20px;
-    padding: 3rem 2rem;
-    text-align: center;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    border: 2px dashed #e2e8f0;
-    transition: all 0.3s ease;
-}
-
-.upload-card:hover {
-    border-color: #667eea;
-    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.15);
-}
-
-.upload-icon i {
-    font-size: 4rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.upload-card h3 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #2d3748;
-}
-
-/* File Input */
-.file-input-wrapper {
-    position: relative;
-    display: inline-block;
-}
-
-.file-input {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.file-label {
-    display: inline-block;
-    padding: 0.875rem 2rem;
-    background: #f7fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 50px;
-    color: #4a5568;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.file-label:hover {
-    background: #edf2f7;
-    border-color: #cbd5e0;
-}
-
-.file-name {
-    color: #667eea;
-    font-weight: 600;
-}
-
-.btn-upload {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 1rem 2.5rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.btn-upload:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
-}
-
-.btn-upload:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Card Manual */
-.manual-card {
-    background: white;
-    border-radius: 20px;
-    padding: 2.5rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-.manual-card h3 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #2d3748;
-}
-
-.franja-check {
-    background: #f7fafc;
-    padding: 0.75rem 1rem;
-    border-radius: 10px;
-    border: 2px solid #e2e8f0;
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.franja-check:hover {
-    border-color: #667eea;
-    background: #edf2f7;
-}
-
-.franja-check input:checked ~ label,
-.franja-check:has(input:checked) {
-    border-color: #667eea;
-    background: #f0f4ff;
-}
-
-.btn-submit {
-    width: 100%;
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-    color: white;
-    border: none;
-    padding: 1rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
-}
-
-.btn-submit:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(72, 187, 120, 0.5);
-}
-
-/* Header de tabla con gradiente */
-.bg-gradient-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-/* Switch de tipo de torneo */
-.torneo-switch-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-}
-
-.torneo-switch-label {
-    font-weight: 600;
-    color: #495057;
-    white-space: nowrap;
-    font-size: 0.95rem;
-}
-
-.torneo-switch {
-    display: inline-flex;
-    background: #e9ecef;
-    border-radius: 50px;
-    padding: 4px;
-    gap: 4px;
-}
-
-.torneo-switch-btn {
-    border: none;
-    background: transparent;
-    border-radius: 50px;
-    padding: 0.5rem 1.4rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #6c757d;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    white-space: nowrap;
-}
-
-.torneo-switch-btn:hover:not(.active) {
-    background: rgba(255,255,255,0.6);
-    color: #343a40;
-}
-
-.torneo-switch-btn.active {
-    background: #fff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    color: #212529;
-}
-
-#btnSwitchFin1.active { color: #e83e8c; }
-#btnSwitchFin2.active { color: #28a745; }
-
-/* Badges de categoría */
-.badge.bg-cuarta { background-color: #28a745 !important; }
-.badge.bg-quinta { background-color: #ffc107 !important; color: #000 !important; }
-.badge.bg-sexta { background-color: #17a2b8 !important; }
-.badge.bg-septima,
-.badge.bg-séptima { background-color: #9b7fed !important; color: white !important; }
-.badge.bg-tercera { background-color: #e83e8c !important; color: white !important; }
-
-/* Responsive */
-@media (max-width: 768px) {
-    .app-title {
-        font-size: 2rem;
+    :root {
+        --brand-black: #111111;
+        --brand-green: #22c55e;
+        --brand-green-dark: #16a34a;
+        --brand-white: #ffffff;
     }
-    
-    .upload-card, .manual-card {
-        padding: 2rem 1.5rem;
+
+    .landing-page {
+        background: #f4f4f4;
+        min-height: 100vh;
     }
-    
-    .custom-tabs .nav-link {
-        padding: 0.75rem 1rem;
-        font-size: 0.9rem;
+
+    /* ── Hero ── */
+    .hero {
+        background: var(--brand-black);
+        color: var(--brand-white);
+        padding: 5rem 2rem 4rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
     }
-    
-    .action-bar {
-        flex-direction: column;
+    .hero::before {
+        content: '';
+        position: absolute;
+        top: -60px; left: 50%;
+        transform: translateX(-50%);
+        width: 600px; height: 600px;
+        background: radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%);
+        pointer-events: none;
     }
-    
-    .btn-generar-grupos {
-        width: 100%;
-        min-width: unset;
+    .hero-badge {
+        display: inline-block;
+        background: rgba(34,197,94,0.15);
+        color: var(--brand-green);
+        border: 1px solid rgba(34,197,94,0.3);
+        border-radius: 30px;
+        padding: 0.35rem 1rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 1.5rem;
     }
-    
-    .btn-ver-resultados,
-    .btn-limpiar {
-        width: 100%;
+    .hero h1 {
+        font-size: clamp(2.2rem, 5vw, 3.5rem);
+        font-weight: 900;
+        margin-bottom: 1rem;
+        letter-spacing: -1px;
+        line-height: 1.1;
     }
-}
+    .hero h1 span { color: var(--brand-green); }
+    .hero-sub {
+        font-size: 1.1rem;
+        color: #aaa;
+        max-width: 480px;
+        margin: 0 auto 2.5rem;
+    }
+    .hero-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .btn-hero-primary {
+        background: var(--brand-green);
+        color: var(--brand-black);
+        border: none;
+        border-radius: 30px;
+        padding: 0.85rem 2rem;
+        font-weight: 700;
+        font-size: 1rem;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-hero-primary:hover {
+        background: var(--brand-green-dark);
+        color: var(--brand-white);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(34,197,94,0.35);
+    }
+    .btn-hero-secondary {
+        background: transparent;
+        color: var(--brand-white);
+        border: 2px solid rgba(255,255,255,0.2);
+        border-radius: 30px;
+        padding: 0.85rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-hero-secondary:hover {
+        border-color: var(--brand-green);
+        color: var(--brand-green);
+        transform: translateY(-2px);
+    }
+
+    /* ── Section ── */
+    .section { padding: 4rem 0; }
+    .section-title {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--brand-black);
+        margin-bottom: 0.5rem;
+    }
+    .section-sub {
+        font-size: 0.95rem;
+        color: #888;
+        margin-bottom: 2rem;
+    }
+
+    /* ── Coming soon card ── */
+    .coming-soon-card {
+        background: var(--brand-black);
+        color: var(--brand-white);
+        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        text-align: center;
+    }
+    .coming-soon-card h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .coming-soon-card p { color: #aaa; font-size: 0.95rem; margin-bottom: 1.5rem; }
+    .coming-tag {
+        display: inline-block;
+        background: rgba(34,197,94,0.15);
+        color: var(--brand-green);
+        border: 1px solid rgba(34,197,94,0.3);
+        border-radius: 20px;
+        padding: 0.3rem 0.9rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
 </style>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-// ==================== FILE INPUT ====================
-document.getElementById('archivoCSV').addEventListener('change', function(e) {
-    const fileName = e.target.files[0]?.name;
-    const fileNameDiv = document.getElementById('fileName');
-    const btnUpload = document.getElementById('btnUpload');
-    
-    if (fileName) {
-        fileNameDiv.innerHTML = `<i class="bi bi-file-earmark-text me-2"></i><strong>${fileName}</strong>`;
-        btnUpload.disabled = false;
-    } else {
-        fileNameDiv.innerHTML = '';
-        btnUpload.disabled = true;
-    }
-});
+{% block content %}
+<div class="landing-page">
 
-// ==================== CARGAR CSV ====================
-document.getElementById('formCargarCSV').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const btnUpload = document.getElementById('btnUpload');
-    const originalText = btnUpload.innerHTML;
-    
-    btnUpload.innerHTML = '<i class="bi bi-hourglass-split"></i> Cargando...';
-    btnUpload.disabled = true;
-    
-    fetch('/api/cargar-csv', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Si hay suficientes parejas, ejecutar algoritmo automáticamente sin mostrar toast intermedio
-            if (data.parejas && data.parejas.length >= 3) {
-                ejecutarAlgoritmoAutomatico();
-            } else {
-                Toast.success(data.mensaje);
-                setTimeout(() => location.reload(), 800);
-            }
-        } else {
-            Toast.error(data.error || 'Error al cargar CSV');
-            btnUpload.innerHTML = originalText;
-            btnUpload.disabled = false;
-        }
-    })
-    .catch(error => {
-        Toast.error('Error al cargar CSV');
-        btnUpload.innerHTML = originalText;
-        btnUpload.disabled = false;
-    });
-});
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-badge">
+            <i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>
+            {% if resultado %}Torneo en curso{% else %}Próximamente{% endif %}
+        </div>
+        <h1>
+            {% if torneo.nombre %}
+                {{ torneo.nombre }}
+            {% else %}
+                Torneo de <span>Pádel</span>
+            {% endif %}
+        </h1>
+        <p class="hero-sub">
+            Seguí en tiempo real los grupos, resultados y el bracket de finales.
+        </p>
+        <div class="hero-actions">
+            {% if resultado %}
+            <a href="{{ url_for('grupos_publico') }}" class="btn-hero-primary">
+                <i class="bi bi-grid-3x3-gap-fill"></i> Ver Grupos
+            </a>
+            <a href="{{ url_for('cuadro_publico') }}" class="btn-hero-secondary">
+                <i class="bi bi-trophy-fill"></i> Ver Finales
+            </a>
+            {% else %}
+            <span class="btn-hero-secondary" style="cursor:default; opacity:0.5;">
+                <i class="bi bi-hourglass-split"></i> Grupos en preparación
+            </span>
+            {% endif %}
+        </div>
+    </section>
 
-// ==================== AGREGAR PAREJA MANUAL ====================
-document.getElementById('formAgregarPareja').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const jugador1 = (formData.get('jugador1') || '').trim();
-    const jugador2 = (formData.get('jugador2') || '').trim();
-    const telefono = formData.get('telefono').trim();
-    const categoria = formData.get('categoria');
-    const franjas = formData.getAll('franjas[]');
-    
-    if (!jugador1) {
-        Toast.error('El nombre del Jugador 1 es obligatorio');
-        return;
-    }
-    
-    if (franjas.length === 0) {
-        Toast.error('Seleccioná al menos una franja horaria');
-        return;
-    }
-    
-    fetch('/api/agregar-pareja', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            jugador1: jugador1,
-            jugador2: jugador2,
-            telefono: telefono || 'Sin teléfono',
-            categoria: categoria,
-            franjas: franjas
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success || data.mensaje) {
-            Toast.success(data.mensaje);
-            setTimeout(() => location.reload(), 500);
-        } else {
-            Toast.error(data.error || 'Error al agregar pareja');
-        }
-    })
-    .catch(error => {
-        Toast.error('Error al agregar pareja');
-    });
-});
+    <div class="container">
 
-// ==================== ELIMINAR PAREJA ====================
-let parejaIdAEliminar = null;
-
-function eliminarPareja(parejaId) {
-    parejaIdAEliminar = parejaId;
-    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEliminar'));
-    modal.show();
-}
-
-function confirmarEliminarPareja() {
-    if (!parejaIdAEliminar) return;
-    
-    // Cerrar modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEliminar'));
-    modal.hide();
-    
-    fetch('/api/eliminar-pareja', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ id: parejaIdAEliminar })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success || data.mensaje) {
-            Toast.success(data.mensaje);
-            setTimeout(() => location.reload(), 500);
-        } else {
-            Toast.error(data.error || 'Error al eliminar pareja');
-        }
-    })
-    .catch(error => {
-        Toast.error('Error al eliminar pareja');
-    });
-    
-    parejaIdAEliminar = null;
-}
-
-// ==================== TIPO DE TORNEO ====================
-function cambiarTipoTorneo(tipo) {
-    fetch('/api/cambiar-tipo-torneo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo_torneo: tipo })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) location.reload();
-        else Toast.error('Error al cambiar tipo de torneo');
-    })
-    .catch(() => Toast.error('Error al cambiar tipo de torneo'));
-}
-
-// ==================== LIMPIAR DATOS ====================
-function limpiarDatos() {
-    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarLimpiar'));
-    modal.show();
-}
-
-function confirmarLimpiarDatos() {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarLimpiar'));
-    modal.hide();
-
-    fetch('/api/limpiar-datos', { method: 'POST' })
-    .then(response => response.json())
-    .then(data => {
-        Toast.success(data.mensaje || 'Datos eliminados');
-        setTimeout(() => location.reload(), 500);
-    })
-    .catch(() => Toast.error('Error al limpiar datos'));
-}
-
-// ==================== EJECUTAR ALGORITMO ====================
-function ejecutarAlgoritmoAutomatico() {
-    // Se ejecuta automáticamente después de cargar el CSV
-    const modalLoading = new bootstrap.Modal(document.getElementById('loadingModal'));
-    modalLoading.show();
-
-    fetch('/api/ejecutar-algoritmo', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ num_canchas: 2 })
-    })
-    .then(response => response.json())
-    .then(data => {
-        modalLoading.hide();
-        if (data.success) {
-            Toast.success(data.mensaje);
-            setTimeout(() => window.location.href = '/resultados', 800);
-        } else {
-            Toast.error(data.error || 'Error al ejecutar algoritmo');
-            setTimeout(() => location.reload(), 500);
-        }
-    })
-    .catch(error => {
-        modalLoading.hide();
-        Toast.error('Error al ejecutar algoritmo');
-        setTimeout(() => location.reload(), 500);
-    });
-}
-
-// ==================== ACTUALIZACIÓN AUTOMÁTICA DE TABLA ====================
-let ultimoNumParejas = {{ parejas|length }};
-let tieneResultado = {{ 'true' if resultado else 'false' }};
-
-function actualizarTablaParejas() {
-    fetch('/api/obtener-parejas')
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const parejas = data.parejas;
-            
-            // Solo actualizar si hay cambios
-            if (parejas.length !== ultimoNumParejas || detectarCambiosEstado(parejas)) {
-                ultimoNumParejas = parejas.length;
-                renderizarTablaParejas(parejas);
-                actualizarHeader(parejas);
-            }
-        }
-    })
-    .catch(error => {
-        // Silenciosamente ignorar errores de actualización
-    });
-}
-
-function detectarCambiosEstado(parejas) {
-    // Detectar si alguna pareja cambió de estado
-    const tbody = document.getElementById('tablaParejas');
-    if (!tbody) return true;
-    
-    const filasActuales = tbody.querySelectorAll('tr');
-    if (filasActuales.length !== parejas.length) return true;
-    
-    for (let i = 0; i < parejas.length; i++) {
-        const pareja = parejas[i];
-        const fila = filasActuales[i];
-        
-        // Verificar si cambió el estado de asignación
-        const tieneClaseRoja = fila.classList.contains('pareja-sin-asignar');
-        const tieneClaseAmarilla = fila.classList.contains('pareja-fuera-horario');
-        
-        if (!pareja.esta_asignada && !tieneClaseRoja) return true;
-        if (pareja.fuera_de_horario && !tieneClaseAmarilla) return true;
-        if (pareja.esta_asignada && !pareja.fuera_de_horario && (tieneClaseRoja || tieneClaseAmarilla)) return true;
-    }
-    
-    return false;
-}
-
-function renderizarTablaParejas(parejas) {
-    const tbody = document.getElementById('tablaParejas');
-    const mobileContainer = document.getElementById('parejasCardsContainer');
-    if (!tbody && !mobileContainer) return;
-    
-    // Ordenar parejas por categoría
-    const ordenCategorias = ['Tercera', 'Cuarta', 'Quinta', 'Sexta', 'Séptima'];
-    const parejasOrdenadas = [...parejas].sort((a, b) => {
-        const indexA = ordenCategorias.indexOf(a.categoria);
-        const indexB = ordenCategorias.indexOf(b.categoria);
-        return indexA - indexB;
-    });
-    
-    // Si no hay parejas
-    if (parejas.length === 0) {
-        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No hay parejas cargadas</td></tr>';
-        if (mobileContainer) mobileContainer.innerHTML = '<div class="text-center text-muted py-4">No hay parejas cargadas</div>';
-        return;
-    }
-    
-    // Renderizar tabla desktop
-    if (tbody) {
-        tbody.innerHTML = '';
-        parejasOrdenadas.forEach((pareja, index) => {
-            let claseEstado = '';
-            let iconoEstado = '';
-            
-            // Solo mostrar estado (rojo/amarillo) si el algoritmo ya corrió
-            if (tieneResultado) {
-                if (!pareja.esta_asignada) {
-                    claseEstado = 'pareja-sin-asignar';
-                    iconoEstado = '<i class="bi bi-exclamation-triangle-fill text-danger me-2" title="Sin grupo asignado"></i>';
-                } else if (pareja.fuera_de_horario) {
-                    claseEstado = 'pareja-fuera-horario';
-                    iconoEstado = '<i class="bi bi-exclamation-circle-fill text-warning me-2" title="Fuera de horario preferido"></i>';
-                }
-            }
-            
-            const tr = document.createElement('tr');
-            tr.className = claseEstado;
-            tr.setAttribute('data-id', pareja.id);
-            tr.setAttribute('data-categoria', pareja.categoria);
-            
-            const categoriaClass = pareja.categoria.toLowerCase();
-            
-            tr.innerHTML = `
-                <td>${index + 1}</td>
-                <td><strong>${iconoEstado}${escapeHtml(pareja.nombre)}</strong></td>
-                <td>${escapeHtml(pareja.telefono)}</td>
-                <td>
-                    <span class="badge bg-${categoriaClass}">
-                        ${escapeHtml(pareja.categoria)}
-                    </span>
-                </td>
-                <td>
-                    <small class="text-muted">
-                        ${pareja.franjas_disponibles.length} disponibles
-                    </small>
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-danger" 
-                            onclick="eliminarPareja(${pareja.id})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            `;
-            
-            tbody.appendChild(tr);
-        });
-    }
-    
-    // Renderizar vista móvil
-    if (mobileContainer) {
-        mobileContainer.innerHTML = '';
-        parejasOrdenadas.forEach((pareja, index) => {
-            const categoriaClass = pareja.categoria.toLowerCase();
-            
-            let alertHtml = '';
-            // Solo mostrar alert si el algoritmo ya corrió
-            if (tieneResultado) {
-                if (!pareja.esta_asignada) {
-                    alertHtml = '<div class="pareja-alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> Sin grupo asignado</div>';
-                } else if (pareja.fuera_de_horario) {
-                    alertHtml = '<div class="pareja-alert alert-warning"><i class="bi bi-exclamation-circle-fill"></i> Fuera de horario preferido</div>';
-                }
-            }
-            
-            const card = document.createElement('div');
-            card.className = 'pareja-card-mobile';
-            card.setAttribute('data-id', pareja.id);
-            card.setAttribute('data-categoria', pareja.categoria);
-            
-            card.innerHTML = `
-                <div class="pareja-card-header">
-                    <div class="pareja-numero">#${index + 1}</div>
-                    <span class="badge bg-${categoriaClass}">${escapeHtml(pareja.categoria)}</span>
-                </div>
-                
-                <div class="pareja-card-body">
-                    ${alertHtml}
-                    
-                    <div class="pareja-nombre">
-                        <i class="bi bi-people-fill"></i>
-                        <strong>${escapeHtml(pareja.nombre)}</strong>
-                    </div>
-                    
-                    <div class="pareja-info-row">
-                        <div class="pareja-info-item">
-                            <i class="bi bi-telephone-fill"></i>
-                            <span>${escapeHtml(pareja.telefono)}</span>
-                        </div>
-                        <div class="pareja-info-item">
-                            <i class="bi bi-clock-fill"></i>
-                            <span>${pareja.franjas_disponibles.length} franjas</span>
-                        </div>
+        <!-- Coming soon: Inscripción -->
+        <section class="section" style="padding-top:0;">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="coming-soon-card">
+                        <span class="coming-tag">Próximamente</span>
+                        <h3 class="mt-3">Inscripción online</h3>
+                        <p>Registrate y anotate al próximo torneo directamente desde acá.</p>
+                        <i class="bi bi-person-plus-fill" style="font-size:2.5rem; color:var(--brand-green); opacity:0.4;"></i>
                     </div>
                 </div>
-                
-                <div class="pareja-card-footer">
-                    <button class="btn btn-danger btn-sm w-100" onclick="eliminarPareja(${pareja.id})">
-                        <i class="bi bi-trash me-1"></i>Eliminar
-                    </button>
+                <div class="col-md-6 mb-3">
+                    <div class="coming-soon-card">
+                        <span class="coming-tag">Próximamente</span>
+                        <h3 class="mt-3">Ranking de jugadores</h3>
+                        <p>Puntos acumulados por torneo y posición en cada categoría.</p>
+                        <i class="bi bi-bar-chart-fill" style="font-size:2.5rem; color:var(--brand-green); opacity:0.4;"></i>
+                    </div>
                 </div>
-            `;
-            
-            mobileContainer.appendChild(card);
-        });
-    }
-}
+            </div>
+        </section>
 
-function actualizarHeader(parejas) {
-    const header = document.getElementById('headerTablaParejas');
-    if (!header) return;
-    
-    let headerHTML = `<i class="bi bi-people-fill me-2"></i>Parejas Cargadas (${parejas.length})`;
-    
-    // Contar estados
-    const sinAsignar = parejas.filter(p => !p.esta_asignada).length;
-    const fueraHorario = parejas.filter(p => p.fuera_de_horario).length;
-    
-    if (sinAsignar > 0 || fueraHorario > 0) {
-        if (sinAsignar > 0) {
-            headerHTML += ` <span class="badge bg-danger ms-2">${sinAsignar} sin grupo</span>`;
-        }
-        if (fueraHorario > 0) {
-            headerHTML += ` <span class="badge bg-warning text-dark ms-2">${fueraHorario} fuera de horario</span>`;
-        }
-        
-        // Mostrar leyenda si hay estados
-        const leyendaRow = document.querySelector('.row.justify-content-center.mt-5');
-        if (leyendaRow && leyendaRow.querySelector('.alert.alert-light')) {
-            leyendaRow.style.display = '';
-        }
-    } else {
-        // Ocultar leyenda si no hay estados
-        const leyendaRow = document.querySelector('.row.justify-content-center.mt-5');
-        if (leyendaRow && leyendaRow.querySelector('.alert.alert-light')) {
-            leyendaRow.style.display = 'none';
-        }
-    }
-    
-    header.innerHTML = headerHTML;
-}
-
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(text || '').replace(/[&<>"']/g, m => map[m]);
-}
-
-// Actualizar cada 3 segundos si hay parejas cargadas
-if ({{ parejas|length }} > 0) {
-    setInterval(actualizarTablaParejas, 3000);
-}
-
-// También actualizar cuando la ventana recupera el foco
-window.addEventListener('focus', function() {
-    if ({{ parejas|length }} > 0) {
-        actualizarTablaParejas();
-    }
-});
-</script>
+    </div>
+</div>
 {% endblock %}

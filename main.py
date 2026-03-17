@@ -3,7 +3,7 @@ Aplicación Flask para gestión de torneos de pádel.
 Genera grupos optimizados según categorías y disponibilidad horaria.
 """
 
-from flask import Flask, render_template, request, redirect, url_for, flash, make_response, g
+from flask import Flask, render_template, request, redirect, url_for, flash, make_response, g, session
 import os
 import logging
 
@@ -17,9 +17,10 @@ from config import (
     ADMIN_PASSWORD,
     TIPOS_TORNEO
 )
-from config.settings import BASE_DIR, DEBUG
-from api import api_bp
+from config.settings import BASE_DIR, DEBUG, SUPABASE_SERVICE_ROLE_KEY
+from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
+from api.routes.auth_jugador import auth_jugador_bp
 from utils.torneo_storage import storage
 from utils.jwt_handler import JWTHandler
 
@@ -49,7 +50,11 @@ def crear_app():
     
     # Registrar blueprints
     app.register_blueprint(api_bp)
+    app.register_blueprint(grupos_bp)
+    app.register_blueprint(resultados_bp)
+    app.register_blueprint(calendario_bp)
     app.register_blueprint(finales_bp)
+    app.register_blueprint(auth_jugador_bp)
     
     # Helper para obtener datos del token o storage
     def obtener_datos_torneo():
@@ -71,6 +76,7 @@ def crear_app():
         return dict(
             es_admin=getattr(g, 'es_admin', False),
             es_autenticado=getattr(g, 'es_autenticado', False),
+            es_jugador=getattr(g, 'es_jugador', False),
             torneo_tiene_datos=tiene_datos
         )
 
@@ -81,6 +87,7 @@ def crear_app():
         # Siempre intentar determinar si el usuario es admin (para navbar condicional)
         g.es_autenticado = False
         g.es_admin = False
+        g.es_jugador = False
         token = jwt_handler.obtener_token_desde_request()
         if token:
             data = jwt_handler.verificar_token(token)
@@ -90,9 +97,13 @@ def crear_app():
                 role = data.get('role')
                 if role is None or role == 'admin':
                     g.es_admin = True
+        # Detectar jugadores autenticados via Supabase (sb_token)
+        if not g.es_autenticado and request.cookies.get('sb_token'):
+            g.es_autenticado = True
+            g.es_jugador = True
 
         # Rutas públicas: no requieren autenticación
-        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario']
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 
@@ -101,44 +112,17 @@ def crear_app():
             return redirect(url_for('login'))
     
     # Rutas de autenticación
-    @app.route('/login', methods=['GET', 'POST'])
+    @app.route('/login', methods=['GET'])
     def login():
-        """Página de login."""
-        if request.method == 'POST':
-            username = request.form.get('username')
-            password = request.form.get('password')
-            
-            # Verificar credenciales
-            if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-                # Crear token con autenticación exitosa
-                import time
-                data = {
-                    'authenticated': True,
-                    'username': username,
-                    'role': 'admin',
-                    'timestamp': int(time.time())
-                }
-                token = jwt_handler.generar_token(data)
-                
-                response = make_response(redirect(url_for('admin_panel')))
-                response.set_cookie('token', token,
-                                  httponly=True,
-                                  samesite='Lax',
-                                  max_age=60*60*2)  # 2 horas
-                
-                flash('¡Bienvenido!', 'success')
-                return response
-            else:
-                flash('Usuario o contraseña incorrectos', 'error')
-        
+        """Página de login — el POST lo maneja /api/auth/login."""
         return render_template('login.html')
     
     @app.route('/logout')
     def logout():
-        """Cerrar sesión."""
-        response = make_response(redirect(url_for('inicio')))
+        """Cerrar sesión — limpia cookies de admin y jugador."""
+        response = make_response(redirect(url_for('login')))
         response.set_cookie('token', '', expires=0)
-        flash('Sesión cerrada', 'info')
+        response.set_cookie('sb_token', '', expires=0)
         return response
     
     # Landing pública
@@ -217,21 +201,21 @@ def crear_app():
         
         return response
     
-    @app.route('/resultados')
-    def resultados():
-        """Página de resultados - Visualización de grupos generados."""
+    @app.route('/dashboard')
+    def dashboard():
+        """Dashboard - Visualización de grupos generados."""
         datos = obtener_datos_torneo()
         resultado = datos.get('resultado_algoritmo')
-        
+
         if not resultado:
             flash('Primero debes generar los grupos', 'warning')
             return redirect(url_for('admin_panel'))
-        
+
         torneo = storage.cargar()
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
-        
-        response = make_response(render_template('resultados.html', 
+
+        response = make_response(render_template('dashboard.html',
                              resultado=resultado,
                              categorias=categorias_torneo,
                              colores=COLORES_CATEGORIA,
@@ -319,6 +303,73 @@ def crear_app():
                              resultado=resultado,
                              torneo=torneo,
                              tipo_torneo=tipo_torneo))
+
+    @app.route('/registro')
+    def registro():
+        """Página de registro para jugadores."""
+        return make_response(render_template('registro.html'))
+
+    @app.route('/auth/callback')
+    def oauth_callback():
+        """
+        Callback del flujo OAuth (Google).
+
+        Supabase redirige aquí con un `code` después de que el usuario autenticó
+        con Google. Intercambiamos ese code + el PKCE verifier guardado en sesión
+        por un access_token y seteamos la cookie sb_token.
+        """
+        from config.settings import SUPABASE_URL, SUPABASE_ANON_KEY
+        from supabase import create_client
+
+        code     = request.args.get('code')
+        verifier = session.pop('pkce_verifier', None)
+
+        if not code or not verifier:
+            flash('Error en la autenticación con Google. Intenta de nuevo.', 'error')
+            return redirect(url_for('login'))
+
+        try:
+            sb = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+            auth_response = sb.auth.exchange_code_for_session({
+                'auth_code':     code,
+                'code_verifier': verifier,
+            })
+
+            if not auth_response.session:
+                raise ValueError("Sin sesión en la respuesta")
+
+            jwt_token = auth_response.session.access_token
+            expires   = auth_response.session.expires_in
+            user      = auth_response.user
+
+            # Si el jugador no tiene perfil en la tabla jugadores, lo creamos
+            # (puede pasar la primera vez que entra con Google)
+            if not SUPABASE_SERVICE_ROLE_KEY:
+                logger.error("SUPABASE_SERVICE_ROLE_KEY no está configurada o está vacía")
+                raise RuntimeError("Configuración inválida del servicio de autenticación")
+
+            sb_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+            perfil = sb_admin.table('jugadores').select('id').eq('id', user.id).execute()
+            if not perfil.data:
+                meta = user.user_metadata or {}
+                nombre   = meta.get('given_name') or meta.get('name', 'Jugador').split()[0]
+                apellido = meta.get('family_name') or (meta.get('name', '').split()[-1] if ' ' in meta.get('name', '') else '')
+                sb_admin.table('jugadores').insert({
+                    'id':       user.id,
+                    'nombre':   nombre,
+                    'apellido': apellido,
+                }).execute()
+                logger.info("Perfil creado para jugador OAuth: %s", user.id)
+
+            response = make_response(redirect(url_for('grupos_publico')))
+            response.set_cookie('sb_token', jwt_token, httponly=True, samesite='Lax', max_age=expires)
+            return response
+
+        except Exception as e:
+            logger.error("Error en OAuth callback: %s", e)
+            flash('Error al autenticar con Google. Intenta de nuevo.', 'error')
+            return redirect(url_for('login'))
 
     return app
 

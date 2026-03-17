@@ -693,14 +693,22 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="series-tab" data-bs-toggle="pill" 
-                            data-bs-target="#series-main" type="button" role="tab" 
+                    <button class="nav-link" id="series-tab" data-bs-toggle="pill"
+                            data-bs-target="#series-main" type="button" role="tab"
                             aria-controls="series-main" aria-selected="false"
                             style="padding: 0.7rem 4rem; font-size: 1.1rem;">
                         <i class="bi bi-grid-3x3-gap-fill me-2" style="font-size: 1.3rem;"></i>
                         <strong>SERIES</strong>
                         <small class="d-block" style="font-size: 0.85rem;">Grupos por Categoría</small>
                     </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link" href="{{ url_for('finales') }}"
+                       style="padding: 0.7rem 4rem; font-size: 1.1rem; text-decoration: none;">
+                        <i class="bi bi-trophy-fill me-2" style="font-size: 1.3rem;"></i>
+                        <strong>FINALES</strong>
+                        <small class="d-block" style="font-size: 0.85rem;">Llaves y Bracket</small>
+                    </a>
                 </li>
             </ul>
         </div>

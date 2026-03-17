@@ -28,6 +28,9 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'torneopadel2026')
 # En desarrollo local, si no están definidas, se usa almacenamiento JSON
 SUPABASE_URL = os.getenv('SUPABASE_URL', '')
 SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY', '')
+# SERVICE_ROLE_KEY: solo para operaciones server-side (bypasea RLS)
+# NUNCA exponer al cliente — mantener solo en variables de entorno del servidor
+SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '')
 
 UPLOAD_FOLDER = BASE_DIR / 'data' / 'uploads'
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)

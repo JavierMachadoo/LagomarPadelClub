@@ -17,7 +17,7 @@ from config import (
     ADMIN_PASSWORD,
     TIPOS_TORNEO
 )
-from config.settings import BASE_DIR, DEBUG
+from config.settings import BASE_DIR, DEBUG, SUPABASE_SERVICE_ROLE_KEY
 from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
@@ -344,8 +344,10 @@ def crear_app():
 
             # Si el jugador no tiene perfil en la tabla jugadores, lo creamos
             # (puede pasar la primera vez que entra con Google)
-            sb_admin = create_client(SUPABASE_URL, storage.SUPABASE_SERVICE_ROLE_KEY if hasattr(storage, 'SUPABASE_SERVICE_ROLE_KEY') else SUPABASE_ANON_KEY)
-            from config.settings import SUPABASE_SERVICE_ROLE_KEY
+            if not SUPABASE_SERVICE_ROLE_KEY:
+                logger.error("SUPABASE_SERVICE_ROLE_KEY no está configurada o está vacía")
+                raise RuntimeError("Configuración inválida del servicio de autenticación")
+
             sb_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
             perfil = sb_admin.table('jugadores').select('id').eq('id', user.id).execute()

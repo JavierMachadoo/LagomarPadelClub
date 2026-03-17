@@ -3,7 +3,7 @@ Aplicación Flask para gestión de torneos de pádel.
 Genera grupos optimizados según categorías y disponibilidad horaria.
 """
 
-from flask import Flask, render_template, request, redirect, url_for, flash, make_response, g
+from flask import Flask, render_template, request, redirect, url_for, flash, make_response, g, session
 import os
 import logging
 
@@ -103,7 +103,7 @@ def crear_app():
             g.es_jugador = True
 
         # Rutas públicas: no requieren autenticación
-        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro']
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 
@@ -308,6 +308,66 @@ def crear_app():
     def registro():
         """Página de registro para jugadores."""
         return make_response(render_template('registro.html'))
+
+    @app.route('/auth/callback')
+    def oauth_callback():
+        """
+        Callback del flujo OAuth (Google).
+
+        Supabase redirige aquí con un `code` después de que el usuario autenticó
+        con Google. Intercambiamos ese code + el PKCE verifier guardado en sesión
+        por un access_token y seteamos la cookie sb_token.
+        """
+        from config.settings import SUPABASE_URL, SUPABASE_ANON_KEY
+        from supabase import create_client
+
+        code     = request.args.get('code')
+        verifier = session.pop('pkce_verifier', None)
+
+        if not code or not verifier:
+            flash('Error en la autenticación con Google. Intenta de nuevo.', 'error')
+            return redirect(url_for('login'))
+
+        try:
+            sb = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+            auth_response = sb.auth.exchange_code_for_session({
+                'auth_code':     code,
+                'code_verifier': verifier,
+            })
+
+            if not auth_response.session:
+                raise ValueError("Sin sesión en la respuesta")
+
+            jwt_token = auth_response.session.access_token
+            expires   = auth_response.session.expires_in
+            user      = auth_response.user
+
+            # Si el jugador no tiene perfil en la tabla jugadores, lo creamos
+            # (puede pasar la primera vez que entra con Google)
+            sb_admin = create_client(SUPABASE_URL, storage.SUPABASE_SERVICE_ROLE_KEY if hasattr(storage, 'SUPABASE_SERVICE_ROLE_KEY') else SUPABASE_ANON_KEY)
+            from config.settings import SUPABASE_SERVICE_ROLE_KEY
+            sb_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+            perfil = sb_admin.table('jugadores').select('id').eq('id', user.id).execute()
+            if not perfil.data:
+                meta = user.user_metadata or {}
+                nombre   = meta.get('given_name') or meta.get('name', 'Jugador').split()[0]
+                apellido = meta.get('family_name') or (meta.get('name', '').split()[-1] if ' ' in meta.get('name', '') else '')
+                sb_admin.table('jugadores').insert({
+                    'id':       user.id,
+                    'nombre':   nombre,
+                    'apellido': apellido,
+                }).execute()
+                logger.info("Perfil creado para jugador OAuth: %s", user.id)
+
+            response = make_response(redirect(url_for('grupos_publico')))
+            response.set_cookie('sb_token', jwt_token, httponly=True, samesite='Lax', max_age=expires)
+            return response
+
+        except Exception as e:
+            logger.error("Error en OAuth callback: %s", e)
+            flash('Error al autenticar con Google. Intenta de nuevo.', 'error')
+            return redirect(url_for('login'))
 
     return app
 

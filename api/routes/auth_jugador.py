@@ -2,15 +2,21 @@
 Blueprint de autenticación para jugadores.
 
 Flujo separado del admin:
-- Admin  → POST /login (form) → cookie 'token'     (JWT custom)
-- Jugador → POST /api/auth/register → cookie 'sb_token' (Supabase JWT)
-           → POST /api/auth/login   → cookie 'sb_token' (Supabase JWT)
-           → POST /api/auth/logout  → borra 'sb_token'
+- Admin   → POST /api/auth/login        → cookie 'token'    (JWT custom)
+- Jugador → POST /api/auth/register     → cookie 'sb_token' (Supabase JWT)
+          → POST /api/auth/login        → cookie 'sb_token' (Supabase JWT)
+          → GET  /api/auth/google       → redirect OAuth Google (PKCE)
+          → POST /api/auth/logout       → borra ambas cookies
+
+El callback OAuth vive en main.py: GET /auth/callback
 """
 
+import hashlib
+import base64
 import logging
+import secrets
 import time
-from flask import Blueprint, request, jsonify, make_response, current_app
+from flask import Blueprint, request, jsonify, make_response, current_app, redirect, session, url_for
 
 from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
 
@@ -189,3 +195,47 @@ def logout():
     response = make_response(jsonify({"message": "Sesión cerrada"}), 200)
     response.delete_cookie("sb_token")
     return response
+
+
+# ── OAuth Google ──────────────────────────────────────────────────────────────
+
+def _pkce_verifier_y_challenge():
+    """
+    Genera un par (verifier, challenge) para el flujo PKCE.
+
+    PKCE (Proof Key for Code Exchange) evita que un tercero que intercepte
+    el `code` de la redirección pueda canjearlo por un token, porque necesita
+    el `verifier` original que solo guardamos nosotros en la sesión Flask.
+
+    - verifier  : string aleatorio que guardamos en session (cookie firmada)
+    - challenge : SHA-256 del verifier, codificado en base64url (se envía a Supabase)
+    """
+    verifier  = secrets.token_urlsafe(64)
+    digest    = hashlib.sha256(verifier.encode()).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b'=').decode()
+    return verifier, challenge
+
+
+@auth_jugador_bp.route("/google", methods=["GET"])
+def google_oauth():
+    """
+    Inicia el flujo OAuth con Google vía Supabase.
+
+    1. Genera un par PKCE y guarda el verifier en la sesión Flask
+    2. Redirige al endpoint de autorización de Supabase con el challenge
+    """
+    verifier, challenge = _pkce_verifier_y_challenge()
+    session['pkce_verifier'] = verifier
+
+    # La URL de callback debe coincidir con la configurada en Supabase Dashboard
+    # → Authentication → URL Configuration → Redirect URLs
+    callback_url = url_for('oauth_callback', _external=True)
+
+    oauth_url = (
+        f"{SUPABASE_URL}/auth/v1/authorize"
+        f"?provider=google"
+        f"&redirect_to={callback_url}"
+        f"&code_challenge={challenge}"
+        f"&code_challenge_method=s256"
+    )
+    return redirect(oauth_url)

@@ -18,7 +18,7 @@ from config import (
     TIPOS_TORNEO
 )
 from config.settings import BASE_DIR, DEBUG
-from api import api_bp
+from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
 from utils.torneo_storage import storage
 from utils.jwt_handler import JWTHandler
@@ -49,6 +49,9 @@ def crear_app():
     
     # Registrar blueprints
     app.register_blueprint(api_bp)
+    app.register_blueprint(grupos_bp)
+    app.register_blueprint(resultados_bp)
+    app.register_blueprint(calendario_bp)
     app.register_blueprint(finales_bp)
     
     # Helper para obtener datos del token o storage

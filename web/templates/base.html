@@ -96,6 +96,18 @@
                         </a>
                     </li>
 
+                    {% if es_jugador and fase_torneo == 'inscripcion' %}
+                    <!-- Inscribirse (jugador, solo durante inscripción) -->
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2 rounded
+                            {{ 'active-link' if request.endpoint == 'inscripcion.pagina_inscripcion' else '' }}"
+                           href="{{ url_for('inscripcion.pagina_inscripcion') }}"
+                           style="font-weight: 600; font-size: 1rem; color: #22c55e; transition: all 0.2s ease;">
+                            <i class="bi bi-pencil-square me-1"></i>Inscribirse
+                        </a>
+                    </li>
+                    {% endif %}
+
                     {% if es_admin %}
                     <!-- Panel Admin (solo admin) -->
                     <li class="nav-item">

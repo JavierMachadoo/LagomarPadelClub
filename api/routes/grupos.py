@@ -33,15 +33,57 @@ def verificar_auth():
 
 @grupos_bp.route('/ejecutar-algoritmo', methods=['POST'])
 def ejecutar_algoritmo():
-    """Ejecuta el algoritmo de generación de grupos para el torneo."""
-    datos_actuales = obtener_datos_desde_token()
-    parejas_data = datos_actuales.get('parejas', [])
+    """Ejecuta el algoritmo de generación de grupos para el torneo.
 
-    if not parejas_data:
-        return jsonify({'error': 'No hay parejas cargadas'}), 400
+    Fusiona dos fuentes de parejas:
+    1. Inscripciones confirmadas en Supabase (con inscripcion_id para lookup "Mi Grupo")
+    2. Parejas cargadas manualmente/CSV en el blob (sin inscripcion_id)
+
+    Si no hay ninguna fuente, devuelve error.
+    """
+    from utils.api_helpers import _verificar_supabase_jwt  # noqa: F401 (evita importación circular)
+
+    datos_actuales = obtener_datos_desde_token()
+    parejas_blob = datos_actuales.get('parejas', [])
+
+    # ── 1. Leer inscripciones confirmadas de Supabase ─────────────────────────
+    parejas_de_inscripciones = []
+    try:
+        from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+        from supabase import create_client
+
+        if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+            torneo_id = storage.get_torneo_id()
+            sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+            resp = sb.table('inscripciones').select('*').eq('torneo_id', torneo_id).eq('estado', 'confirmado').execute()
+
+            for insc in (resp.data or []):
+                pareja_id = int(insc['id'].replace('-', '')[:8], 16)
+                parejas_de_inscripciones.append({
+                    'id':                 pareja_id,
+                    'nombre':             f"{insc['integrante1']} / {insc['integrante2']}",
+                    'jugador1':           insc['integrante1'],
+                    'jugador2':           insc['integrante2'],
+                    'telefono':           insc.get('telefono') or '',
+                    'categoria':          insc['categoria'],
+                    'franjas_disponibles': insc.get('franjas_disponibles') or [],
+                    'inscripcion_id':     insc['id'],
+                })
+    except Exception as e:
+        logger.warning('No se pudieron cargar inscripciones de Supabase: %s', e)
+
+    # ── 2. Parejas manuales/CSV que NO tienen inscripcion_id ya en la lista ───
+    ids_inscripciones = {p['id'] for p in parejas_de_inscripciones}
+    parejas_manuales = [p for p in parejas_blob if p.get('id') not in ids_inscripciones]
+
+    # ── 3. Fusionar y validar ─────────────────────────────────────────────────
+    todas_parejas_data = parejas_de_inscripciones + parejas_manuales
+
+    if not todas_parejas_data:
+        return jsonify({'error': 'No hay parejas ni inscripciones para generar grupos'}), 400
 
     try:
-        parejas_obj = [Pareja.from_dict(p) for p in parejas_data]
+        parejas_obj = [Pareja.from_dict(p) for p in todas_parejas_data]
 
         algoritmo = AlgoritmoGrupos(parejas=parejas_obj, num_canchas=NUM_CANCHAS_DEFAULT)
         resultado_obj = algoritmo.ejecutar()
@@ -50,16 +92,23 @@ def ejecutar_algoritmo():
 
         datos_actuales['resultado_algoritmo'] = resultado
         datos_actuales['num_canchas'] = NUM_CANCHAS_DEFAULT
+        # Actualizar parejas en blob con las de inscripciones (para edición manual posterior)
+        datos_actuales['parejas'] = todas_parejas_data
         sincronizar_con_storage_y_token(datos_actuales)
         guardar_estado_torneo()
 
+        total = len(todas_parejas_data)
+        de_inscripciones = len(parejas_de_inscripciones)
+        manuales = len(parejas_manuales)
+        mensaje = f'✅ {total} parejas procesadas ({de_inscripciones} de inscripciones, {manuales} manuales)'
+
         return crear_respuesta_con_token_actualizado({
             'success': True,
-            'mensaje': f'✅ {len(parejas_data)} parejas cargadas y grupos generados exitosamente',
+            'mensaje': mensaje,
             'resultado': resultado
         }, datos_actuales)
     except Exception as e:
-        logger.error(f"Error al ejecutar algoritmo: {str(e)}", exc_info=True)
+        logger.error('Error al ejecutar algoritmo: %s', e, exc_info=True)
         return jsonify({
             'error': 'Error al ejecutar el algoritmo. Por favor, verifica los datos e intenta nuevamente.'
         }), 500

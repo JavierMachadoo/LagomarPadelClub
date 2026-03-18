@@ -21,6 +21,7 @@ from config.settings import BASE_DIR, DEBUG, SUPABASE_SERVICE_ROLE_KEY
 from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
+from api.routes.inscripcion import inscripcion_bp
 from utils.torneo_storage import storage
 from utils.jwt_handler import JWTHandler
 
@@ -55,6 +56,7 @@ def crear_app():
     app.register_blueprint(calendario_bp)
     app.register_blueprint(finales_bp)
     app.register_blueprint(auth_jugador_bp)
+    app.register_blueprint(inscripcion_bp)
     
     # Helper para obtener datos del token o storage
     def obtener_datos_torneo():
@@ -112,7 +114,7 @@ def crear_app():
                     g.es_jugador = True
 
         # Rutas públicas: no requieren autenticación
-        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/']
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 

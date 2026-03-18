@@ -150,15 +150,23 @@
             <!-- Tabs de Carga -->
             <ul class="nav nav-pills nav-fill mb-4 custom-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="csv-tab" data-bs-toggle="pill" 
+                    <button class="nav-link active" id="csv-tab" data-bs-toggle="pill"
                             data-bs-target="#csv" type="button">
                         <i class="bi bi-file-earmark-spreadsheet me-2"></i>Cargar CSV
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="manual-tab" data-bs-toggle="pill" 
+                    <button class="nav-link" id="manual-tab" data-bs-toggle="pill"
                             data-bs-target="#manual" type="button">
                         <i class="bi bi-pencil-square me-2"></i>Entrada Manual
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="inscripciones-tab" data-bs-toggle="pill"
+                            data-bs-target="#inscripciones" type="button"
+                            onclick="cargarInscripciones()">
+                        <i class="bi bi-person-check me-2"></i>Inscripciones
+                        <span id="badgeInscripciones" class="badge bg-success ms-1" style="display:none;"></span>
                     </button>
                 </li>
             </ul>
@@ -265,6 +273,26 @@
                                 <i class="bi bi-plus-circle me-2"></i>Agregar Pareja
                             </button>
                         </form>
+                    </div>
+                </div>
+
+                <!-- Tab Inscripciones -->
+                <div class="tab-pane fade" id="inscripciones" role="tabpanel">
+                    <div class="manual-card">
+                        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                            <h3 class="mb-0">Inscripciones recibidas</h3>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill"
+                                    onclick="cargarInscripciones()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+                            </button>
+                        </div>
+
+                        <div id="inscripcionesContainer">
+                            <div class="text-center text-muted py-4">
+                                <div class="spinner-border spinner-border-sm me-2"></div>
+                                Cargando inscripciones…
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1394,6 +1422,85 @@ window.addEventListener('focus', function() {
         actualizarTablaParejas();
     }
 });
+
+// ── Inscripciones (panel admin) ─────────────────────────────────────────────
+
+const ESTADOS_BADGE = {
+    confirmado: 'bg-success',
+    pendiente:  'bg-warning text-dark',
+    rechazado:  'bg-danger',
+};
+
+async function cargarInscripciones() {
+    const container = document.getElementById('inscripcionesContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Cargando…</div>';
+
+    try {
+        const resp = await fetch('/api/admin/inscripciones', {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) { container.innerHTML = `<p class="text-danger">${data.error}</p>`; return; }
+
+        const lista = data.inscripciones || [];
+        const badge = document.getElementById('badgeInscripciones');
+        if (badge && lista.length > 0) { badge.textContent = lista.length; badge.style.display = ''; }
+
+        if (lista.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-4">No hay inscripciones aún.</p>';
+            return;
+        }
+
+        const rows = lista.map(i => `
+            <tr>
+                <td><strong>${i.integrante1}</strong><br><small class="text-muted">${i.integrante2}</small></td>
+                <td>${i.categoria}</td>
+                <td><small>${(i.franjas_disponibles || []).join(', ')}</small></td>
+                <td>${i.telefono || '—'}</td>
+                <td>
+                    <span class="badge ${ESTADOS_BADGE[i.estado] || 'bg-secondary'}">${i.estado}</span>
+                </td>
+                <td>
+                    ${i.estado !== 'confirmado' ? `<button class="btn btn-xs btn-outline-success me-1" onclick="cambiarEstadoInscripcion('${i.id}','confirmado')"><i class="bi bi-check"></i></button>` : ''}
+                    ${i.estado !== 'rechazado'  ? `<button class="btn btn-xs btn-outline-danger"  onclick="cambiarEstadoInscripcion('${i.id}','rechazado')"><i class="bi bi-x"></i></button>` : ''}
+                </td>
+            </tr>`).join('');
+
+        container.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Pareja</th><th>Categoría</th><th>Franjas</th>
+                            <th>Teléfono</th><th>Estado</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>`;
+    } catch (e) {
+        container.innerHTML = '<p class="text-danger">Error de conexión.</p>';
+    }
+}
+
+async function cambiarEstadoInscripcion(id, estado) {
+    try {
+        const resp = await fetch(`/api/admin/inscripciones/${id}/estado`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estado }),
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success(`Inscripción ${estado}`);
+            cargarInscripciones();
+        } else {
+            Toast.error(data.error || 'Error al actualizar');
+        }
+    } catch { Toast.error('Error de conexión'); }
+}
 
 // ── Cambio de fase del torneo ───────────────────────────────────────────────
 let _fasePendiente = null;

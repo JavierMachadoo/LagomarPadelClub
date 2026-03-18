@@ -122,6 +122,7 @@ class Pareja:
     posicion_grupo: Optional[PosicionGrupo] = None  # Nueva: posición final en el grupo
     jugador1: str = ""
     jugador2: str = ""
+    inscripcion_id: Optional[str] = None  # UUID de inscripciones (solo para parejas de DB)
     
     def __hash__(self):
         return hash(self.id)
@@ -141,7 +142,8 @@ class Pareja:
             'jugador2': self.jugador2,
             'telefono': self.telefono,
             'grupo_asignado': self.grupo_asignado,
-            'posicion_grupo': self.posicion_grupo.value if self.posicion_grupo else None
+            'posicion_grupo': self.posicion_grupo.value if self.posicion_grupo else None,
+            'inscripcion_id': self.inscripcion_id,
         }
     
     @classmethod
@@ -161,7 +163,8 @@ class Pareja:
             grupo_asignado=data.get('grupo_asignado'),
             posicion_grupo=PosicionGrupo(posicion) if posicion else None,
             jugador1=data.get('jugador1', ''),
-            jugador2=data.get('jugador2', '')
+            jugador2=data.get('jugador2', ''),
+            inscripcion_id=data.get('inscripcion_id'),
         )
 
 

@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from pathlib import Path
@@ -114,6 +115,7 @@ class TorneoStorage:
             'estado': 'creando',
             'fase': 'inscripcion',
             'tipo_torneo': 'fin1',
+            'torneo_id': str(uuid.uuid4()),
         }
 
     def _crear_torneo_default(self) -> None:
@@ -196,7 +198,36 @@ class TorneoStorage:
         torneo['estado'] = 'creando'
         torneo['fase'] = 'inscripcion'
         torneo['tipo_torneo'] = tipo_actual
+        torneo['torneo_id'] = str(uuid.uuid4())  # Nuevo UUID para el siguiente torneo
         self.guardar(torneo)
+
+    def get_torneo_id(self) -> str:
+        """Devuelve el UUID del torneo activo.
+
+        Si el blob no tiene `torneo_id` (torneos anteriores a Fase 1),
+        genera uno, lo persiste y crea la fila correspondiente en la tabla `torneos`.
+        """
+        torneo = self.cargar()
+        torneo_id = torneo.get('torneo_id')
+
+        if not torneo_id:
+            torneo_id = str(uuid.uuid4())
+            torneo['torneo_id'] = torneo_id
+            self.guardar(torneo)
+
+        # Asegurar que existe la fila en la tabla torneos (idempotente)
+        if _USE_SUPABASE:
+            try:
+                self._sb.table('torneos').upsert({
+                    'id':      torneo_id,
+                    'nombre':  torneo.get('nombre', 'Torneo'),
+                    'tipo':    torneo.get('tipo_torneo', 'fin1'),
+                    'estado':  torneo.get('fase', 'inscripcion'),
+                }, on_conflict='id').execute()
+            except Exception as e:
+                logger.warning('No se pudo sincronizar torneo_id con tabla torneos: %s', e)
+
+        return torneo_id
 
     def get_fase(self) -> str:
         """Devuelve la fase actual del torneo ('inscripcion' | 'torneo' | 'finalizado')."""

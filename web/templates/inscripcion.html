@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Inscripción — {{ torneo.nombre or 'Torneo de Pádel' }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .insc-page { background: #f4f4f4; min-height: 100vh; padding: 2rem 0 4rem; }
+    .insc-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 2.5rem;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+    .insc-title { font-size: 1.6rem; font-weight: 800; color: #111; }
+    .insc-subtitle { color: #64748b; font-size: 0.95rem; }
+    .franja-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .franja-check:has(input:checked) {
+        border-color: #22c55e;
+        background: #f0fdf4;
+    }
+    .franja-check label { cursor: pointer; margin: 0; font-size: 0.9rem; }
+    .btn-inscribirse {
+        background: #22c55e;
+        color: #fff;
+        border: none;
+        border-radius: 30px;
+        padding: 0.75rem 2.5rem;
+        font-weight: 700;
+        font-size: 1rem;
+        width: 100%;
+        transition: background 0.2s;
+    }
+    .btn-inscribirse:hover { background: #16a34a; }
+    .btn-inscribirse:disabled { background: #94a3b8; cursor: not-allowed; }
+    .inscripcion-existente {
+        background: #f0fdf4;
+        border: 2px solid #22c55e;
+        border-radius: 16px;
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="insc-page">
+<div class="container" style="max-width: 680px;">
+
+    {% if fase != 'inscripcion' %}
+    <!-- Inscripciones cerradas -->
+    <div class="insc-card text-center py-5">
+        <i class="bi bi-lock-fill" style="font-size:3rem; color:#94a3b8;"></i>
+        <h2 class="mt-3 fw-bold">Inscripciones cerradas</h2>
+        <p class="text-muted">El período de inscripción ha finalizado.</p>
+        <a href="{{ url_for('grupos_publico') }}" class="btn btn-success rounded-pill px-4 mt-2">
+            <i class="bi bi-grid-3x3-gap-fill me-2"></i>Ver Grupos
+        </a>
+    </div>
+
+    {% elif inscripcion_existente %}
+    <!-- Ya tiene inscripción -->
+    <div class="insc-card">
+        <div class="inscripcion-existente mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-check-circle-fill text-success fs-4"></i>
+                <h5 class="mb-0 fw-bold">¡Ya estás inscripto!</h5>
+            </div>
+            <div class="row g-2">
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">Integrante 1</small>
+                    <strong>{{ inscripcion_existente.integrante1 }}</strong>
+                </div>
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">Integrante 2</small>
+                    <strong>{{ inscripcion_existente.integrante2 }}</strong>
+                </div>
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">Categoría</small>
+                    <strong>{{ inscripcion_existente.categoria }}</strong>
+                </div>
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">Franjas horarias</small>
+                    <strong>{{ inscripcion_existente.franjas_disponibles | join(', ') }}</strong>
+                </div>
+                {% if inscripcion_existente.telefono %}
+                <div class="col-sm-6">
+                    <small class="text-muted d-block">Teléfono</small>
+                    <strong>{{ inscripcion_existente.telefono }}</strong>
+                </div>
+                {% endif %}
+            </div>
+            <div class="mt-3">
+                <span class="badge rounded-pill px-3 py-2
+                    {% if inscripcion_existente.estado == 'confirmado' %}bg-success
+                    {% elif inscripcion_existente.estado == 'rechazado' %}bg-danger
+                    {% else %}bg-warning text-dark{% endif %}">
+                    {{ inscripcion_existente.estado | capitalize }}
+                </span>
+            </div>
+        </div>
+        <button class="btn btn-outline-danger rounded-pill px-4"
+                onclick="cancelarInscripcion()">
+            <i class="bi bi-x-circle me-2"></i>Cancelar inscripción
+        </button>
+    </div>
+
+    {% else %}
+    <!-- Formulario de inscripción -->
+    <div class="insc-card">
+        <h1 class="insc-title mb-1">Inscribirse al torneo</h1>
+        <p class="insc-subtitle mb-4">{{ torneo.nombre or 'Torneo de Pádel' }}</p>
+
+        <form id="formInscripcion" novalidate>
+
+            <!-- Integrantes -->
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Integrante 1 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="integrante1"
+                           value="{{ perfil.nombre ~ ' ' ~ perfil.apellido if perfil else '' }}"
+                           placeholder="Nombre y apellido" required>
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Integrante 2 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="integrante2"
+                           placeholder="Nombre y apellido" required>
+                </div>
+            </div>
+
+            <!-- Teléfono y Categoría -->
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Teléfono de contacto</label>
+                    <input type="tel" class="form-control" name="telefono"
+                           value="{{ perfil.telefono if perfil and perfil.telefono else '' }}"
+                           placeholder="Ej: 099 123 456">
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Categoría <span class="text-danger">*</span></label>
+                    <select class="form-select" name="categoria" required>
+                        <option value="" disabled selected>Seleccioná…</option>
+                        {% for cat in categorias %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Franjas horarias -->
+            <div class="mb-4">
+                <label class="form-label fw-semibold mb-1">
+                    Preferencia horaria <span class="text-danger">*</span>
+                    <small class="text-muted fw-normal">(seleccioná al menos 2)</small>
+                </label>
+                <div class="row g-2 mt-1">
+                    {% for franja in franjas %}
+                    <div class="col-md-6">
+                        <div class="franja-check">
+                            <input class="form-check-input" type="checkbox"
+                                   name="franjas[]" value="{{ franja }}"
+                                   id="franja{{ loop.index }}">
+                            <label for="franja{{ loop.index }}">{{ franja }}</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div id="franjasError" class="text-danger mt-1" style="display:none; font-size:0.85rem;">
+                    Seleccioná al menos 2 franjas horarias.
+                </div>
+            </div>
+
+            <button type="submit" class="btn-inscribirse" id="btnInscribirse">
+                <i class="bi bi-send-fill me-2"></i>Confirmar inscripción
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('formInscripcion')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const franjas = [...document.querySelectorAll('input[name="franjas[]"]:checked')].map(i => i.value);
+    if (franjas.length < 2) {
+        document.getElementById('franjasError').style.display = 'block';
+        return;
+    }
+    document.getElementById('franjasError').style.display = 'none';
+
+    const btn = document.getElementById('btnInscribirse');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
+
+    const payload = {
+        integrante1: document.querySelector('[name="integrante1"]').value.trim(),
+        integrante2: document.querySelector('[name="integrante2"]').value.trim(),
+        telefono:    document.querySelector('[name="telefono"]').value.trim(),
+        categoria:   document.querySelector('[name="categoria"]').value,
+        franjas,
+    };
+
+    try {
+        const resp = await fetch('/api/inscripcion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+
+        if (resp.ok && data.ok) {
+            Toast.success('¡Inscripción confirmada!');
+            setTimeout(() => location.reload(), 900);
+        } else {
+            Toast.error(data.error || 'Error al inscribirse');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Confirmar inscripción';
+        }
+    } catch {
+        Toast.error('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Confirmar inscripción';
+    }
+});
+
+async function cancelarInscripcion() {
+    if (!confirm('¿Cancelar tu inscripción? Esta acción no se puede deshacer.')) return;
+    try {
+        const resp = await fetch('/api/inscripcion', { method: 'DELETE' });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('Inscripción cancelada');
+            setTimeout(() => location.reload(), 900);
+        } else {
+            Toast.error(data.error || 'No se pudo cancelar');
+        }
+    } catch {
+        Toast.error('Error de conexión');
+    }
+}
+</script>
+{% endblock %}

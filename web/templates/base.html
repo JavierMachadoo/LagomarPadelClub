@@ -66,13 +66,23 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto gap-1 align-items-center">
 
-                    <!-- Torneo: siempre visible -->
+                    <!-- Grupos: siempre visible -->
                     <li class="nav-item">
                         <a class="nav-link text-white px-3 py-2 rounded
-                            {{ 'active-link' if request.endpoint in ('grupos_publico', 'cuadro_publico') else '' }}"
+                            {{ 'active-link' if request.endpoint == 'grupos_publico' else '' }}"
                            href="{{ url_for('grupos_publico') }}"
                            style="font-weight: 600; font-size: 1rem; transition: all 0.2s ease;">
-                            <i class="bi bi-grid-3x3-gap-fill me-1"></i>Torneo
+                            <i class="bi bi-grid-3x3-gap-fill me-1"></i>Grupos
+                        </a>
+                    </li>
+
+                    <!-- Finales: siempre visible -->
+                    <li class="nav-item">
+                        <a class="nav-link text-white px-3 py-2 rounded
+                            {{ 'active-link' if request.endpoint == 'cuadro_publico' else '' }}"
+                           href="{{ url_for('cuadro_publico') }}"
+                           style="font-weight: 600; font-size: 1rem; transition: all 0.2s ease;">
+                            <i class="bi bi-trophy me-1"></i>Finales
                         </a>
                     </li>
 

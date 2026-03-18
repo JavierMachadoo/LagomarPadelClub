@@ -441,3 +441,39 @@ def obtener_datos_categoria(categoria):
         'parejas_no_asignadas': parejas_no_asignadas,
         'partidos': partidos_categoria
     })
+
+
+# ==================== FASE DEL TORNEO ====================
+
+@grupos_bp.route('/cambiar-fase', methods=['POST'])
+def cambiar_fase():
+    """Cambia la fase del torneo (inscripcion → torneo → finalizado).
+
+    La transición es UNIDIRECCIONAL. Solo el admin puede ejecutarla.
+    Esto controla la visibilidad pública de grupos, finales y calendario.
+    """
+    data = request.get_json(silent=True) or {}
+    nueva_fase = data.get('fase')
+
+    fases_validas = ('inscripcion', 'torneo', 'finalizado')
+    if nueva_fase not in fases_validas:
+        return jsonify({'error': 'Fase inválida'}), 400
+
+    torneo = storage.cargar()
+    fase_actual = torneo.get('fase', 'inscripcion')
+
+    # Solo se permiten avances (inscripcion→torneo, torneo→finalizado)
+    transiciones_validas = {
+        'inscripcion': ['torneo'],
+        'torneo':      ['finalizado'],
+        'finalizado':  [],
+    }
+    if nueva_fase not in transiciones_validas.get(fase_actual, []):
+        return jsonify({
+            'error': f'Transición no permitida: {fase_actual} → {nueva_fase}'
+        }), 400
+
+    torneo['fase'] = nueva_fase
+    storage.guardar(torneo)
+    logger.info('Fase del torneo cambiada: %s → %s', fase_actual, nueva_fase)
+    return jsonify({'ok': True, 'fase': nueva_fase})

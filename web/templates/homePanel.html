@@ -4,6 +4,82 @@
 
 {% block content %}
 <div class="container inicio-page">
+
+    <!-- ── Estado del Torneo ─────────────────────────────────────────────────── -->
+    <div class="row justify-content-center mt-4 mb-2">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm"
+                 style="border-radius: 16px; overflow: hidden;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div>
+                            <p class="text-muted mb-1" style="font-size:0.82rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase;">
+                                Estado del torneo
+                            </p>
+                            {% if fase_torneo == 'inscripcion' %}
+                            <span class="badge fs-6 px-3 py-2" style="background:#fef9c3; color:#92400e; border-radius:30px;">
+                                <i class="bi bi-pencil-square me-1"></i>Período de Inscripción
+                            </span>
+                            {% elif fase_torneo == 'torneo' %}
+                            <span class="badge fs-6 px-3 py-2" style="background:#dcfce7; color:#166534; border-radius:30px;">
+                                <i class="bi bi-play-circle-fill me-1"></i>Torneo Activo
+                            </span>
+                            {% else %}
+                            <span class="badge fs-6 px-3 py-2" style="background:#f1f5f9; color:#475569; border-radius:30px;">
+                                <i class="bi bi-check-circle-fill me-1"></i>Torneo Finalizado
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            {% if fase_torneo == 'inscripcion' %}
+                            <button class="btn btn-success px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    onclick="confirmarCambioFase('torneo', '¿Activar el torneo?', 'Los grupos y el calendario serán visibles públicamente. Esta acción no se puede deshacer.')">
+                                <i class="bi bi-play-circle me-2"></i>Activar Torneo
+                            </button>
+                            {% elif fase_torneo == 'torneo' %}
+                            <button class="btn btn-outline-secondary px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    onclick="confirmarCambioFase('finalizado', '¿Finalizar el torneo?', 'El torneo quedará cerrado. Los grupos y resultados seguirán visibles pero no se podrán modificar.')">
+                                <i class="bi bi-flag-fill me-2"></i>Finalizar Torneo
+                            </button>
+                            {% else %}
+                            <span class="text-muted" style="font-size:0.9rem;">
+                                <i class="bi bi-lock-fill me-1"></i>Torneo cerrado
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ── Fin Estado del Torneo ─────────────────────────────────────────────── -->
+
+    <!-- Modal de confirmación de cambio de fase -->
+    <div class="modal fade" id="modalCambioFase" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px; border:0;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="modalFaseTitulo"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <p class="text-muted" id="modalFaseDescripcion"></p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
+                            data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success rounded-pill px-4 fw-bold"
+                            id="btnConfirmarFase" onclick="ejecutarCambioFase()">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Header Principal - Simple y Elegante -->
     <div class="row justify-content-center">
         <div class="col-lg-8 text-center mb-5 mt-4">
@@ -1318,5 +1394,43 @@ window.addEventListener('focus', function() {
         actualizarTablaParejas();
     }
 });
+
+// ── Cambio de fase del torneo ───────────────────────────────────────────────
+let _fasePendiente = null;
+
+function confirmarCambioFase(fase, titulo, descripcion) {
+    _fasePendiente = fase;
+    document.getElementById('modalFaseTitulo').textContent = titulo;
+    document.getElementById('modalFaseDescripcion').textContent = descripcion;
+    new bootstrap.Modal(document.getElementById('modalCambioFase')).show();
+}
+
+async function ejecutarCambioFase() {
+    if (!_fasePendiente) return;
+    const btn = document.getElementById('btnConfirmarFase');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cambiando...';
+
+    try {
+        const resp = await fetch('/api/cambiar-fase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fase: _fasePendiente })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('Fase del torneo actualizada');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Toast.error(data.error || 'Error al cambiar la fase');
+            btn.disabled = false;
+            btn.innerHTML = 'Confirmar';
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar';
+    }
+}
 </script>
 {% endblock %}

@@ -1,14 +1,7 @@
 # Plan: Evolución Arquitectónica — Algoritmo-Torneos
 
 ## Contexto
-El sistema actual es una herramienta de administración de torneos de pádel exclusiva para un admin. El usuario quiere convertirla en una plataforma web donde jugadores puedan inscribirse, ver resultados públicos y acumular puntos, mientras el admin conserva el panel de gestión actual.
-
----
-
-## Recomendación: **Camino 2** (Solo torneos, sin landing del club)
-
-**Por qué no el Camino 1:**
-La página de información del club (home, fotos, copy) no tiene complejidad técnica pero consume tiempo de diseño/contenido. Se puede agregar en 2 horas después de tener lo importante. Construir lo difícil primero, lo fácil al final.
+El sistema actual es una herramienta de administración de torneos de pádel exclusiva para un admin. El objetivo es convertirla en una plataforma web donde jugadores puedan inscribirse, ver sus grupos/calendario/ranking, mientras el admin conserva el panel de gestión actual.
 
 ---
 
@@ -26,15 +19,42 @@ La página de información del club (home, fotos, copy) no tiene complejidad té
 
 ---
 
+## Modelo de Estados del Torneo
+
+El admin controla el estado desde homePanel. La transición es **unidireccional** (con modal de confirmación):
+
+```
+inscripcion → torneo → finalizado
+```
+
+| Estado | Jugador puede | Admin puede | Público ve |
+|---|---|---|---|
+| `inscripcion` | Inscribirse | Organizar grupos en privado, generar/re-generar | "Organizando torneo" |
+| `torneo` | Ver grupos, calendario, finales, ranking | Ingresar resultados **solo** (grupos bloqueados) | Todo visible |
+| `finalizado` | Ver histórico | Archivar y limpiar | Histórico |
+
+---
+
+## Navegación por Rol
+
+```
+Público (sin login):     Grupos | Finales | Calendario
+Jugador logueado:        Grupos | Finales | Calendario | Ranking | Inscribirse / Mi Inscripción
+Admin:                   Todo lo anterior + Panel Admin
+```
+
+---
+
 ## Nuevas Tablas Supabase
 
 ```sql
--- Perfiles de jugadores (vinculado a Supabase Auth)
-CREATE TABLE jugadores (
-    id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+-- Historial de torneos (reemplaza torneo_actual como fuente de IDs)
+CREATE TABLE torneos (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre      TEXT NOT NULL,
-    apellido    TEXT NOT NULL,
-    telefono    TEXT,
+    tipo        TEXT NOT NULL CHECK (tipo IN ('fin1', 'fin2')),
+    estado      TEXT DEFAULT 'inscripcion' CHECK (estado IN ('inscripcion','torneo','finalizado')),
+    datos_blob  JSONB,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -42,27 +62,18 @@ CREATE TABLE jugadores (
 CREATE TABLE inscripciones (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     torneo_id           UUID REFERENCES torneos(id) ON DELETE CASCADE,
-    jugador_id          UUID REFERENCES jugadores(id) ON DELETE CASCADE,
+    jugador_id          UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    integrante1         TEXT NOT NULL,
+    integrante2         TEXT NOT NULL,
+    telefono            TEXT,
     categoria           TEXT NOT NULL,
     franjas_disponibles TEXT[] NOT NULL DEFAULT '{}',
-    compañero_nombre    TEXT,
-    compañero_id        UUID REFERENCES jugadores(id),
-    estado              TEXT DEFAULT 'pendiente' CHECK (estado IN ('pendiente','confirmado','rechazado')),
+    estado              TEXT DEFAULT 'confirmado' CHECK (estado IN ('pendiente','confirmado','rechazado')),
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(torneo_id, jugador_id)
 );
 
--- Historial de torneos (para archivar cuando se cierra un torneo)
-CREATE TABLE torneos (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre      TEXT NOT NULL,
-    tipo        TEXT NOT NULL CHECK (tipo IN ('fin1', 'fin2')),
-    estado      TEXT DEFAULT 'creando' CHECK (estado IN ('creando','en_curso','finalizado')),
-    datos_blob  JSONB,
-    created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Puntos por torneo y categoría
+-- Puntos anuales por torneo y categoría
 CREATE TABLE puntos_historicos (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jugador_id  UUID REFERENCES jugadores(id) ON DELETE CASCADE,
@@ -70,64 +81,79 @@ CREATE TABLE puntos_historicos (
     categoria   TEXT NOT NULL,
     posicion    INTEGER,
     puntos      INTEGER NOT NULL DEFAULT 0,
+    anio        INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM NOW()),
     created_at  TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(jugador_id, torneo_id)
+    UNIQUE(jugador_id, torneo_id, categoria)
 );
 ```
 
 ---
 
+## Formulario de Inscripción
+
+Campos (un solo jugador registra a la pareja):
+- Nombre y apellido — Integrante 1 (pre-rellenado con el jugador logueado)
+- Nombre y apellido — Integrante 2
+- Celular de contacto
+- Categoría (dinámica según `tipo_torneo`: fin1→Cuarta/Sexta, fin2→Tercera/Quinta/Séptima)
+- Preferencia horaria — seleccionar al menos 2 (Viernes 18:00, Viernes 21:00, Sábado 09:00, Sábado 12:00, Sábado 16:00, Sábado 19:00)
+
+---
+
 ## Roadmap por Fases
 
-### Fase 1: Vistas Públicas (2-3 días) ← EMPEZAR AQUÍ
-**Objetivo:** Cualquiera puede ver el torneo actual sin login.
+### Fase 0: State Machine + Fundación (2-3 días) ← SIGUIENTE
+**Objetivo:** Estado del torneo controlado por admin; visibilidad condicional por estado
 
-- Modificar `main.py`: agregar rutas públicas `/grupos`, `/finales`, `/ranking`
-- Crear `grupos_publico.html` (copia de `resultados.html` sin teléfono ni franjas)
-- Crear `finales_publico.html` (copia de `finales.html` sin datos privados)
-- Modificar middleware `verificar_autenticacion` en `main.py:67-86` para permitir rutas públicas
-- Actualizar `base.html`: navbar condicional según `g.usuario`
-- **Riesgo: cero.** Solo se agregan rutas. El panel admin no cambia.
+- Crear tabla `torneos` en Supabase
+- Migrar `torneo_actual` → fila en `torneos` (el blob existente pasa a `datos_blob`)
+- Extender `TorneoStorage`: leer/escribir `estado` ('inscripcion'|'torneo'|'finalizado')
+- homePanel: botones de transición de estado con modal de confirmación
+- Middleware `main.py`: inyectar `estado_torneo` en context processor
+- Rutas `/grupos`, `/finales`, `/calendario` muestran "Organizando torneo" si estado != 'torneo'
+- Nav: renombrar "Torneo" → "Grupos"; agregar "Finales" al nav público
 
-### Fase 2: Registro y Login de Jugadores (4-5 días)
-**Objetivo:** Jugadores crean cuenta y se logean.
-
-- Agregar `SUPABASE_SERVICE_ROLE_KEY` a env vars
-- Crear tabla `jugadores` en Supabase
-- Nuevo blueprint: `api/routes/auth.py`
-  - `POST /api/auth/register` → `supabase.auth.sign_up()`
-  - `POST /api/auth/login` → `supabase.auth.sign_in_with_password()`
-  - `POST /api/auth/logout`
-- Nuevas templates: `registro.html`, extender `login.html` con opción jugador/admin
-- Extender `utils/api_helpers.py:verificar_autenticacion_api()` para aceptar Supabase JWTs
-- Admin sigue usando su flujo actual (JWT custom) sin cambios
-
-### Fase 3: Inscripciones (3-4 días)
-**Objetivo:** Jugador logueado se inscribe al próximo torneo.
+### Fase 1: Inscripciones (3-4 días)
+**Objetivo:** Jugador logueado se inscribe; admin genera grupos desde inscripciones
 
 - Crear tabla `inscripciones` en Supabase
 - Nuevo blueprint: `api/routes/inscripcion.py`
-  - `GET /inscripcion` → formulario (categoría + franjas)
-  - `POST /api/inscripcion` → graba en `inscripciones`
+  - `GET /inscripcion` → formulario (solo disponible si estado='inscripcion')
+  - `POST /api/inscripcion` → INSERT en inscripciones
   - `GET /api/inscripcion/mis-datos` → datos guardados del jugador
+  - `DELETE /api/inscripcion` → cancelar inscripción (solo si estado='inscripcion')
 - Templates: `inscripcion.html`, `mi_inscripcion.html`
-- Panel admin: nueva vista para revisar/confirmar inscripciones y exportar CSV
-- El flujo del algoritmo (CSV → grupos) se mantiene igual; admin controla cuándo correrlo
+- Panel admin: lista de inscripciones con estado (pendiente/confirmado/rechazado)
+- Adaptar `/api/ejecutar-algoritmo`: leer de `inscripciones` confirmadas → algoritmo existente sin cambios
+- Guardar `inscripcion_id` en el dict de cada Pareja generada (para lookup "Mi Grupo")
+- Admin puede re-generar libremente mientras estado='inscripcion'
+- En estado='torneo': botón "Generar Grupos" desaparece; grupos bloqueados
 
-### Fase 4: Puntos y Ranking (3-4 días)
-**Objetivo:** Ranking público de jugadores por categoría.
+### Fase 2: Vista del Jugador (2-3 días)
+**Objetivo:** Jugador ve su grupo y calendario personal cuando el torneo está activo
 
-- Crear tablas `torneos` y `puntos_historicos`
+- `GET /mi-grupo` → lookup por `inscripcion_id` en el resultado del algoritmo
+- `GET /mi-calendario` → filtrar calendario por la franja del grupo del jugador
+- Templates: `mi_grupo.html`, `mi_calendario.html`
+- Durante estado != 'torneo': mostrar "El torneo está en organización, pronto verás tu grupo"
+
+### Fase 3: Ranking Anual por Categoría (3-4 días)
+**Objetivo:** Ranking anual acumulado — cada categoría tiene su propio leaderboard
+
+- El ranking es **ANUAL**: los puntos se acumulan torneo a torneo a lo largo del año
+- Cada categoría tiene su tabla de posiciones independiente
+- Crear tabla `puntos_historicos`
 - Nuevo blueprint: `api/routes/ranking.py`
-  - `GET /ranking` → leaderboard público por categoría
-  - `POST /api/admin/puntos/asignar` → admin asigna puntos al cerrar torneo
-- Templates: `ranking.html`, `mis_puntos.html`
+  - `GET /ranking` → leaderboard público con tabs por categoría; filtro por año
+  - `GET /ranking/<categoria>` → tabla de una categoría específica
+  - `POST /api/admin/puntos/asignar` → admin asigna puntos al finalizar torneo
+- Templates: `ranking.html` (tabs por categoría), `mis_puntos.html` (historial del jugador)
 - Fórmula inicial: 1°=10pts, 2°=7pts, 3°=5pts, participación=2pts
 
-### Fase 5: Historial de Torneos (2-3 días)
-**Objetivo:** Archivar torneos anteriores antes de limpiar.
+### Fase 4: Historial de Torneos (2-3 días)
+**Objetivo:** Archivar torneos anteriores antes de limpiar
 
-- Agregar `TorneoStorage.archivar()` en `utils/torneo_storage.py`
+- `TorneoStorage.archivar()` → migra datos a `torneos` histórico
 - `limpiar()` llama `archivar()` antes de borrar
 - Rutas públicas: `/torneos` (lista) y `/torneos/<id>` (resultados archivados)
 
@@ -135,36 +161,27 @@ CREATE TABLE puntos_historicos (
 
 ## Archivos Críticos
 
-| Archivo | Cambio |
-|---|---|
-| `main.py:67-86` | Middleware auth: soporte anónimo/jugador/admin |
-| `utils/api_helpers.py` | `verificar_autenticacion_api()`: aceptar Supabase JWTs |
-| `utils/torneo_storage.py` | Agregar `archivar()` en Fase 5 |
-| `web/templates/base.html` | Navbar role-aware con `g.usuario` |
-| `config/settings.py` | Agregar `SUPABASE_SERVICE_ROLE_KEY` |
+| Archivo | Cambio | Fase |
+|---|---|---|
+| `utils/torneo_storage.py` | Soporte tabla `torneos`, leer/escribir `estado` | 0 |
+| `main.py:84-119` | Middleware: visibilidad condicional por estado, inyectar `estado_torneo` | 0 |
+| `web/templates/base.html` | Nav renombrado + condicional por rol y estado | 0 |
+| `web/templates/homePanel.html` | Controles de transición de estado con confirmación | 0 |
+| `api/routes/grupos.py` | Adaptar "Generar Grupos" para leer desde `inscripciones` | 1 |
+| `api/routes/inscripcion.py` | NUEVO blueprint | 1 |
+| `core/models.py` | Agregar `inscripcion_id` a Pareja (con skill dataclasses-torneos) | 1 |
 
 ## Archivos que NO tocar
-- `core/algoritmo.py`, `core/clasificacion.py`, `core/fixture_*.py`, `core/models.py`
-- `utils/calendario_builder.py`, `utils/csv_processor.py`, `utils/exportador.py`
+- `core/algoritmo.py`, `core/clasificacion.py`, `core/fixture_*.py`, `core/models.py` (salvo `inscripcion_id`)
+- `utils/csv_processor.py`, `utils/calendario_builder.py`, `utils/exportador.py`
 - `gunicorn.conf.py`, `render.yaml`
-- `api/routes/parejas.py`, `api/routes/finales.py` (solo extender, no modificar lógica existente)
-
----
-
-## Refactor Pendiente (independiente de las fases)
-`api/routes/parejas.py` tiene ~1900 líneas. Dividir en:
-- `parejas.py` → carga, CRUD de parejas
-- `grupos.py` → algoritmo, asignaciones, edición de grupos
-- `resultados.py` → actualización de resultados, posiciones
-- `calendario.py` → generación y consulta de calendario
-
-Esto no afecta funcionalidad, solo mantenibilidad. Hacerlo antes de la Fase 3.
+- `api/routes/parejas.py`, `api/routes/finales.py`, `api/routes/resultados.py`, `api/routes/calendario.py`
 
 ---
 
 ## Verificación por Fase
-- **Fase 1:** Abrir incógnito, navegar a `/grupos` y `/finales` sin login → deben mostrar datos sin teléfonos. Admin panel sigue funcionando con login.
-- **Fase 2:** Registrar jugador con email, confirmar en Supabase Auth dashboard, login como jugador → ver navbar diferente al admin.
-- **Fase 3:** Jugador logueado puede inscribirse. Admin ve inscripciones en panel y puede exportar CSV.
-- **Fase 4:** Después de cerrar torneo, admin asigna puntos. `/ranking` muestra tabla pública.
-- **Fase 5:** Al limpiar torneo, aparece en `/torneos` como historial.
+- **Fase 0:** Admin cambia estado desde homePanel. Abrir incógnito en `/grupos` → ver "Organizando". Cambiar a 'torneo' → ver grupos reales. Nav muestra "Grupos" y "Finales".
+- **Fase 1:** Jugador se inscribe → aparece en panel admin. Admin genera grupos desde inscripciones → mismo output que con CSV. `inscripcion_id` presente en cada Pareja.
+- **Fase 2:** Jugador logueado ve `/mi-grupo` con sus datos. Durante inscripcion → placeholder. Durante torneo → grupo real.
+- **Fase 3:** Admin asigna puntos al finalizar → `/ranking` muestra tabla anual por categoría con tabs.
+- **Fase 4:** Admin archiva torneo → aparece en `/torneos` como historial.

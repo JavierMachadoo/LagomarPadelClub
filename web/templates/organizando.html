@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Torneo en Organización — Lagomar Pádel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .org-page {
+        min-height: 60vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 1rem;
+    }
+    .org-card {
+        background: #fff;
+        border-radius: 24px;
+        padding: 3rem 2.5rem;
+        text-align: center;
+        max-width: 520px;
+        width: 100%;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    }
+    .org-icon {
+        font-size: 4rem;
+        color: #22c55e;
+        margin-bottom: 1.5rem;
+        display: block;
+    }
+    .org-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #111;
+        margin-bottom: 0.75rem;
+    }
+    .org-subtitle {
+        color: #64748b;
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+    }
+    .org-torneo-nombre {
+        display: inline-block;
+        background: #f1f5f9;
+        border-radius: 30px;
+        padding: 0.4rem 1.2rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 2rem;
+    }
+    .pulse-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background: #22c55e;
+        border-radius: 50%;
+        margin-right: 6px;
+        animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="org-page">
+    <div class="org-card">
+        <i class="bi bi-gear-wide-connected org-icon"></i>
+
+        <h1 class="org-title">Torneo en organización</h1>
+
+        <p class="org-subtitle">
+            Estamos armando los grupos y el calendario.<br>
+            Pronto tendrás toda la información disponible.
+        </p>
+
+        {% if torneo and torneo.nombre %}
+        <span class="org-torneo-nombre">
+            <span class="pulse-dot"></span>{{ torneo.nombre }}
+        </span>
+        {% endif %}
+
+        {% if es_jugador %}
+        <div class="mt-2">
+            <a href="{{ url_for('registro') }}" class="btn btn-success rounded-pill px-4 py-2 fw-bold">
+                <i class="bi bi-pencil-square me-2"></i>Inscribirme al torneo
+            </a>
+        </div>
+        {% elif not es_autenticado %}
+        <div class="mt-2">
+            <a href="{{ url_for('login') }}"
+               class="btn btn-outline-secondary rounded-pill px-4 py-2"
+               style="font-size:0.9rem;">
+                <i class="bi bi-person me-1"></i>Iniciar sesión
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

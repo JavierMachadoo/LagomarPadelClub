@@ -112,6 +112,7 @@ class TorneoStorage:
             'resultado_algoritmo': None,
             'num_canchas': 2,
             'estado': 'creando',
+            'fase': 'inscripcion',
             'tipo_torneo': 'fin1',
         }
 
@@ -193,7 +194,21 @@ class TorneoStorage:
         torneo['resultado_algoritmo'] = None
         torneo['fixtures_finales'] = {}
         torneo['estado'] = 'creando'
+        torneo['fase'] = 'inscripcion'
         torneo['tipo_torneo'] = tipo_actual
+        self.guardar(torneo)
+
+    def get_fase(self) -> str:
+        """Devuelve la fase actual del torneo ('inscripcion' | 'torneo' | 'finalizado')."""
+        torneo = self.cargar()
+        return torneo.get('fase', 'inscripcion')
+
+    def set_fase(self, nueva_fase: str) -> None:
+        """Cambia la fase del torneo. Valida que sea un valor permitido."""
+        if nueva_fase not in ('inscripcion', 'torneo', 'finalizado'):
+            raise ValueError(f"Fase inválida: {nueva_fase}")
+        torneo = self.cargar()
+        torneo['fase'] = nueva_fase
         self.guardar(torneo)
 
     def get_tipo_torneo(self) -> str:

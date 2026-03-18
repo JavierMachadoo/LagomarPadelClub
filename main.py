@@ -68,16 +68,18 @@ def crear_app():
             'num_canchas': torneo.get('num_canchas', 2)
         }
     
-    # Context processor: inyecta es_admin y torneo_tiene_datos en todos los templates
+    # Context processor: inyecta es_admin, torneo_tiene_datos y fase_torneo en todos los templates
     @app.context_processor
     def inject_globals():
         torneo = storage.cargar()
         tiene_datos = bool(torneo.get('resultado_algoritmo'))
+        fase = torneo.get('fase', 'inscripcion')
         return dict(
             es_admin=getattr(g, 'es_admin', False),
             es_autenticado=getattr(g, 'es_autenticado', False),
             es_jugador=getattr(g, 'es_jugador', False),
-            torneo_tiene_datos=tiene_datos
+            torneo_tiene_datos=tiene_datos,
+            fase_torneo=fase,
         )
 
     # Middleware: Verificar autenticación
@@ -261,10 +263,17 @@ def crear_app():
     # Rutas públicas (sin login)
     @app.route('/grupos')
     def grupos_publico():
-        """Vista pública de grupos — sin teléfonos ni franjas de disponibilidad."""
+        """Vista pública de grupos — sin teléfonos ni franjas de disponibilidad.
+
+        Solo muestra datos cuando fase='torneo'. En fase 'inscripcion' u 'organizando'
+        muestra pantalla de "torneo en organización".
+        """
+        torneo = storage.cargar()
+        if torneo.get('fase', 'inscripcion') != 'torneo':
+            return make_response(render_template('organizando.html', torneo=torneo))
+
         datos = obtener_datos_torneo()
         resultado = datos.get('resultado_algoritmo')
-        torneo = storage.cargar()
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
 
@@ -278,8 +287,14 @@ def crear_app():
 
     @app.route('/calendario')
     def calendario_publico():
-        """Vista pública del calendario de partidos — sin controles de admin."""
+        """Vista pública del calendario de partidos — sin controles de admin.
+
+        Solo visible cuando fase='torneo'.
+        """
         torneo = storage.cargar()
+        if torneo.get('fase', 'inscripcion') != 'torneo':
+            return make_response(render_template('organizando.html', torneo=torneo))
+
         resultado = torneo.get('resultado_algoritmo')
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
@@ -294,10 +309,16 @@ def crear_app():
 
     @app.route('/cuadro')
     def cuadro_publico():
-        """Vista pública del bracket de finales — sin controles de admin."""
+        """Vista pública del bracket de finales — sin controles de admin.
+
+        Solo visible cuando fase='torneo'.
+        """
+        torneo = storage.cargar()
+        if torneo.get('fase', 'inscripcion') != 'torneo':
+            return make_response(render_template('organizando.html', torneo=torneo))
+
         datos = obtener_datos_torneo()
         resultado = datos.get('resultado_algoritmo')
-        torneo = storage.cargar()
         fixtures = torneo.get('fixtures_finales', {})
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)

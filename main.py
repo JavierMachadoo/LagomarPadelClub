@@ -6,6 +6,7 @@ Genera grupos optimizados según categorías y disponibilidad horaria.
 from flask import Flask, render_template, request, redirect, url_for, flash, make_response, g, session
 import os
 import logging
+import time
 
 from config import (
     SECRET_KEY, 
@@ -101,18 +102,8 @@ def crear_app():
                 role = data.get('role')
                 if role is None or role == 'admin':
                     g.es_admin = True
-        # Detectar jugadores autenticados via Supabase (sb_token).
-        # Verificamos la firma del JWT con Supabase antes de marcar al usuario
-        # como autenticado — confiar solo en la existencia de la cookie permitiría
-        # a cualquiera fabricar una cookie 'sb_token' con valor arbitrario.
-        if not g.es_autenticado:
-            sb_token = request.cookies.get('sb_token')
-            if sb_token:
-                from utils.api_helpers import _verificar_supabase_jwt
-                if _verificar_supabase_jwt(sb_token):
-                    g.es_autenticado = True
+                elif role == 'jugador':
                     g.es_jugador = True
-
         # Rutas públicas: no requieren autenticación
         rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
@@ -380,7 +371,7 @@ def crear_app():
 
             sb_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-            perfil = sb_admin.table('jugadores').select('id').eq('id', user.id).execute()
+            perfil = sb_admin.table('jugadores').select('id,nombre,apellido').eq('id', user.id).execute()
             if not perfil.data:
                 meta = user.user_metadata or {}
                 nombre   = meta.get('given_name') or meta.get('name', 'Jugador').split()[0]
@@ -391,9 +382,23 @@ def crear_app():
                     'apellido': apellido,
                 }).execute()
                 logger.info("Perfil creado para jugador OAuth: %s", user.id)
+            else:
+                nombre   = perfil.data[0].get('nombre', '')
+                apellido = perfil.data[0].get('apellido', '')
 
+            jwt_handler = app.jwt_handler
+            token_data = {
+                'authenticated': True,
+                'role': 'jugador',
+                'user_id': str(user.id),
+                'nombre': nombre,
+                'apellido': apellido,
+                'telefono': '',
+                'timestamp': int(time.time()),
+            }
+            token = jwt_handler.generar_token(token_data)
             response = make_response(redirect(url_for('grupos_publico')))
-            response.set_cookie('sb_token', jwt_token, httponly=True, samesite='Lax', max_age=expires)
+            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2)
             return response
 
         except Exception as e:

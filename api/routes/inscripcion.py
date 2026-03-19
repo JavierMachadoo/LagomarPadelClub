@@ -17,7 +17,7 @@ import logging
 from flask import Blueprint, request, jsonify, render_template, make_response, g
 
 from utils.torneo_storage import storage
-from utils.api_helpers import verificar_autenticacion_api, _verificar_supabase_jwt
+from utils.api_helpers import verificar_autenticacion_api
 from config import FRANJAS_HORARIAS, TIPOS_TORNEO, CATEGORIAS
 
 logger = logging.getLogger(__name__)
@@ -36,13 +36,22 @@ def _get_supabase_admin():
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 
-def _get_jugador_id() -> str | None:
-    """Devuelve el UUID del jugador autenticado vía sb_token, o None."""
-    sb_token = request.cookies.get('sb_token')
-    if not sb_token:
+def _get_jugador_data() -> dict | None:
+    """Devuelve los datos del jugador autenticado desde el JWT custom, sin llamadas de red."""
+    from flask import current_app
+    token = request.cookies.get('token')
+    if not token:
         return None
-    user = _verificar_supabase_jwt(sb_token)
-    return str(user.id) if user else None
+    data = current_app.jwt_handler.verificar_token(token)
+    if data and data.get('role') == 'jugador':
+        return data
+    return None
+
+
+def _get_jugador_id() -> str | None:
+    """Devuelve el UUID del jugador autenticado desde el JWT custom, sin llamadas de red."""
+    data = _get_jugador_data()
+    return data.get('user_id') if data else None
 
 
 def _uuid_to_int_id(uuid_str: str) -> int:
@@ -65,34 +74,22 @@ def pagina_inscripcion():
     tipo_torneo = torneo.get('tipo_torneo', 'fin1')
     categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
 
-    # Pre-cargar perfil del jugador para rellenar integrante 1
+    # Leer perfil desde el JWT — sin llamadas de red
+    jugador_data = _get_jugador_data()
     perfil = None
-    jugador_id = _get_jugador_id()
-    if jugador_id:
-        try:
-            sb = _get_supabase_admin()
-            resp = sb.table('jugadores').select('nombre,apellido,telefono').eq('id', jugador_id).single().execute()
-            perfil = resp.data
-        except Exception as e:
-            logger.warning('No se pudo cargar perfil del jugador: %s', e)
-
-    # Ver si ya tiene inscripción
-    inscripcion_existente = None
-    if jugador_id:
-        torneo_id = storage.get_torneo_id()
-        try:
-            sb = _get_supabase_admin()
-            resp = sb.table('inscripciones').select('*').eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).single().execute()
-            inscripcion_existente = resp.data
-        except Exception:
-            pass
+    if jugador_data:
+        perfil = {
+            'nombre':   jugador_data.get('nombre', ''),
+            'apellido': jugador_data.get('apellido', ''),
+            'telefono': jugador_data.get('telefono', ''),
+        }
 
     return make_response(render_template(
         'inscripcion.html',
         torneo=torneo,
         fase=fase,
         perfil=perfil,
-        inscripcion_existente=inscripcion_existente,
+        inscripcion_existente=None,  # se carga vía AJAX al montar la página
         categorias=categorias_torneo,
         franjas=FRANJAS_HORARIAS,
     ))
@@ -180,10 +177,8 @@ def mis_datos():
     torneo_id = storage.get_torneo_id()
     try:
         sb = _get_supabase_admin()
-        resp = sb.table('inscripciones').select('*').eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).single().execute()
-        if resp.data:
-            return jsonify({'inscripcion': resp.data})
-        return jsonify({'inscripcion': None})
+        resp = sb.table('inscripciones').select('*').eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).execute()
+        return jsonify({'inscripcion': resp.data[0] if resp.data else None})
     except Exception as e:
         logger.error('Error al obtener inscripción: %s', e)
         return jsonify({'inscripcion': None})

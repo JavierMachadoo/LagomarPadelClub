@@ -189,17 +189,32 @@ def login():
 
             # Jugador regular → usar SERVICE_ROLE solo para leer el perfil server-side
             sb_admin = _get_supabase_admin()
-            perfil = sb_admin.table("jugadores").select("nombre,apellido").eq("id", user.id).single().execute()
-            nombre_completo = ""
+            perfil = sb_admin.table("jugadores").select("nombre,apellido,telefono").eq("id", user.id).single().execute()
+            nombre = ""
+            apellido = ""
+            telefono = ""
             if perfil.data:
-                nombre_completo = f"{perfil.data['nombre']} {perfil.data['apellido']}"
+                nombre = perfil.data.get('nombre', '')
+                apellido = perfil.data.get('apellido', '')
+                telefono = perfil.data.get('telefono') or ''
 
+            jwt_handler = current_app.jwt_handler
+            token_data = {
+                'authenticated': True,
+                'role': 'jugador',
+                'user_id': str(user.id),
+                'nombre': nombre,
+                'apellido': apellido,
+                'telefono': telefono,
+                'timestamp': int(time.time()),
+            }
+            token = jwt_handler.generar_token(token_data)
             response = make_response(jsonify({
                 "message":  "Login exitoso",
-                "nombre":   nombre_completo,
+                "nombre":   f"{nombre} {apellido}".strip(),
                 "redirect": "/grupos",
             }), 200)
-            response.set_cookie("sb_token", jwt_token, httponly=True, samesite="Lax", max_age=expires)
+            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2)
             logger.info("Jugador autenticado: %s", user.id)
             return response
 

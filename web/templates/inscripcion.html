@@ -65,9 +65,16 @@
         </a>
     </div>
 
-    {% elif inscripcion_existente %}
-    <!-- Ya tiene inscripción -->
-    <div class="insc-card">
+    {% else %}
+
+    <!-- Spinner mientras JS verifica inscripción existente -->
+    <div id="loadingInscripcion" class="text-center py-5">
+        <div class="spinner-border text-success" role="status"></div>
+        <p class="text-muted mt-3">Verificando tu inscripción...</p>
+    </div>
+
+    <!-- Card: ya está inscripto (poblado por JS) -->
+    <div id="cardInscripcionExistente" class="insc-card" style="display:none;">
         <div class="inscripcion-existente mb-4">
             <div class="d-flex align-items-center gap-2 mb-3">
                 <i class="bi bi-check-circle-fill text-success fs-4"></i>
@@ -76,34 +83,27 @@
             <div class="row g-2">
                 <div class="col-sm-6">
                     <small class="text-muted d-block">Integrante 1</small>
-                    <strong>{{ inscripcion_existente.integrante1 }}</strong>
+                    <strong id="insc-integrante1"></strong>
                 </div>
                 <div class="col-sm-6">
                     <small class="text-muted d-block">Integrante 2</small>
-                    <strong>{{ inscripcion_existente.integrante2 }}</strong>
+                    <strong id="insc-integrante2"></strong>
                 </div>
                 <div class="col-sm-6">
                     <small class="text-muted d-block">Categoría</small>
-                    <strong>{{ inscripcion_existente.categoria }}</strong>
+                    <strong id="insc-categoria"></strong>
                 </div>
                 <div class="col-sm-6">
                     <small class="text-muted d-block">Franjas horarias</small>
-                    <strong>{{ inscripcion_existente.franjas_disponibles | join(', ') }}</strong>
+                    <strong id="insc-franjas"></strong>
                 </div>
-                {% if inscripcion_existente.telefono %}
-                <div class="col-sm-6">
+                <div class="col-sm-6" id="insc-telefono-wrap" style="display:none;">
                     <small class="text-muted d-block">Teléfono</small>
-                    <strong>{{ inscripcion_existente.telefono }}</strong>
+                    <strong id="insc-telefono"></strong>
                 </div>
-                {% endif %}
             </div>
             <div class="mt-3">
-                <span class="badge rounded-pill px-3 py-2
-                    {% if inscripcion_existente.estado == 'confirmado' %}bg-success
-                    {% elif inscripcion_existente.estado == 'rechazado' %}bg-danger
-                    {% else %}bg-warning text-dark{% endif %}">
-                    {{ inscripcion_existente.estado | capitalize }}
-                </span>
+                <span class="badge rounded-pill px-3 py-2" id="insc-estado-badge"></span>
             </div>
         </div>
         <button class="btn btn-outline-danger rounded-pill px-4"
@@ -112,9 +112,8 @@
         </button>
     </div>
 
-    {% else %}
     <!-- Formulario de inscripción -->
-    <div class="insc-card">
+    <div id="cardFormulario" class="insc-card" style="display:none;">
         <h1 class="insc-title mb-1">Inscribirse al torneo</h1>
         <p class="insc-subtitle mb-4">{{ torneo.nombre or 'Torneo de Pádel' }}</p>
 
@@ -190,6 +189,46 @@
 
 {% block extra_js %}
 <script>
+// Al cargar la página, verificar si el jugador ya tiene inscripción
+document.addEventListener('DOMContentLoaded', async function() {
+    const loading   = document.getElementById('loadingInscripcion');
+    const cardExist = document.getElementById('cardInscripcionExistente');
+    const cardForm  = document.getElementById('cardFormulario');
+    if (!loading) return; // fase != 'inscripcion', no hay nada que verificar
+
+    try {
+        const resp = await fetch('/api/inscripcion/mis-datos');
+        const data = await resp.json();
+
+        if (data.inscripcion) {
+            const i = data.inscripcion;
+            document.getElementById('insc-integrante1').textContent = i.integrante1 || '';
+            document.getElementById('insc-integrante2').textContent = i.integrante2 || '';
+            document.getElementById('insc-categoria').textContent   = i.categoria || '';
+            document.getElementById('insc-franjas').textContent     = (i.franjas_disponibles || []).join(', ');
+            if (i.telefono) {
+                document.getElementById('insc-telefono').textContent = i.telefono;
+                document.getElementById('insc-telefono-wrap').style.display = '';
+            }
+            const badge = document.getElementById('insc-estado-badge');
+            badge.textContent = i.estado ? i.estado.charAt(0).toUpperCase() + i.estado.slice(1) : '';
+            badge.className = 'badge rounded-pill px-3 py-2 ' + (
+                i.estado === 'confirmado' ? 'bg-success' :
+                i.estado === 'rechazado'  ? 'bg-danger'  : 'bg-warning text-dark'
+            );
+            loading.style.display   = 'none';
+            cardExist.style.display = '';
+        } else {
+            loading.style.display  = 'none';
+            cardForm.style.display = '';
+        }
+    } catch {
+        // Si falla la verificación, mostrar el formulario igualmente
+        loading.style.display  = 'none';
+        cardForm.style.display = '';
+    }
+});
+
 document.getElementById('formInscripcion')?.addEventListener('submit', async function(e) {
     e.preventDefault();
 

@@ -230,13 +230,13 @@ class TorneoStorage:
         return torneo_id
 
     def get_fase(self) -> str:
-        """Devuelve la fase actual del torneo ('inscripcion' | 'torneo' | 'finalizado')."""
+        """Devuelve la fase actual del torneo ('inscripcion' | 'torneo')."""
         torneo = self.cargar()
         return torneo.get('fase', 'inscripcion')
 
     def set_fase(self, nueva_fase: str) -> None:
         """Cambia la fase del torneo. Valida que sea un valor permitido."""
-        if nueva_fase not in ('inscripcion', 'torneo', 'finalizado'):
+        if nueva_fase not in ('inscripcion', 'torneo'):
             raise ValueError(f"Fase inválida: {nueva_fase}")
         torneo = self.cargar()
         torneo['fase'] = nueva_fase

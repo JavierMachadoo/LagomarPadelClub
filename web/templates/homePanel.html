@@ -20,13 +20,9 @@
                             <span class="badge fs-6 px-3 py-2" style="background:#fef9c3; color:#92400e; border-radius:30px;">
                                 <i class="bi bi-pencil-square me-1"></i>Período de Inscripción
                             </span>
-                            {% elif fase_torneo == 'torneo' %}
+                            {% else %}
                             <span class="badge fs-6 px-3 py-2" style="background:#dcfce7; color:#166534; border-radius:30px;">
                                 <i class="bi bi-play-circle-fill me-1"></i>Torneo Activo
-                            </span>
-                            {% else %}
-                            <span class="badge fs-6 px-3 py-2" style="background:#f1f5f9; color:#475569; border-radius:30px;">
-                                <i class="bi bi-check-circle-fill me-1"></i>Torneo Finalizado
                             </span>
                             {% endif %}
                         </div>
@@ -35,19 +31,15 @@
                             {% if fase_torneo == 'inscripcion' %}
                             <button class="btn btn-success px-4 py-2 fw-bold"
                                     style="border-radius:30px;"
-                                    onclick="confirmarCambioFase('torneo', '¿Activar el torneo?', 'Los grupos y el calendario serán visibles públicamente. Esta acción no se puede deshacer.')">
+                                    onclick="confirmarCambioFase('torneo', '¿Activar el torneo?', 'Los grupos y el calendario serán visibles públicamente.')">
                                 <i class="bi bi-play-circle me-2"></i>Activar Torneo
                             </button>
-                            {% elif fase_torneo == 'torneo' %}
-                            <button class="btn btn-outline-secondary px-4 py-2 fw-bold"
-                                    style="border-radius:30px;"
-                                    onclick="confirmarCambioFase('finalizado', '¿Finalizar el torneo?', 'El torneo quedará cerrado. Los grupos y resultados seguirán visibles pero no se podrán modificar.')">
-                                <i class="bi bi-flag-fill me-2"></i>Finalizar Torneo
-                            </button>
                             {% else %}
-                            <span class="text-muted" style="font-size:0.9rem;">
-                                <i class="bi bi-lock-fill me-1"></i>Torneo cerrado
-                            </span>
+                            <button class="btn btn-outline-warning px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    onclick="confirmarCambioFase('inscripcion', '¿Volver a Inscripción?', 'Los grupos y el calendario dejarán de ser visibles públicamente.')">
+                                <i class="bi bi-arrow-counterclockwise me-2"></i>Volver a Inscripción
+                            </button>
                             {% endif %}
                         </div>
                     </div>

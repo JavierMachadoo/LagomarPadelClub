@@ -241,6 +241,15 @@
         </p>
     </div>
 
+    {% if es_jugador and resultado %}
+    <div class="text-center mb-3">
+        <button id="btnMiCalendario" class="btn btn-outline-success rounded-pill px-4"
+                onclick="toggleMiCalendario()">
+            <i class="bi bi-person-fill me-2"></i>Mi Calendario
+        </button>
+    </div>
+    {% endif %}
+
     {% if resultado and resultado.calendario %}
 
     {# Preparar días disponibles #}
@@ -315,7 +324,8 @@
                                 'Séptima': '#a855f7'
                             }.get(partido.categoria, '#6b7280') %}
 
-                            <div class="partido-card" data-cat="{{ partido.categoria }}">
+                            <div class="partido-card" data-cat="{{ partido.categoria }}"
+                                 data-pareja1="{{ partido.pareja1 }}" data-pareja2="{{ partido.pareja2 }}">
                                 <div class="cancha-label">
                                     <i class="bi bi-square-fill me-1" style="color: var(--brand-green); font-size: 0.5rem;"></i>
                                     Cancha {{ idx + 1 }}
@@ -366,4 +376,42 @@
     {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if es_jugador %}
+<script>
+let miParejaNombre = null;
+let modoMiCalendario = false;
+
+fetch('/api/inscripcion/mis-datos')
+    .then(r => r.json())
+    .then(data => {
+        if (data.inscripcion) {
+            const i = data.inscripcion;
+            miParejaNombre = `${i.integrante1} / ${i.integrante2}`;
+        }
+    });
+
+function toggleMiCalendario() {
+    if (!miParejaNombre) {
+        alert('No tenés una inscripción activa en este torneo.');
+        return;
+    }
+    modoMiCalendario = !modoMiCalendario;
+    const btn = document.getElementById('btnMiCalendario');
+    btn.innerHTML = modoMiCalendario
+        ? '<i class="bi bi-calendar-week me-2"></i>Todos los partidos'
+        : '<i class="bi bi-person-fill me-2"></i>Mi Calendario';
+    btn.classList.toggle('btn-success', modoMiCalendario);
+    btn.classList.toggle('btn-outline-success', !modoMiCalendario);
+
+    document.querySelectorAll('.partido-card:not(.vacio)').forEach(card => {
+        const esMiPartido = card.dataset.pareja1 === miParejaNombre
+                         || card.dataset.pareja2 === miParejaNombre;
+        card.style.display = (!modoMiCalendario || esMiPartido) ? '' : 'none';
+    });
+}
+</script>
+{% endif %}
 {% endblock %}

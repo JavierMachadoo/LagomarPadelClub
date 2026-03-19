@@ -250,6 +250,15 @@
         </div>
     </div>
 
+    {% if es_jugador %}
+    <div class="text-center my-3">
+        <button id="btnMiGrupo" class="btn btn-outline-success rounded-pill px-4"
+                onclick="toggleMiGrupo()">
+            <i class="bi bi-person-fill me-2"></i>Mi Grupo
+        </button>
+    </div>
+    {% endif %}
+
     <!-- Category tabs -->
     <div class="cat-tabs" id="catTabs">
         {% for cat in categorias %}
@@ -271,7 +280,7 @@
     <div class="cat-panel {% if loop.first %}active{% endif %}" id="panel-{{ cat }}">
         <div class="grupos-grid">
             {% for grupo in grupos_cat %}
-            <div class="grupo-card">
+            <div class="grupo-card" data-inscripcion-ids="{% for p in grupo.parejas %}{{ p.inscripcion_id or '' }}{% if not loop.last %},{% endif %}{% endfor %}">
                 <div class="grupo-card-header">
                     <span class="grupo-num">
                         <i class="bi bi-people-fill me-1"></i>
@@ -289,7 +298,7 @@
                     <!-- Parejas (solo nombres) -->
                     <ul class="parejas-list">
                         {% for pareja in grupo.parejas %}
-                        <li>
+                        <li data-inscripcion-id="{{ pareja.inscripcion_id or '' }}">
                             <span class="pareja-dot"></span>
                             {{ pareja.nombre }}
                         </li>
@@ -357,5 +366,52 @@ function switchCat(cat, btn) {
     const panel = document.getElementById('panel-' + cat);
     if (panel) panel.classList.add('active');
 }
+
+{% if es_jugador %}
+let miInscripcionId = null;
+let modoMiGrupo = false;
+
+fetch('/api/inscripcion/mis-datos')
+    .then(r => r.json())
+    .then(data => { if (data.inscripcion) miInscripcionId = data.inscripcion.id; });
+
+function toggleMiGrupo() {
+    if (!miInscripcionId) {
+        alert('No tenés una inscripción activa en este torneo.');
+        return;
+    }
+    modoMiGrupo = !modoMiGrupo;
+    const btn = document.getElementById('btnMiGrupo');
+    btn.innerHTML = modoMiGrupo
+        ? '<i class="bi bi-people-fill me-2"></i>Todos los grupos'
+        : '<i class="bi bi-person-fill me-2"></i>Mi Grupo';
+    btn.classList.toggle('btn-success', modoMiGrupo);
+    btn.classList.toggle('btn-outline-success', !modoMiGrupo);
+
+    document.querySelectorAll('.grupo-card').forEach(card => {
+        const ids = (card.dataset.inscripcionIds || '').split(',');
+        const esMiGrupo = ids.includes(miInscripcionId);
+
+        card.style.display = (!modoMiGrupo || esMiGrupo) ? '' : 'none';
+
+        // Resaltar mi pareja dentro del grupo
+        card.querySelectorAll('li[data-inscripcion-id]').forEach(li => {
+            const esMiPareja = modoMiGrupo && li.dataset.inscripcionId === miInscripcionId;
+            li.style.fontWeight = esMiPareja ? '700' : '';
+            li.style.color      = esMiPareja ? 'var(--brand-green)' : '';
+        });
+
+        // Navegar a mi categoría automáticamente
+        if (modoMiGrupo && esMiGrupo) {
+            const panel = card.closest('.cat-panel');
+            if (panel) {
+                const cat = panel.id.replace('panel-', '');
+                const tabBtn = document.querySelector(`[onclick="switchCat('${cat}', this)"]`);
+                if (tabBtn) tabBtn.click();
+            }
+        }
+    });
+}
+{% endif %}
 </script>
 {% endblock %}

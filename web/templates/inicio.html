@@ -195,12 +195,20 @@
                     </div>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <div class="coming-soon-card">
-                        <span class="coming-tag">Próximamente</span>
-                        <h3 class="mt-3">Ranking de jugadores</h3>
-                        <p>Puntos acumulados por torneo y posición en cada categoría.</p>
-                        <i class="bi bi-bar-chart-fill" style="font-size:2.5rem; color:var(--brand-green); opacity:0.4;"></i>
-                    </div>
+                    <a href="{{ url_for('historial.lista_torneos') }}"
+                       style="text-decoration:none; display:block;">
+                        <div class="coming-soon-card"
+                             style="transition: transform 0.2s ease, box-shadow 0.2s ease; cursor:pointer;"
+                             onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 32px rgba(0,0,0,0.3)';"
+                             onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                            <span class="coming-tag" style="background:rgba(34,197,94,0.2); border-color:rgba(34,197,94,0.4);">
+                                <i class="bi bi-clock-history me-1"></i>Disponible
+                            </span>
+                            <h3 class="mt-3">Historial de torneos</h3>
+                            <p>Resultados, grupos y cuadros de torneos anteriores.</p>
+                            <i class="bi bi-archive-fill" style="font-size:2.5rem; color:var(--brand-green); opacity:0.7;"></i>
+                        </div>
+                    </a>
                 </div>
             </div>
         </section>

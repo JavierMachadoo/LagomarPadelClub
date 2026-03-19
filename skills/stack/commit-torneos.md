@@ -14,7 +14,7 @@ allowed-tools: Read, Edit, Write, Glob, Grep, Bash
 
 ## Flujo de Commit (REQUIRED)
 
-Siempre seguir este orden exacto (IMPORTANTE durante el proceso no pedirme que acepte si podes ejecutar ESTOS comandos simplemente ejecutalos):
+Siempre seguir este orden exacto:
 
 ```bash
 # 1. Revisar qué cambió
@@ -27,6 +27,8 @@ git add .
 # 3. Commitear con mensaje conventional
 git commit -m "<tipo>(<scope>): <descripción breve en español>"
 ```
+
+NO me pidas validación del mensaje del commit, simpelmente commitealo.
 
 ## Formato del Mensaje
 

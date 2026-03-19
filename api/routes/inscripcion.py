@@ -16,6 +16,7 @@ import logging
 
 from flask import Blueprint, request, jsonify, render_template, make_response, g
 
+from core import Pareja, Grupo
 from utils.torneo_storage import storage
 from utils.api_helpers import verificar_autenticacion_api
 from config import FRANJAS_HORARIAS, TIPOS_TORNEO, CATEGORIAS
@@ -57,6 +58,83 @@ def _get_jugador_id() -> str | None:
 def _uuid_to_int_id(uuid_str: str) -> int:
     """Convierte un UUID a int determinístico para usarlo como Pareja.id."""
     return int(uuid_str.replace('-', '')[:8], 16)
+
+
+def _auto_asignar_en_grupos(inscripcion: dict) -> None:
+    """
+    Si ya hay grupos generados, intenta colocar la pareja recién inscrita en un
+    grupo de su misma categoría que tenga hueco (< 3 parejas).
+    Si no hay hueco disponible, la agrega a parejas_sin_asignar.
+    Si todavía no se generaron grupos, no hace nada.
+    """
+    from ._helpers import recalcular_score_grupo, recalcular_estadisticas
+
+    torneo = storage.cargar()
+    resultado = torneo.get('resultado_algoritmo')
+    if not resultado:
+        return  # Grupos aún no generados — la pareja queda solo en inscripciones
+
+    categoria = inscripcion['categoria']
+    pareja_dict = {
+        'id':                 _uuid_to_int_id(inscripcion['id']),
+        'nombre':             f"{inscripcion['integrante1']} / {inscripcion['integrante2']}",
+        'jugador1':           inscripcion['integrante1'],
+        'jugador2':           inscripcion['integrante2'],
+        'telefono':           inscripcion.get('telefono') or '',
+        'categoria':          categoria,
+        'franjas_disponibles': inscripcion.get('franjas_disponibles') or [],
+        'inscripcion_id':     inscripcion['id'],
+    }
+
+    # Buscar grupo de la misma categoría con espacio libre
+    grupos_categoria = resultado.get('grupos_por_categoria', {}).get(categoria, [])
+    grupo_destino = next(
+        (g for g in grupos_categoria if len(g.get('parejas', [])) < 3),
+        None
+    )
+
+    if grupo_destino:
+        grupo_destino['parejas'].append(pareja_dict)
+        recalcular_score_grupo(grupo_destino)
+
+        # Si el grupo llega a 3 parejas, regenerar la lista de partidos
+        if len(grupo_destino['parejas']) == 3:
+            try:
+                grupo_obj = Grupo(id=grupo_destino['id'], categoria=categoria)
+                grupo_obj.franja_horaria = grupo_destino.get('franja_horaria')
+                for p in grupo_destino['parejas']:
+                    grupo_obj.parejas.append(Pareja.from_dict(p))
+                grupo_obj.generar_partidos()
+                grupo_destino['partidos'] = [
+                    {
+                        'pareja1':    p1.nombre,
+                        'pareja2':    p2.nombre,
+                        'pareja1_id': p1.id,
+                        'pareja2_id': p2.id,
+                    }
+                    for p1, p2 in grupo_obj.partidos
+                ]
+                grupo_destino['resultados'] = {}
+                grupo_destino['resultados_completos'] = False
+            except Exception as e:
+                logger.warning('No se pudieron regenerar partidos del grupo: %s', e)
+
+        logger.info(
+            'Pareja "%s" auto-asignada al grupo %s (categoria=%s)',
+            pareja_dict['nombre'], grupo_destino['id'], categoria
+        )
+    else:
+        resultado.setdefault('parejas_sin_asignar', []).append(pareja_dict)
+        logger.info(
+            'Pareja "%s" sin hueco disponible → agregada a parejas_sin_asignar (categoria=%s)',
+            pareja_dict['nombre'], categoria
+        )
+
+    # Actualizar lista plana de parejas y estadísticas
+    torneo.setdefault('parejas', []).append(pareja_dict)
+    recalcular_estadisticas(resultado)
+    torneo['resultado_algoritmo'] = resultado
+    storage.guardar(torneo)
 
 
 # ── Página del formulario (GET /inscripcion) ──────────────────────────────────
@@ -151,6 +229,14 @@ def crear_inscripcion():
 
         inscripcion = resp.data[0] if resp.data else {}
         logger.info('Inscripción creada: jugador=%s, categoria=%s', jugador_id, categoria)
+
+        # Auto-asignar en el dashboard de grupos si ya existen grupos generados
+        try:
+            _auto_asignar_en_grupos(inscripcion)
+        except Exception as e:
+            logger.error('Error en auto-asignación de grupos: %s', e, exc_info=True)
+            # No propagamos el error — la inscripción ya fue creada exitosamente
+
         return jsonify({'ok': True, 'inscripcion': inscripcion}), 201
 
     except Exception as e:

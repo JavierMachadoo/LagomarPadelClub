@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de Torneos - Pádel{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-10">
+            <div class="d-flex align-items-center gap-3 mb-1">
+                <div style="width:48px; height:48px; background:var(--brand-green); border-radius:12px;
+                            display:flex; align-items:center; justify-content:center;">
+                    <i class="bi bi-clock-history text-white fs-5"></i>
+                </div>
+                <div>
+                    <h2 class="fw-bold mb-0" style="color:var(--brand-black);">Historial de Torneos</h2>
+                    <p class="text-muted mb-0" style="font-size:0.88rem;">Torneos finalizados y archivados</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de torneos -->
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            {% if torneos %}
+            <div class="row g-3">
+                {% for t in torneos %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-0 h-100"
+                         style="border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.08);
+                                transition: transform 0.2s ease, box-shadow 0.2s ease;"
+                         onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 30px rgba(0,0,0,0.14)';"
+                         onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.08)';">
+                        <div class="card-body p-4 d-flex flex-column gap-3">
+
+                            <!-- Tipo badge -->
+                            <div>
+                                {% if t.tipo == 'fin1' %}
+                                <span class="badge px-3 py-2"
+                                      style="background:rgba(34,197,94,0.12); color:var(--brand-green-dark);
+                                             border-radius:30px; font-size:0.78rem; font-weight:700;">
+                                    <i class="bi bi-calendar-week me-1"></i>Fin de semana 1
+                                </span>
+                                {% elif t.tipo == 'fin2' %}
+                                <span class="badge px-3 py-2"
+                                      style="background:rgba(99,102,241,0.12); color:#4f46e5;
+                                             border-radius:30px; font-size:0.78rem; font-weight:700;">
+                                    <i class="bi bi-calendar-week me-1"></i>Fin de semana 2
+                                </span>
+                                {% else %}
+                                <span class="badge px-3 py-2"
+                                      style="background:rgba(107,114,128,0.12); color:#4b5563;
+                                             border-radius:30px; font-size:0.78rem; font-weight:700;">
+                                    <i class="bi bi-calendar me-1"></i>{{ t.tipo }}
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Nombre -->
+                            <div>
+                                <h5 class="fw-bold mb-1" style="color:var(--brand-black); line-height:1.3;">
+                                    {{ t.nombre }}
+                                </h5>
+                                {% if t.created_at %}
+                                <p class="text-muted mb-0" style="font-size:0.82rem;">
+                                    <i class="bi bi-calendar3 me-1"></i>
+                                    {% set fecha_str = t.created_at[:10] %}
+                                    {% set partes = fecha_str.split('-') %}
+                                    {% if partes|length == 3 %}
+                                        {{ partes[2] }}/{{ partes[1] }}/{{ partes[0] }}
+                                    {% else %}
+                                        {{ t.created_at }}
+                                    {% endif %}
+                                </p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Botón -->
+                            <div class="mt-auto">
+                                <a href="{{ url_for('historial.detalle_torneo', torneo_id=t.id) }}"
+                                   class="btn btn-sm fw-bold w-100"
+                                   style="border-radius:30px; background:var(--brand-black); color:white;
+                                          padding:0.6rem 1rem;">
+                                    <i class="bi bi-eye me-2"></i>Ver detalle
+                                </a>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% else %}
+            <!-- Estado vacío -->
+            <div class="text-center py-5">
+                <div style="width:80px; height:80px; background:#f3f4f6; border-radius:50%;
+                            display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem;">
+                    <i class="bi bi-trophy" style="font-size:2rem; color:#9ca3af;"></i>
+                </div>
+                <h5 class="fw-bold text-muted mb-2">No hay torneos archivados</h5>
+                <p class="text-muted" style="font-size:0.9rem; max-width:360px; margin:0 auto;">
+                    Cuando termines un torneo y lo archives, aparecerá aquí con todos sus resultados.
+                </p>
+                {% if es_admin %}
+                <a href="{{ url_for('admin_panel') }}" class="btn btn-sm mt-4"
+                   style="border-radius:30px; border:2px solid var(--brand-green); color:var(--brand-green-dark); font-weight:600; padding:0.5rem 1.5rem;">
+                    <i class="bi bi-arrow-left me-1"></i>Ir al panel de administración
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

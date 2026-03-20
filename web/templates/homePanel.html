@@ -27,7 +27,7 @@
                             {% endif %}
                         </div>
 
-                        <div class="d-flex gap-2">
+                        <div class="d-flex gap-2 flex-wrap">
                             {% if fase_torneo == 'inscripcion' %}
                             <button class="btn btn-success px-4 py-2 fw-bold"
                                     style="border-radius:30px;"
@@ -39,6 +39,11 @@
                                     style="border-radius:30px;"
                                     onclick="confirmarCambioFase('inscripcion', '¿Volver a Inscripción?', 'Los grupos y el calendario dejarán de ser visibles públicamente.')">
                                 <i class="bi bi-arrow-counterclockwise me-2"></i>Volver a Inscripción
+                            </button>
+                            <button class="btn btn-danger px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    onclick="terminarTorneo()">
+                                <i class="bi bi-trophy-fill me-2"></i>Terminar Torneo
                             </button>
                             {% endif %}
                         </div>
@@ -66,6 +71,53 @@
                     <button type="button" class="btn btn-success rounded-pill px-4 fw-bold"
                             id="btnConfirmarFase" onclick="ejecutarCambioFase()">
                         Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Terminar Torneo -->
+    <div class="modal fade" id="modalTerminarTorneo" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px; border:0;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-trophy-fill text-danger me-2"></i>Terminar Torneo
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <div class="alert alert-warning border-0 rounded-3 mb-3" style="background:#fef9c3;">
+                        <p class="mb-2 fw-semibold" style="color:#92400e;">
+                            Esta acción guardará los resultados del torneo en el historial y reseteará completamente el sistema para el próximo torneo.
+                        </p>
+                        <p class="mb-1 fw-bold" style="color:#92400e; font-size:0.9rem;">¿Qué pasará?</p>
+                        <ul class="mb-0" style="color:#92400e; font-size:0.88rem; padding-left:1.25rem;">
+                            <li>Los grupos, posiciones y cuadros se guardarán en el historial</li>
+                            <li>Las inscripciones actuales <strong>NO</strong> se archivan</li>
+                            <li>Se creará un nuevo torneo en blanco (nuevo ID)</li>
+                            <li>El estado volverá a "Período de Inscripción"</li>
+                        </ul>
+                    </div>
+                    <p class="text-danger small fw-semibold mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Esta acción no se puede deshacer.
+                    </p>
+                    <div>
+                        <label class="form-label fw-bold" for="inputNombreTorneo">
+                            Nombre del torneo <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="inputNombreTorneo"
+                               placeholder="Ej. Torneo Enero 2025"
+                               style="border-radius:10px;">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
+                            data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold"
+                            id="btnConfirmarTerminar" onclick="confirmarTerminarTorneo()">
+                        <i class="bi bi-trophy-fill me-1"></i>Terminar y Archivar
                     </button>
                 </div>
             </div>
@@ -1414,6 +1466,46 @@ window.addEventListener('focus', function() {
         actualizarTablaParejas();
     }
 });
+
+// ==================== TERMINAR TORNEO ====================
+function terminarTorneo() {
+    // Limpiar input y abrir modal
+    document.getElementById('inputNombreTorneo').value = '';
+    new bootstrap.Modal(document.getElementById('modalTerminarTorneo')).show();
+}
+
+async function confirmarTerminarTorneo() {
+    const nombre = document.getElementById('inputNombreTorneo').value.trim();
+    if (!nombre) {
+        Toast.error('El nombre del torneo es obligatorio');
+        return;
+    }
+
+    const btn = document.getElementById('btnConfirmarTerminar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Archivando...';
+
+    try {
+        const resp = await fetch('/api/admin/terminar-torneo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('Torneo archivado correctamente');
+            setTimeout(() => window.location.href = '/torneos', 1000);
+        } else {
+            Toast.error(data.error || 'Error al terminar el torneo');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trophy-fill me-1"></i>Terminar y Archivar';
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trophy-fill me-1"></i>Terminar y Archivar';
+    }
+}
 
 // ── Inscripciones (panel admin) ─────────────────────────────────────────────
 

@@ -8,6 +8,8 @@ import os
 import logging
 import time
 
+logger = logging.getLogger(__name__)
+
 from config import (
     SECRET_KEY, 
     CATEGORIAS, 
@@ -23,6 +25,7 @@ from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
 from api.routes.inscripcion import inscripcion_bp
+from api.routes.historial import historial_bp
 from utils.torneo_storage import storage
 from utils.jwt_handler import JWTHandler
 
@@ -58,6 +61,7 @@ def crear_app():
     app.register_blueprint(finales_bp)
     app.register_blueprint(auth_jugador_bp)
     app.register_blueprint(inscripcion_bp)
+    app.register_blueprint(historial_bp)
     
     # Helper para obtener datos del token o storage
     def obtener_datos_torneo():
@@ -105,7 +109,7 @@ def crear_app():
                 elif role == 'jugador':
                     g.es_jugador = True
         # Rutas públicas: no requieren autenticación
-        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones']
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones', '/torneos']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 
@@ -415,8 +419,15 @@ def _registrar_extras(app):
     @app.route('/_health')
     def health_check():
         """Endpoint para keep-alive (UptimeRobot, Freshping, etc).
-        No requiere autenticación."""
+        No requiere autenticación.
+        Hace una query real a Supabase para evitar que el proyecto free tier se pause."""
         from flask import jsonify
+        try:
+            storage = app.torneo_storage
+            if storage._sb:
+                storage._sb.table('torneo_actual').select('id').limit(1).execute()
+        except Exception:
+            pass  # No romper el health check si Supabase está lento o caído
         return jsonify({'status': 'ok'})
 
     @app.errorhandler(404)

@@ -1,452 +1,445 @@
 {% extends "base.html" %}
 
-{% block title %}Lagomar Padel Club{% endblock %}
+{% block title %}Lagomar Padel Club — Torneos{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Flush hero against navbar — negate container-fluid padding */
+    /* Flush hero against navbar */
     main.container-fluid {
-        padding-top: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-    }
-
-    .landing-page {
-        background: #0a0a0a;
-        min-height: 100vh;
+        padding: 0 !important;
     }
 
     /* ── Hero ── */
-    .hero-premium {
+    .hero-lpc {
         position: relative;
-        min-height: 90vh;
-        display: flex;
-        align-items: flex-end;
+        height: 80vh;
+        min-height: 480px;
+        max-height: 810px;
         overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
 
-    @media (max-width: 768px) {
-        .hero-premium { min-height: 78vh; }
-    }
-
-    .hero-bg-img {
+    .hero-lpc-img {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
         object-position: center 40%;
-        transform: scale(1.03);
-        transition: transform 8s ease;
     }
 
-    .hero-bg-img.loaded {
-        transform: scale(1.0);
-    }
-
-    /* Multi-layer overlay for depth */
-    .hero-overlay {
+    .hero-lpc-overlay {
         position: absolute;
         inset: 0;
-        background: linear-gradient(
-            to bottom,
-            rgba(0, 0, 0, 0.45) 0%,
-            rgba(0, 0, 0, 0.65) 45%,
-            rgba(0, 0, 0, 0.92) 100%
-        );
+        background: rgba(0,0,0,0.52);
     }
 
-    /* Green glow from bottom-left corner */
-    .hero-overlay::after {
-        content: '';
-        position: absolute;
-        bottom: -10%; left: -5%;
-        width: 55%; height: 60%;
-        background: radial-gradient(ellipse at bottom left, rgba(34, 197, 94, 0.13) 0%, transparent 65%);
-        pointer-events: none;
-    }
-
-    .hero-inner {
+    .hero-lpc-content {
         position: relative;
         z-index: 2;
-        width: 100%;
-        padding: 3rem 2rem 4rem;
-        max-width: 1200px;
-        margin: 0 auto;
+        padding: 2rem 1.5rem;
+        max-width: 720px;
     }
 
-    /* Live dot badge */
-    .hero-eyebrow {
+    .hero-lpc-eyebrow {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        margin-bottom: 1.25rem;
-        opacity: 0;
-        animation: fadeUp 0.6s ease 0.1s both;
-    }
-
-    .hero-eyebrow-text {
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 0.18em;
+        color: rgba(255,255,255,0.7);
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 0.2em;
         text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.5);
+        margin-bottom: 1.25rem;
     }
 
     @keyframes pulse-dot {
-        0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
-        50% { opacity: 0.8; transform: scale(0.85); box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(44,195,116,0.5); }
+        50% { opacity: 0.7; box-shadow: 0 0 0 5px rgba(44,195,116,0); }
     }
-
     .dot-live {
         width: 7px; height: 7px;
         background: var(--brand-green);
         border-radius: 50%;
         animation: pulse-dot 2s ease-in-out infinite;
-        flex-shrink: 0;
     }
-
     .dot-idle {
         width: 7px; height: 7px;
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255,255,255,0.3);
         border-radius: 50%;
-        flex-shrink: 0;
     }
 
-    /* Main title */
-    .hero-title {
-        font-family: 'Bebas Neue', cursive;
-        font-size: clamp(4rem, 10vw, 8rem);
-        line-height: 0.9;
-        letter-spacing: 0.015em;
-        color: #ffffff;
-        margin: 0 0 1.5rem;
-        text-shadow: 0 2px 32px rgba(0, 0, 0, 0.5);
-        opacity: 0;
-        animation: fadeUp 0.65s ease 0.2s both;
+    .hero-lpc-title {
+        font-family: var(--font-slab);
+        font-size: clamp(2.2rem, 5.5vw, 4rem);
+        font-weight: 700;
+        color: #fff;
+        line-height: 1.15;
+        margin-bottom: 1rem;
+        text-shadow: 0 2px 20px rgba(0,0,0,0.3);
     }
 
-    .hero-title .accent {
-        color: var(--brand-green);
-    }
-
-    .hero-sub {
-        font-size: 0.95rem;
-        color: rgba(255, 255, 255, 0.48);
-        max-width: 400px;
-        margin-bottom: 2.5rem;
+    .hero-lpc-sub {
+        font-size: 1rem;
+        color: rgba(255,255,255,0.7);
+        margin-bottom: 2rem;
+        font-weight: 300;
         line-height: 1.7;
-        font-weight: 400;
-        opacity: 0;
-        animation: fadeUp 0.65s ease 0.32s both;
     }
 
-    .hero-actions {
+    .hero-lpc-actions {
         display: flex;
-        gap: 0.75rem;
+        gap: 0.875rem;
+        justify-content: center;
         flex-wrap: wrap;
-        opacity: 0;
-        animation: fadeUp 0.65s ease 0.44s both;
     }
 
-    /* CTA Buttons */
-    .btn-hero-p {
+    .btn-hero-taupe {
+        background: var(--brand-taupe);
+        color: #fff;
+        border: none;
+        border-radius: 9999px;
+        padding: 0.8rem 2rem;
+        font-weight: 500;
+        font-size: 0.9rem;
+        letter-spacing: 0.04em;
+        text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 0.45rem;
-        background: var(--brand-green);
-        color: #0a0a0a;
-        border-radius: 5px;
-        padding: 0.78rem 1.6rem;
-        font-weight: 700;
-        font-size: 0.78rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        text-decoration: none;
-        transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        gap: 0.5rem;
+        transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
     }
-
-    .btn-hero-p:hover {
-        background: #16a34a;
+    .btn-hero-taupe:hover {
+        background: var(--brand-taupe-dark);
         color: #fff;
         transform: translateY(-2px);
-        box-shadow: 0 10px 28px rgba(34, 197, 94, 0.28);
+        box-shadow: 0 8px 24px rgba(197,164,142,0.4);
     }
 
-    .btn-hero-s {
+    .btn-hero-ghost {
+        background: transparent;
+        color: rgba(255,255,255,0.85);
+        border: 1.5px solid rgba(255,255,255,0.35);
+        border-radius: 9999px;
+        padding: 0.8rem 2rem;
+        font-weight: 500;
+        font-size: 0.9rem;
+        text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 0.45rem;
-        background: rgba(255, 255, 255, 0.06);
-        color: rgba(255, 255, 255, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 5px;
-        padding: 0.78rem 1.6rem;
-        font-weight: 600;
-        font-size: 0.78rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        text-decoration: none;
+        gap: 0.5rem;
         transition: all 0.2s ease;
-        backdrop-filter: blur(4px);
     }
-
-    .btn-hero-s:hover {
-        background: rgba(255, 255, 255, 0.10);
+    .btn-hero-ghost:hover {
+        border-color: rgba(255,255,255,0.7);
         color: #fff;
-        border-color: rgba(255, 255, 255, 0.22);
         transform: translateY(-2px);
     }
 
-    /* Bottom accent line on hero */
-    .hero-premium::after {
-        content: '';
-        position: absolute;
-        bottom: 0; left: 0; right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, transparent 10%, rgba(34, 197, 94, 0.35) 40%, rgba(34, 197, 94, 0.35) 60%, transparent 90%);
-        z-index: 3;
+    /* ── "Pensado para vos" section ── */
+    .seccion-info {
+        background: var(--brand-bg);
+        padding: 5rem 0;
     }
 
-    /* ── Features Section ── */
-    .features-section {
-        padding: 4rem 0 5rem;
-        background: #0a0a0a;
-    }
-
-    .section-label {
-        font-size: 0.62rem;
+    .seccion-label {
+        font-size: 0.68rem;
         font-weight: 700;
-        letter-spacing: 0.18em;
+        letter-spacing: 0.2em;
         text-transform: uppercase;
-        color: var(--brand-green);
-        margin-bottom: 0.4rem;
+        color: var(--brand-taupe);
+        margin-bottom: 0.5rem;
     }
 
-    .section-title-lpc {
-        font-family: 'Bebas Neue', cursive;
-        font-size: 2.4rem;
-        letter-spacing: 0.03em;
-        color: rgba(255, 255, 255, 0.88);
-        margin-bottom: 1.75rem;
-        line-height: 1;
+    .seccion-title {
+        font-family: var(--font-slab);
+        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        font-weight: 700;
+        color: var(--brand-black);
+        line-height: 1.2;
+        margin-bottom: 0;
     }
 
-    /* Feature cards grid */
-    .features-grid {
+    .seccion-desc {
+        color: #6b6b5e;
+        font-size: 1rem;
+        line-height: 1.8;
+        font-weight: 300;
+        max-width: 540px;
+    }
+
+    /* ── Service cards ── */
+    .services-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-    }
-
-    @media (max-width: 600px) {
-        .features-grid { grid-template-columns: 1fr; }
-    }
-
-    /* Individual card */
-    .feature-card-lpc {
-        position: relative;
-        border-radius: 10px;
-        overflow: hidden;
-        display: block;
-        text-decoration: none;
-        background: #161616;
-    }
-
-    .feature-card-lpc.clickable {
-        cursor: pointer;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .feature-card-lpc.clickable:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
-    }
-
-    .feature-card-lpc.clickable:hover .feature-card-overlay-lpc {
-        background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 55%, rgba(0,0,0,0.15) 100%);
-    }
-
-    .feature-card-lpc.clickable:hover .feature-arrow {
-        transform: translateX(5px);
-        opacity: 1;
-    }
-
-    .feature-card-img {
-        width: 100%;
-        height: 300px;
-        object-fit: cover;
-        display: block;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.25rem;
+        margin-top: 3rem;
     }
 
     @media (max-width: 768px) {
-        .feature-card-img { height: 220px; }
+        .services-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+        .services-grid { grid-template-columns: 1fr; }
     }
 
-    .feature-card-overlay-lpc {
+    .service-card {
+        background: #fff;
+        border-radius: 4px;
+        padding: 2rem 1.75rem;
+        border: 1px solid var(--brand-border);
+        transition: box-shadow 0.3s ease, transform 0.2s ease;
+        text-decoration: none;
+        display: block;
+        color: var(--brand-black);
+    }
+
+    .service-card:hover {
+        box-shadow: 6px 6px 9px rgba(0,0,0,0.12);
+        transform: translateY(-3px);
+        color: var(--brand-black);
+    }
+
+    .service-icon {
+        width: 56px; height: 56px;
+        background: var(--brand-bg);
+        border-radius: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--brand-taupe);
+        margin-bottom: 1.25rem;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+    .service-card:hover .service-icon {
+        background: var(--brand-taupe);
+        color: #fff;
+    }
+
+    .service-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--brand-black);
+        margin-bottom: 0.4rem;
+    }
+
+    .service-desc {
+        font-size: 0.83rem;
+        color: #9A9694;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .service-arrow {
+        margin-top: 1rem;
+        color: var(--brand-taupe);
+        font-size: 0.8rem;
+        font-weight: 500;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .service-card:hover .service-arrow { opacity: 1; }
+
+    /* ── Historial banner ── */
+    .historial-banner {
+        background: var(--brand-black);
+        padding: 4.5rem 0;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .historial-banner::before {
+        content: '';
         position: absolute;
         inset: 0;
-        background: linear-gradient(
-            to top,
-            rgba(0, 0, 0, 0.85) 0%,
-            rgba(0, 0, 0, 0.38) 55%,
-            rgba(0, 0, 0, 0.08) 100%
-        );
-        transition: background 0.3s ease;
+        background-image: url("{{ url_for('static', filename='img/Canchas2.jpg') }}");
+        background-size: cover;
+        background-position: center;
+        opacity: 0.15;
     }
 
-    .feature-card-body {
-        position: absolute;
-        bottom: 0; left: 0; right: 0;
-        padding: 1.5rem 1.5rem 1.4rem;
+    .historial-banner-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
     }
 
-    .feature-tag {
-        display: inline-block;
-        font-size: 0.6rem;
+    .historial-banner h2 {
+        font-family: var(--font-slab);
+        font-size: clamp(1.8rem, 4vw, 3rem);
         font-weight: 700;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        padding: 0.22rem 0.55rem;
-        border-radius: 3px;
-        margin-bottom: 0.55rem;
-    }
-
-    .feature-tag.soon {
-        background: rgba(255, 255, 255, 0.08);
-        color: rgba(255, 255, 255, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .feature-tag.available {
-        background: rgba(34, 197, 94, 0.12);
-        color: var(--brand-green);
-        border: 1px solid rgba(34, 197, 94, 0.25);
-    }
-
-    .feature-card-title {
-        font-family: 'Bebas Neue', cursive;
-        font-size: 1.9rem;
-        letter-spacing: 0.03em;
         color: #fff;
-        margin: 0 0 0.3rem;
-        line-height: 1;
+        margin-bottom: 0.75rem;
     }
 
-    .feature-card-desc {
-        font-size: 0.8rem;
-        color: rgba(255, 255, 255, 0.48);
-        margin: 0;
-        line-height: 1.55;
+    .historial-banner p {
+        color: rgba(255,255,255,0.55);
+        font-size: 1rem;
+        font-weight: 300;
+        margin-bottom: 2rem;
     }
 
-    .feature-arrow {
-        position: absolute;
-        bottom: 1.4rem; right: 1.4rem;
-        color: var(--brand-green);
-        font-size: 1.1rem;
-        opacity: 0.6;
-        transition: transform 0.25s ease, opacity 0.25s ease;
-    }
-
-    /* Page load animations */
+    /* Page load fade */
     @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(14px); }
+        from { opacity: 0; transform: translateY(12px); }
         to   { opacity: 1; transform: translateY(0); }
     }
+    .hero-lpc-eyebrow { animation: fadeUp 0.5s ease 0.1s both; }
+    .hero-lpc-title   { animation: fadeUp 0.5s ease 0.2s both; }
+    .hero-lpc-sub     { animation: fadeUp 0.5s ease 0.3s both; }
+    .hero-lpc-actions { animation: fadeUp 0.5s ease 0.4s both; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="landing-page">
 
-    <!-- Hero -->
-    <section class="hero-premium">
-        <img src="{{ url_for('static', filename='img/Fachada.jpg') }}"
-             alt="Lagomar Padel Club"
-             class="hero-bg-img"
-             onload="this.classList.add('loaded')">
-        <div class="hero-overlay"></div>
+<!-- ── Hero ── -->
+<section class="hero-lpc">
+    <img src="{{ url_for('static', filename='img/Fachada.jpg') }}"
+         alt="Lagomar Padel Club"
+         class="hero-lpc-img">
+    <div class="hero-lpc-overlay"></div>
 
-        <div class="hero-inner">
-            <div class="hero-eyebrow">
-                {% if resultado %}
-                    <span class="dot-live"></span>
-                {% else %}
-                    <span class="dot-idle"></span>
-                {% endif %}
-                <span class="hero-eyebrow-text">
-                    {% if resultado %}Torneo en curso{% else %}Próximamente{% endif %}
-                </span>
+    <div class="hero-lpc-content">
+        <div class="hero-lpc-eyebrow">
+            {% if resultado %}
+                <span class="dot-live"></span>
+                <span>Torneo en curso</span>
+            {% else %}
+                <span class="dot-idle"></span>
+                <span>Próximamente</span>
+            {% endif %}
+        </div>
+
+        <h1 class="hero-lpc-title">
+            Bienvenidos a<br>
+            {% if torneo.nombre %}
+                {{ torneo.nombre }}
+            {% else %}
+                Lagomar Padel Club
+            {% endif %}
+        </h1>
+
+        <p class="hero-lpc-sub">
+            Seguí en tiempo real los grupos, resultados y el bracket de finales.
+        </p>
+
+        <div class="hero-lpc-actions">
+            {% if resultado %}
+            <a href="{{ url_for('grupos_publico') }}" class="btn-hero-taupe">
+                <i class="bi bi-grid-3x3-gap-fill"></i> Ver Grupos
+            </a>
+            <a href="{{ url_for('cuadro_publico') }}" class="btn-hero-ghost">
+                <i class="bi bi-trophy-fill"></i> Ver Finales
+            </a>
+            {% else %}
+            <span class="btn-hero-ghost" style="cursor:default; opacity:0.5;">
+                <i class="bi bi-hourglass-split"></i> Grupos en preparación
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- ── Sección: Pensado para vos ── -->
+<section class="seccion-info">
+    <div class="container">
+        <div class="row align-items-center gy-4 mb-0">
+            <div class="col-md-5">
+                <div class="seccion-label">Nuestro torneo</div>
+                <h2 class="seccion-title">Pensado para<br>cada jugador</h2>
             </div>
-
-            <h1 class="hero-title">
-                {% if torneo.nombre %}
-                    {{ torneo.nombre }}
-                {% else %}
-                    Torneo de<br><span class="accent">Pádel</span>
-                {% endif %}
-            </h1>
-
-            <p class="hero-sub">
-                Seguí en tiempo real los grupos, resultados y el bracket de finales.
-            </p>
-
-            <div class="hero-actions">
-                {% if resultado %}
-                <a href="{{ url_for('grupos_publico') }}" class="btn-hero-p">
-                    <i class="bi bi-grid-3x3-gap-fill"></i> Ver Grupos
-                </a>
-                <a href="{{ url_for('cuadro_publico') }}" class="btn-hero-s">
-                    <i class="bi bi-trophy-fill"></i> Ver Finales
-                </a>
-                {% else %}
-                <span class="btn-hero-s" style="cursor: default; opacity: 0.4;">
-                    <i class="bi bi-hourglass-split"></i> Grupos en preparación
-                </span>
-                {% endif %}
+            <div class="col-md-7">
+                <p class="seccion-desc">
+                    Seguí tu torneo en tiempo real desde el celular. Grupos, resultados,
+                    cuadros de finales y calendario de partidos — todo en un solo lugar.
+                </p>
             </div>
         </div>
-    </section>
 
-    <!-- Features Section -->
-    <section class="features-section">
-        <div class="container">
-            <div class="section-label">El Club</div>
-            <div class="section-title-lpc">¿Qué podés hacer?</div>
+        <div class="services-grid">
 
-            <div class="features-grid">
-
-                <!-- Card 1: Inscripción (Commoditys) -->
-                <div class="feature-card-lpc">
-                    <img src="{{ url_for('static', filename='img/Canchas5.jpg') }}"
-                         alt="Tienda Lagomar Padel Club"
-                         class="feature-card-img">
-                    <div class="feature-card-overlay-lpc"></div>
-                    <div class="feature-card-body">
-                        <span class="feature-tag soon">Próximamente</span>
-                        <h3 class="feature-card-title">Inscripción Online</h3>
-                        <p class="feature-card-desc">Registrate y anotate al próximo torneo directamente desde acá.</p>
-                    </div>
+            <!-- Grupos -->
+            <a href="{{ url_for('grupos_publico') }}" class="service-card">
+                <div class="service-icon">
+                    <i class="bi bi-grid-3x3-gap-fill"></i>
                 </div>
+                <div class="service-title">Grupos</div>
+                <p class="service-desc">Visualizá las parejas de cada grupo y los resultados de los partidos.</p>
+                <div class="service-arrow">Ver grupos <i class="bi bi-arrow-right"></i></div>
+            </a>
 
-                <!-- Card 2: Historial (Pasillo) -->
-                <a href="{{ url_for('historial.lista_torneos') }}" class="feature-card-lpc clickable">
-                    <img src="{{ url_for('static', filename='img/Canchas2.jpg') }}"
-                         alt="Canchas Lagomar Padel Club"
-                         class="feature-card-img">
-                    <div class="feature-card-overlay-lpc"></div>
-                    <div class="feature-card-body">
-                        <span class="feature-tag available"><i class="bi bi-clock-history me-1"></i>Disponible</span>
-                        <h3 class="feature-card-title">Historial de Torneos</h3>
-                        <p class="feature-card-desc">Resultados, grupos y cuadros de torneos anteriores.</p>
-                    </div>
-                    <i class="bi bi-arrow-right feature-arrow"></i>
-                </a>
+            <!-- Finales -->
+            <a href="{{ url_for('cuadro_publico') }}" class="service-card">
+                <div class="service-icon">
+                    <i class="bi bi-trophy"></i>
+                </div>
+                <div class="service-title">Cuadro de Finales</div>
+                <p class="service-desc">Seguí el bracket del torneo: octavos, cuartos, semifinales y final.</p>
+                <div class="service-arrow">Ver finales <i class="bi bi-arrow-right"></i></div>
+            </a>
 
+            <!-- Calendario -->
+            <a href="{{ url_for('calendario_publico') }}" class="service-card">
+                <div class="service-icon">
+                    <i class="bi bi-calendar-week"></i>
+                </div>
+                <div class="service-title">Calendario</div>
+                <p class="service-desc">Encontrá tus partidos por día y horario. Viernes, sábado y domingo.</p>
+                <div class="service-arrow">Ver calendario <i class="bi bi-arrow-right"></i></div>
+            </a>
+
+        </div>
+    </div>
+</section>
+
+<!-- ── Banner: Historial de torneos ── -->
+<section class="historial-banner">
+    <div class="container">
+        <div class="historial-banner-content">
+            <h2>Historial de Torneos</h2>
+            <p>Resultados completos, grupos y cuadros de torneos anteriores.</p>
+            <a href="{{ url_for('historial.lista_torneos') }}" class="btn-hero-taupe">
+                <i class="bi bi-clock-history"></i> Ver historial
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ── Info del club ── -->
+<section style="padding: 4.5rem 0; background: #fff;">
+    <div class="container">
+        <div class="row gy-4 justify-content-center text-center">
+            <div class="col-md-4">
+                <div style="font-size: 1.8rem; color: var(--brand-taupe); margin-bottom: 0.75rem;">
+                    <i class="bi bi-geo-alt"></i>
+                </div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: var(--brand-black); margin-bottom: 0.3rem;">Dirección</div>
+                <div style="font-size: 0.85rem; color: #9A9694;">Av. del Country esq. Río de Janeiro<br>Lagomar, Uruguay</div>
+            </div>
+            <div class="col-md-4">
+                <div style="font-size: 1.8rem; color: var(--brand-taupe); margin-bottom: 0.75rem;">
+                    <i class="bi bi-whatsapp"></i>
+                </div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: var(--brand-black); margin-bottom: 0.3rem;">WhatsApp</div>
+                <div style="font-size: 0.85rem; color: #9A9694;">097 670 597</div>
+            </div>
+            <div class="col-md-4">
+                <div style="font-size: 1.8rem; color: var(--brand-taupe); margin-bottom: 0.75rem;">
+                    <i class="bi bi-instagram"></i>
+                </div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: var(--brand-black); margin-bottom: 0.3rem;">Instagram</div>
+                <div style="font-size: 0.85rem; color: #9A9694;">
+                    <a href="https://www.instagram.com/lagomarpadelclub/" target="_blank"
+                       style="color: var(--brand-taupe); text-decoration: none;">@lagomarpadelclub</a>
+                </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-</div>
 {% endblock %}

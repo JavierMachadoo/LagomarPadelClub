@@ -4,38 +4,31 @@
 
 {% block extra_css %}
 <style>
-    :root {
-        --brand-black: #111111;
-        --brand-green: #22c55e;
-        --brand-green-dark: #16a34a;
-        --brand-white: #ffffff;
-    }
-
     .cal-page {
-        background: #f4f4f4;
+        background: var(--brand-bg);
         min-height: 100vh;
         padding-bottom: 4rem;
     }
 
     /* ── Header de página ── */
     .cal-header {
-        background: var(--brand-black);
-        color: var(--brand-white);
-        padding: 3rem 2rem 2.5rem;
+        background: #fff;
+        border-bottom: 1px solid var(--brand-border);
+        padding: 2.5rem 2rem 2rem;
         text-align: center;
     }
     .cal-header h1 {
-        font-family: 'Bebas Neue', cursive;
-        font-size: clamp(3rem, 7vw, 5rem);
-        font-weight: 400;
-        letter-spacing: 0.03em;
+        font-family: var(--font-slab);
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        font-weight: 700;
+        color: var(--brand-black);
         margin-bottom: 0.3rem;
-        line-height: 1;
+        line-height: 1.2;
     }
-    .cal-header h1 span { color: var(--brand-green); }
+    .cal-header h1 span { color: var(--brand-taupe); }
     .cal-header p {
-        color: #aaa;
-        font-size: 1rem;
+        color: #9A9694;
+        font-size: 0.9rem;
         margin: 0;
     }
 
@@ -67,7 +60,7 @@
     }
     .day-nav .nav-link.active {
         background: var(--brand-black);
-        color: var(--brand-white);
+        color: #fff;
     }
     .day-nav .nav-link .day-badge {
         display: inline-block;

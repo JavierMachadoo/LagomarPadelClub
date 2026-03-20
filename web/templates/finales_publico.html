@@ -32,24 +32,18 @@
 
 {% block extra_css %}
 <style>
-    :root {
-        --brand-black: #111111;
-        --brand-green: #22c55e;
-        --brand-green-dark: #16a34a;
-        --brand-white: #ffffff;
-    }
-
     .pub-page {
-        background: #f4f4f4;
+        background: var(--brand-bg);
         min-height: 100vh;
         padding: 2rem 0 4rem;
     }
 
     /* ── Header ── */
     .pub-header {
-        background: var(--brand-black);
-        color: var(--brand-white);
-        border-radius: 16px;
+        background: #fff;
+        border: 1px solid var(--brand-border);
+        border-left: 4px solid var(--brand-taupe);
+        border-radius: 4px;
         padding: 2rem 2.5rem;
         margin-bottom: 2rem;
         display: flex;
@@ -58,12 +52,13 @@
         flex-wrap: wrap;
         gap: 1rem;
     }
-    .pub-header h1 { font-family: 'Bebas Neue', cursive; font-size: clamp(2.5rem, 6vw, 3.8rem); font-weight: 400; margin: 0; letter-spacing: 0.03em; line-height: 1; }
+    .pub-header h1 { font-family: var(--font-slab); font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 700; margin: 0; color: var(--brand-black); line-height: 1.15; }
     .pub-header .torneo-nombre {
-        font-size: 0.95rem;
-        color: var(--brand-green);
-        font-weight: 600;
+        font-size: 0.88rem;
+        color: var(--brand-taupe);
+        font-weight: 500;
         margin: 0;
+        letter-spacing: 0.03em;
     }
 
     /* ── Category tabs ── */

@@ -23,13 +23,13 @@
                  style="border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.08);">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-start flex-wrap gap-3">
-                        <div style="width:52px; height:52px; background:var(--brand-green); border-radius:12px;
+                        <div style="width:52px; height:52px; background:var(--brand-taupe); border-radius:50%;
                                     display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                             <i class="bi bi-trophy-fill text-white fs-5"></i>
                         </div>
                         <div class="flex-grow-1">
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                                <h3 class="mb-0" style="font-family:'Bebas Neue',cursive; font-size:clamp(1.8rem,4vw,2.8rem); font-weight:400; letter-spacing:0.03em; line-height:1; color:var(--brand-black);">{{ torneo.nombre }}</h3>
+                                <h3 class="mb-0" style="font-family:var(--font-slab); font-size:clamp(1.6rem,3.5vw,2.4rem); font-weight:700; line-height:1.2; color:var(--brand-black);">{{ torneo.nombre }}</h3>
                                 {% set tipo = torneo.tipo if torneo.tipo is defined else '' %}
                                 {% if tipo == 'fin1' %}
                                 <span class="badge px-3 py-2"

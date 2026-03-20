@@ -9,6 +9,7 @@ Rutas:
 
 import json
 import logging
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -86,6 +87,105 @@ def _cargar_archivado(torneo_id: str):
         return None
 
 
+def _poblar_tablas_relacionales(sb, torneo_id: str, datos_blob: dict) -> None:
+    """Popula las 4 tablas relacionales desde el blob al archivar un torneo.
+
+    - UUIDs generados en Python → batch inserts (~6 calls en vez de ~N calls).
+    - DELETE antes de INSERT → idempotente ante reintentos.
+    - ON DELETE CASCADE en grupos elimina automáticamente parejas_grupo y partidos.
+    """
+    resultado = datos_blob.get('resultado_algoritmo') or {}
+    grupos_por_categoria = resultado.get('grupos_por_categoria') or {}
+    fixtures_finales = datos_blob.get('fixtures_finales') or {}
+
+    # 1. Limpiar datos previos para garantizar idempotencia
+    # La cascada ON DELETE CASCADE elimina parejas_grupo y partidos automáticamente
+    sb.table('grupos').delete().eq('torneo_id', torneo_id).execute()
+    sb.table('partidos_finales').delete().eq('torneo_id', torneo_id).execute()
+
+    # 2. Construir todos los lotes en memoria antes de ir a la red
+    grupos_rows = []
+    parejas_rows = []
+    partidos_rows = []
+    finales_rows = []
+
+    for categoria, grupos_lista in grupos_por_categoria.items():
+        for grupo_dict in grupos_lista:
+            grupo_uuid = str(uuid.uuid4())
+            grupos_rows.append({
+                'id':        grupo_uuid,
+                'torneo_id': torneo_id,
+                'categoria': categoria,
+                'franja':    grupo_dict.get('franja_horaria'),
+                'cancha':    grupo_dict.get('cancha'),
+            })
+
+            # Mapa id_entero → nombre para resolver los IDs del resultado
+            nombre_map = {p.get('id'): p.get('nombre', '') for p in grupo_dict.get('parejas', [])}
+
+            for pareja_dict in grupo_dict.get('parejas', []):
+                parejas_rows.append({
+                    'grupo_id': grupo_uuid,
+                    'nombre':   pareja_dict.get('nombre', ''),
+                    'posicion': pareja_dict.get('posicion_grupo'),  # puede ser None
+                })
+
+            for resultado_dict in grupo_dict.get('resultados', {}).values():
+                partidos_rows.append({
+                    'id':        str(uuid.uuid4()),
+                    'grupo_id':  grupo_uuid,
+                    'pareja1':   nombre_map.get(resultado_dict.get('pareja1_id'), ''),
+                    'pareja2':   nombre_map.get(resultado_dict.get('pareja2_id'), ''),
+                    'resultado': resultado_dict,
+                })
+
+    for categoria, fixture_dict in fixtures_finales.items():
+        if not isinstance(fixture_dict, dict):
+            continue
+        # octavos, cuartos y semifinales son listas de partidos
+        for fase_key in ('octavos', 'cuartos', 'semifinales'):
+            for partido_dict in fixture_dict.get(fase_key, []):
+                if not isinstance(partido_dict, dict):
+                    continue
+                finales_rows.append({
+                    'id':        str(uuid.uuid4()),
+                    'torneo_id': torneo_id,
+                    'categoria': categoria,
+                    'fase':      partido_dict.get('fase', fase_key),
+                    'pareja1':   (partido_dict.get('pareja1') or {}).get('nombre'),
+                    'pareja2':   (partido_dict.get('pareja2') or {}).get('nombre'),
+                    'ganador':   (partido_dict.get('ganador') or {}).get('nombre'),
+                })
+        # 'final' es un dict único, no una lista como las otras fases
+        final_dict = fixture_dict.get('final')
+        if final_dict and isinstance(final_dict, dict):
+            finales_rows.append({
+                'id':        str(uuid.uuid4()),
+                'torneo_id': torneo_id,
+                'categoria': categoria,
+                'fase':      final_dict.get('fase', 'Final'),
+                'pareja1':   (final_dict.get('pareja1') or {}).get('nombre'),
+                'pareja2':   (final_dict.get('pareja2') or {}).get('nombre'),
+                'ganador':   (final_dict.get('ganador') or {}).get('nombre'),
+            })
+
+    # 3. Batch inserts — orden obligatorio: grupos antes que sus hijos (FK constraint)
+    if grupos_rows:
+        sb.table('grupos').insert(grupos_rows).execute()
+    if parejas_rows:
+        sb.table('parejas_grupo').insert(parejas_rows).execute()
+    if partidos_rows:
+        sb.table('partidos').insert(partidos_rows).execute()
+    if finales_rows:
+        sb.table('partidos_finales').insert(finales_rows).execute()
+
+    logger.info(
+        'Tablas relacionales pobladas para torneo %s: %d grupos, %d parejas, '
+        '%d partidos grupo, %d partidos finales',
+        torneo_id, len(grupos_rows), len(parejas_rows), len(partidos_rows), len(finales_rows),
+    )
+
+
 @historial_bp.route('/api/admin/terminar-torneo', methods=['POST'])
 def terminar_torneo():
     """Archiva el torneo actual con sus datos y lo resetea completamente."""
@@ -109,8 +209,9 @@ def terminar_torneo():
     }
 
     if _use_supabase():
+        sb = _sb_admin()  # Una sola instancia para todo el bloque
         try:
-            _sb_admin().table('torneos').upsert({
+            sb.table('torneos').upsert({
                 'id': torneo_id,
                 'nombre': nombre,
                 'tipo': tipo,
@@ -120,6 +221,12 @@ def terminar_torneo():
         except Exception as e:
             logger.error('Error al archivar torneo en Supabase: %s', e)
             return jsonify({'error': 'Error al archivar el torneo'}), 500
+
+        # Poblar tablas relacionales (best-effort: el blob ya está guardado)
+        try:
+            _poblar_tablas_relacionales(sb, torneo_id, datos_blob)
+        except Exception as e:
+            logger.error('Error al poblar tablas relacionales para torneo %s: %s', torneo_id, e)
     else:
         torneos = []
         if _HISTORIAL_FILE.exists():

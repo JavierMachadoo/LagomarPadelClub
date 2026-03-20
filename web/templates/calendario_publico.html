@@ -25,10 +25,12 @@
         text-align: center;
     }
     .cal-header h1 {
-        font-size: clamp(1.8rem, 4vw, 2.8rem);
-        font-weight: 900;
-        letter-spacing: -1px;
-        margin-bottom: 0.5rem;
+        font-family: 'Bebas Neue', cursive;
+        font-size: clamp(3rem, 7vw, 5rem);
+        font-weight: 400;
+        letter-spacing: 0.03em;
+        margin-bottom: 0.3rem;
+        line-height: 1;
     }
     .cal-header h1 span { color: var(--brand-green); }
     .cal-header p {
@@ -42,7 +44,7 @@
         background: var(--brand-white);
         border-bottom: 1px solid #e5e7eb;
         position: sticky;
-        top: 0;
+        top: 68px; /* account for sticky navbar height */
         z-index: 100;
     }
     .day-nav .nav-tabs {

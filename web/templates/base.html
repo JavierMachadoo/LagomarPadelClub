@@ -7,57 +7,158 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>{% block title %}Torneo de Pádel{% endblock %}</title>
-    
+
+    <!-- Google Fonts: Bebas Neue (display) + Inter (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    
+
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1.3">
-    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.0">
+
     <!-- Mobile CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}?v=1.3">
-    
+
     {% block extra_css %}{% endblock %}
-    
+
     <style>
         :root {
-            --brand-black: #111111;
+            --brand-black: #0a0a0a;
             --brand-green: #22c55e;
             --brand-green-dark: #16a34a;
+            --brand-green-glow: rgba(34, 197, 94, 0.15);
             --brand-white: #ffffff;
+            --brand-surface: #161616;
+            --brand-surface-2: #1f1f1f;
+            --font-display: 'Bebas Neue', cursive;
+            --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
-        .navbar .nav-link:hover {
-            background: rgba(34, 197, 94, 0.2) !important;
-            transform: translateY(-2px);
+
+        body {
+            font-family: var(--font-body);
         }
-        .navbar .nav-link.active-link {
-            background: rgba(34, 197, 94, 0.25) !important;
-            border-bottom: 2px solid var(--brand-green);
+
+        /* ── Navbar Premium ── */
+        .lpc-navbar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(10, 10, 10, 0.92) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(34, 197, 94, 0.10);
+            box-shadow: none !important;
+            padding: 0 !important;
         }
+
+        /* Subtle green accent line at the very top */
+        .lpc-navbar::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1.5px;
+            background: linear-gradient(90deg, transparent 5%, var(--brand-green) 35%, var(--brand-green) 65%, transparent 95%);
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
+        .lpc-navbar .navbar-brand {
+            padding: 0.5rem 0;
+        }
+
+        .lpc-navbar .nav-link {
+            font-family: var(--font-body);
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.65) !important;
+            padding: 0.6rem 0.8rem !important;
+            border-radius: 5px;
+            margin: 0 1px;
+            transition: color 0.2s ease, background 0.2s ease;
+        }
+
+        .lpc-navbar .nav-link:hover {
+            color: rgba(255, 255, 255, 0.95) !important;
+            background: rgba(255, 255, 255, 0.06) !important;
+            transform: none;
+        }
+
+        .lpc-navbar .nav-link.active-link {
+            color: var(--brand-green) !important;
+            background: rgba(34, 197, 94, 0.08) !important;
+            border-bottom: none;
+        }
+
+        .nav-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            margin: auto 0.4rem;
+            flex-shrink: 0;
+        }
+
+        /* Toast container */
         .toast-container {
             position: fixed;
             top: 80px;
             right: 20px;
             z-index: 9999;
         }
+
         .toast-custom {
             min-width: 300px;
             backdrop-filter: blur(10px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* ── Footer Premium ── */
+        .lpc-footer {
+            background: var(--brand-black) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+            margin-top: 3rem;
+            padding: 2rem 0;
+        }
+
+        .lpc-footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .lpc-footer p {
+            color: rgba(255, 255, 255, 0.28);
+            font-size: 0.75rem;
+            margin: 0;
+            letter-spacing: 0.04em;
+        }
+
+        .lpc-footer .footer-tagline {
+            color: rgba(255, 255, 255, 0.18);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
         }
     </style>
 </head>
 <body>
+
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark" style="background: var(--brand-black); box-shadow: 0 4px 20px rgba(0,0,0,0.3); padding: 0;">
+    <nav class="navbar navbar-expand-lg navbar-dark lpc-navbar">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('inicio') }}">
                 <img src="{{ url_for('static', filename='img/logo_lagomar.png') }}"
                      alt="Lagomar Padel Club"
-                     style="height: 64px; width: auto; display: block;">
+                     style="height: 54px; width: auto; display: block;">
             </a>
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                     style="outline: none; box-shadow: none;">
@@ -66,76 +167,62 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto gap-1 align-items-center">
 
-                    <!-- Grupos: siempre visible -->
                     <li class="nav-item">
-                        <a class="nav-link text-white px-3 py-2 rounded
-                            {{ 'active-link' if request.endpoint == 'grupos_publico' else '' }}"
-                           href="{{ url_for('grupos_publico') }}"
-                           style="font-weight: 600; font-size: 1rem; transition: all 0.2s ease;">
+                        <a class="nav-link {{ 'active-link' if request.endpoint == 'grupos_publico' else '' }}"
+                           href="{{ url_for('grupos_publico') }}">
                             <i class="bi bi-grid-3x3-gap-fill me-1"></i>Grupos
                         </a>
                     </li>
 
-                    <!-- Finales: siempre visible -->
                     <li class="nav-item">
-                        <a class="nav-link text-white px-3 py-2 rounded
-                            {{ 'active-link' if request.endpoint == 'cuadro_publico' else '' }}"
-                           href="{{ url_for('cuadro_publico') }}"
-                           style="font-weight: 600; font-size: 1rem; transition: all 0.2s ease;">
+                        <a class="nav-link {{ 'active-link' if request.endpoint == 'cuadro_publico' else '' }}"
+                           href="{{ url_for('cuadro_publico') }}">
                             <i class="bi bi-trophy me-1"></i>Finales
                         </a>
                     </li>
 
-                    <!-- Calendario: siempre visible -->
                     <li class="nav-item">
-                        <a class="nav-link text-white px-3 py-2 rounded
-                            {{ 'active-link' if request.endpoint == 'calendario_publico' else '' }}"
-                           href="{{ url_for('calendario_publico') }}"
-                           style="font-weight: 600; font-size: 1rem; transition: all 0.2s ease;">
+                        <a class="nav-link {{ 'active-link' if request.endpoint == 'calendario_publico' else '' }}"
+                           href="{{ url_for('calendario_publico') }}">
                             <i class="bi bi-calendar-week me-1"></i>Calendario
                         </a>
                     </li>
 
                     {% if es_jugador and fase_torneo == 'inscripcion' %}
-                    <!-- Inscribirse (jugador, solo durante inscripción) -->
                     <li class="nav-item">
-                        <a class="nav-link px-3 py-2 rounded
-                            {{ 'active-link' if request.endpoint == 'inscripcion.pagina_inscripcion' else '' }}"
+                        <a class="nav-link {{ 'active-link' if request.endpoint == 'inscripcion.pagina_inscripcion' else '' }}"
                            href="{{ url_for('inscripcion.pagina_inscripcion') }}"
-                           style="font-weight: 600; font-size: 1rem; color: #22c55e; transition: all 0.2s ease;">
+                           style="color: var(--brand-green) !important;">
                             <i class="bi bi-pencil-square me-1"></i>Inscribirse
                         </a>
                     </li>
                     {% endif %}
 
                     {% if es_admin %}
-                    <!-- Panel Admin (solo admin) -->
                     <li class="nav-item">
-                        <a class="nav-link text-white px-3 py-2 rounded
-                            {{ 'active-link' if request.endpoint == 'admin_panel' else '' }}"
-                           href="{{ url_for('admin_panel') }}"
-                           style="font-weight: 600; font-size: 1rem; transition: all 0.2s ease;">
+                        <a class="nav-link {{ 'active-link' if request.endpoint == 'admin_panel' else '' }}"
+                           href="{{ url_for('admin_panel') }}">
                             <i class="bi bi-sliders me-1"></i>Panel Admin
                         </a>
                     </li>
                     {% endif %}
 
+                    <li class="nav-divider d-none d-lg-block"></li>
+
                     {% if es_autenticado %}
-                    <!-- Cerrar Sesión (cualquier usuario logueado) -->
-                    <li class="nav-item ms-1">
-                        <a class="nav-link px-3 py-2 rounded"
-                           href="{{ url_for('logout') }}"
-                           style="font-weight: 600; font-size: 1rem; color: #f87171; border: 1px solid rgba(248,113,113,0.3); transition: all 0.2s ease;">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}"
+                           style="color: rgba(248, 113, 113, 0.7) !important;">
                             <i class="bi bi-box-arrow-right me-1"></i>Cerrar Sesión
                         </a>
                     </li>
                     {% else %}
-                    <!-- Login (sin sesión) -->
-                    <li class="nav-item ms-2">
-                        <a class="nav-link px-4 py-2 rounded"
-                           href="{{ url_for('login') }}"
-                           style="font-weight: 700; font-size: 0.95rem; background: var(--brand-green); color: var(--brand-black); border-radius: 30px; transition: all 0.2s ease;">
-                            <i class="bi bi-person-fill me-1"></i>Login
+                    <li class="nav-item ms-1">
+                        <a href="{{ url_for('login') }}"
+                           style="display: inline-flex; align-items: center; gap: 0.4rem; background: var(--brand-green); color: #0a0a0a; font-family: var(--font-body); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.5rem 1.1rem; border-radius: 5px; text-decoration: none; transition: background 0.2s ease, transform 0.2s ease;"
+                           onmouseover="this.style.background='#16a34a'; this.style.transform='translateY(-1px)'"
+                           onmouseout="this.style.background='#22c55e'; this.style.transform=''">
+                            <i class="bi bi-person-fill"></i>Login
                         </a>
                     </li>
                     {% endif %}
@@ -167,30 +254,34 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Footer -->
-    <footer class="bg-light text-center py-3 mt-5">
+    <!-- Footer Premium -->
+    <footer class="lpc-footer">
         <div class="container">
-            <p class="text-muted mb-0">
-                © 2025 Torneo de Pádel - Sistema de Generación de Grupos
-            </p>
+            <div class="lpc-footer-inner">
+                <img src="{{ url_for('static', filename='img/logo_lagomar.png') }}"
+                     alt="Lagomar Padel Club"
+                     style="height: 28px; width: auto; opacity: 0.45; filter: brightness(0) invert(1);">
+                <p>© 2025 Lagomar Padel Club · Sistema de Torneos</p>
+                <span class="footer-tagline">Lagomar · Uruguay</span>
+            </div>
         </div>
     </footer>
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- jQuery (opcional, para facilitar AJAX) -->
+
+    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    
+
     <!-- JWT Helper -->
     <script src="{{ url_for('static', filename='js/jwt-helper.js') }}?v=1.3"></script>
-    
+
     <!-- Toast System -->
     <script src="{{ url_for('static', filename='js/toast.js') }}?v=1.3"></script>
-    
+
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/app.js') }}?v=1.3"></script>
-    
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

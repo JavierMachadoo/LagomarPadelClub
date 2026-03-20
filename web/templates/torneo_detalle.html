@@ -29,7 +29,7 @@
                         </div>
                         <div class="flex-grow-1">
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                                <h3 class="fw-bold mb-0" style="color:var(--brand-black);">{{ torneo.nombre }}</h3>
+                                <h3 class="mb-0" style="font-family:'Bebas Neue',cursive; font-size:clamp(1.8rem,4vw,2.8rem); font-weight:400; letter-spacing:0.03em; line-height:1; color:var(--brand-black);">{{ torneo.nombre }}</h3>
                                 {% set tipo = torneo.tipo if torneo.tipo is defined else '' %}
                                 {% if tipo == 'fin1' %}
                                 <span class="badge px-3 py-2"

@@ -8,6 +8,8 @@ import os
 import logging
 import time
 
+logger = logging.getLogger(__name__)
+
 from config import (
     SECRET_KEY, 
     CATEGORIAS, 

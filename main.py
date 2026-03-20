@@ -417,8 +417,15 @@ def _registrar_extras(app):
     @app.route('/_health')
     def health_check():
         """Endpoint para keep-alive (UptimeRobot, Freshping, etc).
-        No requiere autenticación."""
+        No requiere autenticación.
+        Hace una query real a Supabase para evitar que el proyecto free tier se pause."""
         from flask import jsonify
+        try:
+            storage = app.torneo_storage
+            if storage._sb:
+                storage._sb.table('torneo_actual').select('id').limit(1).execute()
+        except Exception:
+            pass  # No romper el health check si Supabase está lento o caído
         return jsonify({'status': 'ok'})
 
     @app.errorhandler(404)

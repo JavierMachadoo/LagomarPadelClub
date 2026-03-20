@@ -3,5 +3,9 @@
     "allow": [
       "Bash(git add:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "shadcn"
+  ],
+  "enableAllProjectMcpServers": true
 }

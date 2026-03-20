@@ -22,7 +22,7 @@ Próximo objetivo: ranking anual por categoría.
 | Decisión | Opción elegida | Razón |
 |---|---|---|
 | Auth jugadores | Supabase Auth (email + contraseña) | Ya usan Supabase; maneja JWT, refresh, password reset gratis |
-| Google OAuth | Posponer | Complejidad extra sin beneficio suficiente al inicio |
+| Google OAuth | Implementado | Habilitado en prod y dev vía Supabase Auth |
 | Frontend | Mantener Jinja2 + Bootstrap 5 | Los templates existentes no justifican migrar a React |
 | Repo frontend separado | No | Dos servicios Render + CORS + dos repos = overhead puro para un solo dev |
 | Admin auth | Mantener JWT custom | Cero riesgo por ahora |
@@ -50,7 +50,7 @@ partidos_finales(id, torneo_id, categoria, fase, pareja1, pareja2, ganador)
 
 ### Paso 1 — Ranking Anual por Categoría ← ACTUAL
 
-**Prerequisito:** Paso 1 completado (tablas relacionales disponibles — ya hecho).
+**Prerequisito:** tablas relacionales disponibles — ya hecho.
 
 - Ranking **anual** acumulado, una tabla de posiciones por categoría
 - Crear tabla `puntos_historicos`

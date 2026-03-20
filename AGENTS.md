@@ -124,6 +124,10 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 ### API Blueprints (`api/routes/`)
 - `parejas.py` — CRUD for couples/pairs
 - `finales.py` — finals fixture management
+- `grupos.py` — group generation from confirmed inscriptions
+- `inscripcion.py` — player registration for active tournament
+- `auth_jugador.py` — Supabase Auth (email/password + Google OAuth)
+- `historial.py` — tournament archiving and historical views
 
 ### Frontend
 - Bootstrap 5, vanilla JS, mobile-first CSS
@@ -162,8 +166,17 @@ pytest --cov=core --cov=utils --cov-report=term-missing
 Copy `.env` and set:
 - `SECRET_KEY` — JWT signing key
 - `ADMIN_USERNAME` / `ADMIN_PASSWORD` — login credentials
-- `SUPABASE_URL` / `SUPABASE_ANON_KEY` — if using Supabase (omit for local JSON storage)
+- `SUPABASE_URL` / `SUPABASE_ANON_KEY` — Supabase project URL and anon key
+- `SUPABASE_SERVICE_ROLE_KEY` — required for auth operations (register/login jugadores); present in Render env vars
 - `DEBUG` — True/False
+
+**Dev/Prod setup:**
+- Local `.env` → apunta a `LagomarPadelDB-Dev` (`slwzrxsjxfboojpkozey`)
+- Render env vars → apuntan a `LagomarPadelDB` prod (`mxftowqqjyktxricdemd`) — no tocar
+
+**Keep-alive:**
+- Render + Supabase prod: UptimeRobot pinga `/_health` cada 5 min (endpoint hace query real)
+- Supabase dev: `pg_cron` interno corre cada 5 días (`keep_alive_dev`)
 
 ---
 
@@ -192,4 +205,4 @@ Before creating a PR:
 
 ## Roadmap
 
-El plan de evolución arquitectónica (vistas públicas, registro de jugadores, inscripciones, ranking, historial) está documentado en `NewFEATURES.md`.
+El plan de evolución arquitectónica (vistas públicas, registro de jugadores, inscripciones, ranking, historial) está documentado en `roadMap.md`.

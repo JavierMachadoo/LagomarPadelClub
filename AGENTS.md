@@ -81,7 +81,7 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 | Storage | `utils/torneo_storage.py` | Supabase (JSONB) / local JSON fallback |
 | API Blueprints | `api/routes/` | Flask, JWT auth |
 | Frontend | `web/templates/`, `web/static/` | Bootstrap 5, vanilla JS |
-| ⚠️ Template grande | `web/templates/resultados.html` | ~215KB con lógica embebida — usar Grep antes de editar |
+| ⚠️ Template grande | `web/templates/dashboard.html` | ~216KB con lógica embebida — usar Grep antes de editar |
 | Configuration | `config/` | `.env`, categories, time slots |
 
 ---
@@ -91,7 +91,7 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 ### Request Flow
 1. All routes require JWT auth (checked in middleware in `main.py`)
 2. JWT token stored in HttpOnly cookie, 2-hour expiry
-3. Routes: `/` (home/upload), `/resultados` (groups/standings), `/finales` (bracket), `/api/*` (REST)
+3. Routes: `/` (home/upload), `/admin` (panel admin), `/dashboard` (jugador), `/grupos` (grupos públicos), `/calendario` (calendario público), `/finales` (bracket), `/api/*` (REST)
 
 ### Storage (`utils/torneo_storage.py`)
 - Single-tournament model — one `torneo_actual` per instance
@@ -119,7 +119,7 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 2. `utils/csv_processor.py` parses it into `Pareja` objects
 3. `AlgoritmoGrupos` groups them into triplets
 4. Result stored via `TorneoStorage`
-5. `/resultados` renders groups with standings; `/finales` renders bracket
+5. `/grupos` renders grupos públicos con standings; `/finales` renders bracket; `/dashboard` renders vista del jugador
 
 ### API Blueprints (`api/routes/`)
 - `parejas.py` — CRUD for couples/pairs
@@ -128,12 +128,14 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 - `inscripcion.py` — player registration for active tournament
 - `auth_jugador.py` — Supabase Auth (email/password + Google OAuth)
 - `historial.py` — tournament archiving and historical views
+- `calendario.py` — public calendar view blueprint
 
 ### Frontend
 - Bootstrap 5, vanilla JS, mobile-first CSS
 - `web/static/js/jwt-helper.js` — handles token refresh and attaches auth headers
 - `web/static/js/toast.js` — notification system
-- Templates are large (`resultados.html` ~215KB) — they embed significant logic
+- Templates son grandes: `dashboard.html` (~216KB), `homePanel.html` (~64KB), `finales.html` (~59KB) — embed significant logic
+- `web/static/js/app.js` — lógica JS principal de la aplicación
 
 ---
 

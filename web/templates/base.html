@@ -29,14 +29,14 @@
 
     <style>
         :root {
-            --brand-black: #1D1A0C;
-            --brand-green: #2CC374;
-            --brand-green-dark: #22a860;
-            --brand-taupe: #c5a48e;
-            --brand-taupe-dark: #a6985b;
+            --brand-black: #111111;
+            --brand-green: #2E9B0E;
+            --brand-green-dark: #246B08;
+            --brand-taupe: #1B7308;
+            --brand-taupe-dark: #145405;
             --brand-white: #ffffff;
-            --brand-bg: #F8F8F4;
-            --brand-border: #e8e4df;
+            --brand-bg: #F5F8F3;
+            --brand-border: #DCE8D3;
             --font-body: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
             --font-slab: 'Roboto Slab', Georgia, serif;
         }
@@ -49,14 +49,14 @@
             background: #fff;
         }
 
-        /* ── Navbar brand — BLANCO como el sitio oficial ── */
+        /* ── Navbar negra ── */
         .lpc-navbar {
             position: sticky;
             top: 0;
             z-index: 1000;
-            background: #ffffff !important;
-            border-bottom: 1px solid var(--brand-border);
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important;
+            background: #111111 !important;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 2px 16px rgba(0,0,0,0.25) !important;
             padding: 0 !important;
             backdrop-filter: none;
         }
@@ -71,7 +71,7 @@
             font-weight: 500;
             letter-spacing: 0.07em;
             text-transform: uppercase;
-            color: var(--brand-black) !important;
+            color: rgba(255,255,255,0.75) !important;
             padding: 0.6rem 0.8rem !important;
             border-radius: 0;
             margin: 0 1px;
@@ -80,21 +80,21 @@
         }
 
         .lpc-navbar .nav-link:hover {
-            color: var(--brand-taupe) !important;
+            color: #ffffff !important;
             background: transparent !important;
             transform: none;
         }
 
         .lpc-navbar .nav-link.active-link {
-            color: var(--brand-taupe) !important;
+            color: var(--brand-green) !important;
             background: transparent !important;
-            border-bottom-color: var(--brand-taupe);
+            border-bottom-color: var(--brand-green);
         }
 
         .nav-divider {
             width: 1px;
             height: 20px;
-            background: var(--brand-border);
+            background: rgba(255,255,255,0.15);
             margin: auto 0.4rem;
             flex-shrink: 0;
         }
@@ -114,7 +114,7 @@
 
         /* ── Footer oscuro — igual que el sitio oficial ── */
         .lpc-footer {
-            background: #1D1A0C !important;
+            background: var(--brand-black) !important;
             border-top: 1px solid rgba(255,255,255,0.08) !important;
             margin-top: 4rem;
             padding: 2.5rem 0;
@@ -201,11 +201,11 @@
             <a class="navbar-brand" href="{{ url_for('inicio') }}">
                 <img src="{{ url_for('static', filename='img/logo_lagomar.png') }}"
                      alt="Lagomar Padel Club"
-                     style="height: 54px; width: auto; display: block;">
+                     style="height: 54px; width: auto; display: block; filter: drop-shadow(0 0 3px rgba(255,255,255,0.25));">
             </a>
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-                    style="outline: none; box-shadow: none; color: var(--brand-black);">
-                <span class="navbar-toggler-icon" style="filter: invert(1) brightness(0);"></span>
+                    style="outline: none; box-shadow: none; color: #fff;">
+                <span class="navbar-toggler-icon" style="filter: invert(1);"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto gap-1 align-items-center">
@@ -255,7 +255,7 @@
                     {% if es_autenticado %}
                     <li class="nav-item">
                         <a href="{{ url_for('logout') }}" class="btn-club-outline"
-                           style="font-size: 0.75rem; padding: 0.45rem 1.1rem; color: #dc2626; border-color: #fca5a5;">
+                           style="font-size: 0.75rem; padding: 0.45rem 1.1rem; color: #f87171; border-color: rgba(248,113,113,0.4); background: transparent;">
                             <i class="bi bi-box-arrow-right"></i>Salir
                         </a>
                     </li>

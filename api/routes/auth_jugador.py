@@ -73,6 +73,8 @@ def register():
 
     if not all([email, password, nombre, apellido]):
         return jsonify({"error": "email, password, nombre y apellido son obligatorios"}), 400
+    if not telefono:
+        return jsonify({"error": "El teléfono es obligatorio"}), 400
 
     try:
         # 1. Crear usuario en Supabase Auth usando ANON_KEY

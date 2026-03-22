@@ -137,10 +137,10 @@
             <!-- Teléfono y Categoría -->
             <div class="row g-3 mb-4">
                 <div class="col-sm-6">
-                    <label class="form-label fw-semibold">Teléfono de contacto</label>
+                    <label class="form-label fw-semibold">Teléfono de contacto <span class="text-danger">*</span></label>
                     <input type="tel" class="form-control" name="telefono"
                            value="{{ perfil.telefono if perfil and perfil.telefono else '' }}"
-                           placeholder="Ej: 099 123 456">
+                           placeholder="Ej: 099 123 456" required>
                 </div>
                 <div class="col-sm-6">
                     <label class="form-label fw-semibold">Categoría <span class="text-danger">*</span></label>
@@ -231,6 +231,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 document.getElementById('formInscripcion')?.addEventListener('submit', async function(e) {
     e.preventDefault();
+
+    const telefonoVal = document.querySelector('[name="telefono"]').value.trim();
+    if (!telefonoVal) {
+        Toast.error('El teléfono de contacto es obligatorio');
+        document.querySelector('[name="telefono"]').focus();
+        return;
+    }
 
     const franjas = [...document.querySelectorAll('input[name="franjas[]"]:checked')].map(i => i.value);
     if (franjas.length < 2) {

@@ -202,6 +202,8 @@ def crear_inscripcion():
         return jsonify({'error': 'El nombre del integrante 1 es obligatorio'}), 400
     if not integrante2:
         return jsonify({'error': 'El nombre del integrante 2 es obligatorio'}), 400
+    if not telefono:
+        return jsonify({'error': 'El teléfono de contacto es obligatorio'}), 400
     if not categoria:
         return jsonify({'error': 'La categoría es obligatoria'}), 400
     if len(franjas) < 2:

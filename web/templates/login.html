@@ -22,7 +22,11 @@
         * { box-sizing: border-box; }
 
         body {
-            background: var(--brand-black);
+            background-image: url("/static/img/Fachada.jpg");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -30,6 +34,22 @@
             justify-content: center;
             font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
             padding: 1rem;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.80);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ── Asegurar que el contenido quede sobre el overlay ── */
+        .btn-inicio,
+        .login-card {
+            position: relative;
+            z-index: 1;
         }
 
         /* ── Botón volver al inicio ── */

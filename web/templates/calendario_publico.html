@@ -104,11 +104,12 @@
         top: 126px; /* navbar(68px) + phase-nav(~58px) */
         z-index: 40;
         background: var(--brand-bg);
-        padding: 0.35rem 0;
-        display: flex; align-items: center; gap: 0.85rem;
-        margin: 1.5rem 0 0.6rem;
+        padding: 0.3rem 0 0.4rem;
+        display: flex; flex-direction: column; gap: 0.4rem;
+        margin: 1.5rem 0 0.5rem;
     }
     .dia-sticky:first-child { margin-top: 0; }
+    .dia-sticky-top-row { display: flex; align-items: center; gap: 0.85rem; }
     .dia-sticky-label {
         display: flex; align-items: center; gap: 0.45rem;
         background: var(--brand-black); color: #fff; font-weight: 800; font-size: 0.82rem;
@@ -116,6 +117,25 @@
         letter-spacing: 0.6px; white-space: nowrap;
     }
     .dia-sticky-line { flex: 1; height: 1px; background: var(--brand-border); }
+    /* Segunda fila: misma lógica de centrado que cal-scroll-inner (width:fit-content + margin:auto)
+       y mismas columnas que canchas-grid (minmax = hora-box + gap + partido-card min-width) */
+    .dia-sticky-canchas-row {
+        display: grid;
+        grid-template-columns: minmax(calc(46px + 0.55rem + 380px), auto) minmax(calc(46px + 0.55rem + 380px), auto);
+        gap: 0.75rem; width: fit-content; margin: 0 auto;
+    }
+    .dia-cancha-slot { display: flex; justify-content: center; align-items: center; }
+    .dia-cancha-label {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        background: var(--brand-black); color: #e5e7eb;
+        font-size: 0.75rem; font-weight: 800;
+        padding: 0.35rem 0.9rem; border-radius: 12px;
+        text-transform: uppercase; letter-spacing: 0.7px; white-space: nowrap;
+    }
+    .dia-cancha-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--brand-green); flex-shrink: 0;
+    }
 
     /* ── Separador de día simple (JS / finales) ── */
     .dia-sep { display: flex; align-items: center; gap: 0.85rem; margin: 1.75rem 0 1rem; }
@@ -310,20 +330,18 @@
             {% for dia in dias_fase_grupos %}
             {# dia-sticky FUERA del scroll-wrapper: sticky funciona sin conflicto con overflow-x #}
             <div class="dia-sticky">
-                <div class="dia-sticky-label">{{ dia }}</div>
-                <div class="dia-sticky-line"></div>
+                <div class="dia-sticky-top-row">
+                    <div class="dia-sticky-label">{{ dia }}</div>
+                    <div class="dia-sticky-line"></div>
+                </div>
+                <div class="dia-sticky-canchas-row">
+                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 1</span></div>
+                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 2</span></div>
+                </div>
             </div>
 
             <div class="cal-scroll-wrapper">
             <div class="cal-scroll-inner">
-            <div class="canchas-header">
-                <div class="canchas-header-item">
-                    <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1
-                </div>
-                <div class="canchas-header-item">
-                    <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2
-                </div>
-            </div>
 
             {% for hora in horas_orden %}
                 {% if hora in resultado.calendario[dia] %}

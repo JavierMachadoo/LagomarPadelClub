@@ -7,17 +7,24 @@
 {% set p1 = partido.pareja1 %}
 {% set p2 = partido.pareja2 %}
 {% set ganador = partido.ganador %}
+{% set sets = partido.sets if partido.sets is defined else [] %}
 <div class="bk-match {{ 'tiene-ganador' if partido.tiene_ganador else '' }}">
     <div class="bk-team {{ 'winner' if ganador and p1 and ganador.id == p1.id else '' }} {{ 'tbd' if not p1 else '' }}">
         <span class="bk-team-name">{{ p1.nombre if p1 else (partido.slot1_info or 'Por definir') }}</span>
         {% if ganador and p1 and ganador.id == p1.id %}
         <i class="bi bi-check-lg bk-winner-icon"></i>
         {% endif %}
+        {% if sets %}
+        <span class="bk-sets">{% for s in sets %}<span class="bk-set">{{ s.pareja1 }}</span>{% endfor %}</span>
+        {% endif %}
     </div>
     <div class="bk-team {{ 'winner' if ganador and p2 and ganador.id == p2.id else '' }} {{ 'tbd' if not p2 else '' }}">
         <span class="bk-team-name">{{ p2.nombre if p2 else (partido.slot2_info or 'Por definir') }}</span>
         {% if ganador and p2 and ganador.id == p2.id %}
         <i class="bi bi-check-lg bk-winner-icon"></i>
+        {% endif %}
+        {% if sets %}
+        <span class="bk-sets">{% for s in sets %}<span class="bk-set">{{ s.pareja2 }}</span>{% endfor %}</span>
         {% endif %}
     </div>
     {% if not partido.tiene_ganador and (partido.slot1_info or partido.slot2_info) %}
@@ -492,6 +499,23 @@
         color: var(--brand-green, #2E9B0E);
         font-size: 0.82rem;
         flex-shrink: 0;
+    }
+    .bk-sets {
+        display: flex;
+        gap: 0.2rem;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+    .bk-set {
+        font-size: 0.72rem;
+        font-weight: 700;
+        min-width: 18px;
+        text-align: center;
+        color: #555;
+        padding: 0 2px;
+    }
+    .bk-team.winner .bk-set {
+        color: var(--brand-green-dark, #246B08);
     }
     .bk-slot-info {
         font-size: 0.63rem;

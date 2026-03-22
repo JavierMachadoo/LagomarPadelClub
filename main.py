@@ -28,6 +28,8 @@ from api.routes.inscripcion import inscripcion_bp
 from api.routes.historial import historial_bp
 from utils.torneo_storage import storage
 from utils.jwt_handler import JWTHandler
+from core.fixture_finales_generator import GeneradorFixtureFinales
+from core.models import Grupo
 
 
 def crear_app():
@@ -274,6 +276,22 @@ def crear_app():
         fixtures = torneo.get('fixtures_finales', {})
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+
+        # Auto-generar fixtures para categorías que tengan grupos pero no tengan fixture
+        if resultado:
+            grupos_por_cat = resultado.get('grupos_por_categoria', {})
+            guardado = False
+            for cat in categorias_torneo:
+                if cat not in fixtures and cat in grupos_por_cat:
+                    grupos_data = grupos_por_cat[cat]
+                    grupos = [Grupo.from_dict(g) for g in grupos_data]
+                    fixture = GeneradorFixtureFinales.generar_fixture(cat, grupos)
+                    if fixture:
+                        fixtures[cat] = fixture.to_dict()
+                        guardado = True
+            if guardado:
+                torneo['fixtures_finales'] = fixtures
+                storage.guardar(torneo)
 
         return make_response(render_template('grupos_publico.html',
                              resultado=resultado,

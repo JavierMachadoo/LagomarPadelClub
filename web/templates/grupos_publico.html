@@ -1,6 +1,30 @@
 {% extends "base.html" %}
 
-{% block title %}Grupos — {{ torneo.nombre or 'Torneo de Pádel' }}{% endblock %}
+{% block title %}Categorías — {{ torneo.nombre or 'Torneo de Pádel' }}{% endblock %}
+
+{# ── Macro: renderiza un partido de finales (read-only) ── #}
+{% macro render_partido(partido) %}
+{% set p1 = partido.pareja1 %}
+{% set p2 = partido.pareja2 %}
+{% set ganador = partido.ganador %}
+<div class="bk-match {{ 'tiene-ganador' if partido.tiene_ganador else '' }}">
+    <div class="bk-team {{ 'winner' if ganador and p1 and ganador.id == p1.id else '' }} {{ 'tbd' if not p1 else '' }}">
+        <span class="bk-team-name">{{ p1.nombre if p1 else (partido.slot1_info or 'Por definir') }}</span>
+        {% if ganador and p1 and ganador.id == p1.id %}
+        <i class="bi bi-check-lg bk-winner-icon"></i>
+        {% endif %}
+    </div>
+    <div class="bk-team {{ 'winner' if ganador and p2 and ganador.id == p2.id else '' }} {{ 'tbd' if not p2 else '' }}">
+        <span class="bk-team-name">{{ p2.nombre if p2 else (partido.slot2_info or 'Por definir') }}</span>
+        {% if ganador and p2 and ganador.id == p2.id %}
+        <i class="bi bi-check-lg bk-winner-icon"></i>
+        {% endif %}
+    </div>
+    {% if not partido.tiene_ganador and (partido.slot1_info or partido.slot2_info) %}
+    <div class="bk-slot-info">{{ partido.slot1_info or '—' }} vs {{ partido.slot2_info or '—' }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
 
 {% block extra_css %}
 <style>
@@ -325,6 +349,213 @@
     }
 
     /* ─────────────────────────────────────────
+       BRACKET
+    ───────────────────────────────────────── */
+    .bk-section {
+        background: var(--brand-bg, #F5F8F3);
+        border: 1px solid var(--brand-border, #DCE8D3);
+        border-radius: 10px;
+        padding: 1.5rem 1.25rem;
+        margin-bottom: 2.5rem;
+    }
+    .bk-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: var(--brand-border) transparent;
+    }
+    .bk-wrapper::-webkit-scrollbar { height: 6px; }
+    .bk-wrapper::-webkit-scrollbar-track { background: transparent; }
+    .bk-wrapper::-webkit-scrollbar-thumb {
+        background: var(--brand-border);
+        border-radius: 3px;
+    }
+    .bk-row {
+        display: flex;
+        gap: 2rem;
+        align-items: stretch;
+        min-width: max-content;
+        padding: 0.5rem 0;
+    }
+    .bk-col {
+        display: flex;
+        flex-direction: column;
+        min-width: 210px;
+    }
+    .bk-col-label {
+        font-size: 0.68rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: #999;
+        padding: 0 0 0.45rem 0;
+        border-bottom: 2px solid var(--brand-green, #2E9B0E);
+        margin-bottom: 0.9rem;
+        white-space: nowrap;
+    }
+    .bk-col-label.bk-final {
+        color: var(--brand-green, #2E9B0E);
+    }
+    .bk-col-cards {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        justify-content: center;
+    }
+    /* Espaciado entre grupo cards (columna izquierda no usa .bk-pair) */
+    .bk-grupo + .bk-grupo { margin-top: 0.75rem; }
+
+    /* Group card (compact, inside bracket) */
+    .bk-grupo {
+        background: #fff;
+        border: 1.5px solid var(--brand-border, #DCE8D3);
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        transition: box-shadow 0.2s;
+    }
+    .bk-grupo:hover { box-shadow: 0 3px 14px rgba(0,0,0,0.07); }
+    .bk-grupo-head {
+        background: var(--brand-black, #111);
+        color: #fff;
+        padding: 0.55rem 0.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .bk-grupo-serie {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--brand-green, #2E9B0E);
+    }
+    .bk-grupo-horario {
+        font-size: 0.68rem;
+        color: rgba(255,255,255,0.45);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .bk-grupo-teams { padding: 0; }
+    .bk-grupo-team {
+        padding: 0.4rem 0.85rem;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--brand-black, #111);
+        border-top: 1px solid #f0ede8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .bk-grupo-team:first-child { border-top: none; }
+
+    /* Match card (inside bracket) */
+    .bk-match {
+        background: #fff;
+        border-radius: 10px;
+        border: 1.5px solid #e5e7eb;
+        overflow: hidden;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        transition: box-shadow 0.2s;
+    }
+    .bk-match:hover { box-shadow: 0 3px 14px rgba(0,0,0,0.07); }
+    .bk-match.tiene-ganador { border-color: var(--brand-green, #2E9B0E); }
+    .bk-team {
+        display: flex;
+        align-items: center;
+        padding: 0.55rem 0.85rem;
+        border-bottom: 1px solid #f0f0f0;
+        gap: 0.4rem;
+    }
+    .bk-team:last-of-type { border-bottom: none; }
+    .bk-team.winner { background: #f0fdf4; }
+    .bk-team.tbd { opacity: 0.4; }
+    .bk-team-name {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--brand-black, #111);
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .bk-team.winner .bk-team-name {
+        font-weight: 700;
+        color: var(--brand-green-dark, #246B08);
+    }
+    .bk-team.tbd .bk-team-name {
+        font-style: italic;
+        color: #aaa;
+    }
+    .bk-winner-icon {
+        color: var(--brand-green, #2E9B0E);
+        font-size: 0.82rem;
+        flex-shrink: 0;
+    }
+    .bk-slot-info {
+        font-size: 0.63rem;
+        color: #aaa;
+        padding: 0.2rem 0.85rem;
+        background: #fafafa;
+        border-top: 1px solid #f0f0f0;
+        text-align: center;
+    }
+
+    /* Pair wrapper para líneas conectoras del bracket */
+    .bk-pair {
+        flex: 1;                      /* Ocupa igual fracción del alto de la columna */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around; /* Distribuye los 2 partidos dentro del par */
+        position: relative;
+    }
+    /* SVG connector drawn by JS — needs overflow visible */
+    .bk-pair > svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        overflow: visible;
+    }
+
+    /* Placeholder when no fixtures yet */
+    .bk-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        min-height: 120px;
+        color: #ccc;
+        font-size: 0.78rem;
+        font-style: italic;
+        text-align: center;
+        padding: 1rem;
+    }
+
+    /* Section divider between bracket and standings */
+    .gp-section-divider {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 0 0.75rem 2rem;
+    }
+    .gp-section-divider::before,
+    .gp-section-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--brand-border, #DCE8D3);
+    }
+    .gp-section-divider span {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--brand-black, #111);
+        white-space: nowrap;
+    }
+
+    /* ─────────────────────────────────────────
        EMPTY STATE
     ───────────────────────────────────────── */
     .gp-empty {
@@ -347,6 +578,9 @@
     ───────────────────────────────────────── */
     @media (max-width: 576px) {
         .gp-page { padding: 1.75rem 0 4rem; }
+        .bk-section { padding: 1rem 0.75rem; }
+        .bk-row { gap: 1.25rem; }
+        .bk-col { min-width: 180px; }
         .gp-group-head { padding: 0.9rem 1rem; }
         .gp-matches-head,
         .gp-match { padding-left: 1rem; padding-right: 1rem; }
@@ -379,7 +613,7 @@
     {# ── Hero ── #}
     <div class="gp-hero">
         <p class="overline">{{ torneo.nombre or 'Torneo Activo' }}</p>
-        <h1>Grupos</h1>
+        <h1>Categorías</h1>
         <span class="accent-line"></span>
     </div>
 
@@ -423,6 +657,118 @@
 
     <div class="gp-panel {% if not ns_first_panel.done %}active{% endif %}" id="gp-panel-{{ cat }}">
         {% set ns_first_panel.done = true %}
+        {% set fixture = fixtures.get(cat) if fixtures else None %}
+
+        {# ════════════════════════════════════════
+           BRACKET: grupos compactos → fases finales
+        ════════════════════════════════════════ #}
+        <div class="bk-section">
+            <div class="bk-wrapper">
+                <div class="bk-row">
+
+                    {# ── Column: Grupos ── #}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-grid-3x3-gap-fill me-1"></i>Grupos</div>
+                        <div class="bk-col-cards">
+                            {% for grupo in grupos_cat %}
+                            {% set letra = alphabet[loop.index0] if loop.index0 < 26 else loop.index|string %}
+                            <div class="bk-grupo">
+                                <div class="bk-grupo-head">
+                                    <span class="bk-grupo-serie">Serie {{ letra }}</span>
+                                    {% if grupo.franja_horaria %}
+                                    <span class="bk-grupo-horario">
+                                        <i class="bi bi-clock"></i>{{ grupo.franja_horaria }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="bk-grupo-teams">
+                                    {% for pareja in grupo.parejas %}
+                                    <div class="bk-grupo-team">{{ pareja.nombre }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {# ── Column: Octavos (si existen) ── #}
+                    {% if fixture and fixture.octavos %}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-grid me-1"></i>Octavos de Final</div>
+                        <div class="bk-col-cards">
+                            {% set oct = fixture.octavos %}
+                            {% for i in range(0, oct|length, 2) %}
+                            <div class="bk-pair">
+                                {{ render_partido(oct[i]) }}
+                                {% if i + 1 < oct|length %}{{ render_partido(oct[i + 1]) }}{% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# ── Column: Cuartos ── #}
+                    {% if fixture and fixture.cuartos %}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-grid me-1"></i>Cuartos de Final</div>
+                        <div class="bk-col-cards">
+                            {% set cuartos = fixture.cuartos %}
+                            {% for i in range(0, cuartos|length, 2) %}
+                            <div class="bk-pair">
+                                {{ render_partido(cuartos[i]) }}
+                                {% if i + 1 < cuartos|length %}{{ render_partido(cuartos[i + 1]) }}{% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# ── Column: Semifinales ── #}
+                    {% if fixture and fixture.semifinales %}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-diagram-2 me-1"></i>Semifinales</div>
+                        <div class="bk-col-cards">
+                            {% set semis = fixture.semifinales %}
+                            {% for i in range(0, semis|length, 2) %}
+                            <div class="bk-pair">
+                                {{ render_partido(semis[i]) }}
+                                {% if i + 1 < semis|length %}{{ render_partido(semis[i + 1]) }}{% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# ── Column: Final ── #}
+                    {% if fixture and fixture.final %}
+                    <div class="bk-col">
+                        <div class="bk-col-label bk-final">
+                            <i class="bi bi-trophy-fill me-1"></i>Final
+                        </div>
+                        <div class="bk-col-cards">
+                            {{ render_partido(fixture.final) }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# ── Placeholder si no hay fixture ── #}
+                    {% if not fixture %}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-trophy me-1"></i>Fases Finales</div>
+                        <div class="bk-placeholder">
+                            <span><i class="bi bi-hourglass-split me-1"></i>Cruces por definir</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+
+        {# ── Separador: Posiciones y Resultados ── #}
+        <div class="gp-section-divider">
+            <span>Posiciones y Resultados</span>
+        </div>
 
         {% for grupo in grupos_cat %}
         {% set letra = alphabet[loop.index0] if loop.index0 < 26 else loop.index|string %}
@@ -569,10 +915,77 @@ function gpHexRgba(hex, alpha) {
 /* ── Apply category tint uniformly to each group card body ── */
 function gpApplyTint(panelEl, hex) {
     if (!panelEl || !hex) return;
-    const cardBg = gpHexRgba(hex, 0.18);
-    panelEl.querySelectorAll('.gp-group').forEach(card => {
+    const cardBg = gpHexRgba(hex, 0.25);
+    panelEl.querySelectorAll('.bk-grupo').forEach(card => {
         card.style.backgroundColor = cardBg;
     });
+    panelEl.querySelectorAll('.gp-standings-wrap').forEach(el => {
+        el.style.backgroundColor = cardBg;
+    });
+}
+
+/* ── Draw SVG bracket connector lines (same approach as finales.html) ── */
+function gpDrawConnectors(panelEl) {
+    if (!panelEl) return;
+
+    /* Remove any previously drawn SVG overlay */
+    panelEl.querySelectorAll('.bk-connector-svg').forEach(s => s.remove());
+
+    const bkRow = panelEl.querySelector('.bk-row');
+    if (!bkRow) return;
+
+    /* Only columns that contain .bk-match elements (skip the Grupos column) */
+    const columns = Array.from(bkRow.querySelectorAll('.bk-col')).filter(col =>
+        col.querySelectorAll('.bk-match').length > 0
+    );
+    if (columns.length < 2) return;
+
+    /* Single SVG overlay over the whole .bk-row */
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.classList.add('bk-connector-svg');
+    svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible;';
+    bkRow.style.position = 'relative';
+    bkRow.appendChild(svg);
+
+    const containerRect = bkRow.getBoundingClientRect();
+
+    for (let i = 0; i < columns.length - 1; i++) {
+        const currentMatches = Array.from(columns[i].querySelectorAll('.bk-match'));
+        const nextMatches    = Array.from(columns[i + 1].querySelectorAll('.bk-match'));
+
+        for (let j = 0; j < nextMatches.length; j++) {
+            const m1   = currentMatches[j * 2];
+            const m2   = currentMatches[j * 2 + 1];
+            const mNext = nextMatches[j];
+            if (!m1 || !m2 || !mNext) continue;
+
+            const r1    = m1.getBoundingClientRect();
+            const r2    = m2.getBoundingClientRect();
+            const rNext = mNext.getBoundingClientRect();
+
+            const x1    = r1.right  - containerRect.left;
+            const y1    = r1.top    + r1.height / 2 - containerRect.top;
+            const x2    = r2.right  - containerRect.left;
+            const y2    = r2.top    + r2.height / 2 - containerRect.top;
+            const xNext = rNext.left - containerRect.left;
+            const yNext = rNext.top  + rNext.height / 2 - containerRect.top;
+            const xMid  = x1 + (xNext - x1) / 2;
+
+            const path = document.createElementNS(svgNS, 'path');
+            path.setAttribute('d',
+                `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${yNext} ` +
+                `M ${x2} ${y2} L ${xMid} ${y2} L ${xMid} ${yNext} ` +
+                `M ${xMid} ${yNext} L ${xNext} ${yNext}`
+            );
+            path.setAttribute('stroke', '#1D1A0C');
+            path.setAttribute('stroke-width', '1.5');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            svg.appendChild(path);
+        }
+    }
 }
 
 /* ── Category switcher ── */
@@ -584,15 +997,17 @@ function gpSwitchCat(cat, btn) {
     if (panel) {
         panel.classList.add('active');
         gpApplyTint(panel, btn.dataset.catColor);
+        gpDrawConnectors(panel);
     }
 }
 
-/* ── Init tint with first active category ── */
+/* ── Init tint + connectors with first active category ── */
 document.addEventListener('DOMContentLoaded', () => {
     const firstBtn = document.querySelector('.gp-cat-pill.active');
     if (!firstBtn) return;
     const panel = document.getElementById('gp-panel-' + firstBtn.dataset.cat);
     gpApplyTint(panel, firstBtn.dataset.catColor);
+    gpDrawConnectors(panel);
 });
 
 /* ── Sort standings: Pts → DS → SF (all desc) ── */

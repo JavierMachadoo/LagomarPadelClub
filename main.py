@@ -271,11 +271,13 @@ def crear_app():
 
         datos = obtener_datos_torneo()
         resultado = datos.get('resultado_algoritmo')
+        fixtures = torneo.get('fixtures_finales', {})
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
 
         return make_response(render_template('grupos_publico.html',
                              resultado=resultado,
+                             fixtures=fixtures,
                              categorias=categorias_torneo,
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
@@ -306,28 +308,8 @@ def crear_app():
 
     @app.route('/cuadro')
     def cuadro_publico():
-        """Vista pública del bracket de finales — sin controles de admin.
-
-        Solo visible cuando fase='torneo'.
-        """
-        torneo = storage.cargar()
-        if torneo.get('fase', 'inscripcion') != 'torneo':
-            return make_response(render_template('organizando.html', torneo=torneo))
-
-        datos = obtener_datos_torneo()
-        resultado = datos.get('resultado_algoritmo')
-        fixtures = torneo.get('fixtures_finales', {})
-        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
-        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
-
-        return make_response(render_template('finales_publico.html',
-                             fixtures=fixtures,
-                             categorias=categorias_torneo,
-                             colores=COLORES_CATEGORIA,
-                             emojis=EMOJI_CATEGORIA,
-                             resultado=resultado,
-                             torneo=torneo,
-                             tipo_torneo=tipo_torneo))
+        """Redirect legacy /cuadro → /grupos (bracket ahora integrado en grupos)."""
+        return redirect(url_for('grupos_publico'), code=301)
 
     @app.route('/registro')
     def registro():

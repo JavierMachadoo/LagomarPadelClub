@@ -97,7 +97,47 @@
         box-shadow: 0 0 0 4px rgba(46,155,14,0.12), 0 4px 14px rgba(0,0,0,0.1);
     }
 
-    /* ── Separador de día ── */
+    /* ── Separador de día sticky ── */
+    /* Está FUERA del cal-scroll-wrapper para que sticky funcione sin conflicto con overflow-x */
+    .dia-sticky {
+        position: sticky;
+        top: 126px; /* navbar(68px) + phase-nav(~58px) */
+        z-index: 40;
+        background: var(--brand-bg);
+        padding: 0.3rem 0 0.4rem;
+        display: flex; flex-direction: column; gap: 0.4rem;
+        margin: 1.5rem 0 0.5rem;
+    }
+    .dia-sticky:first-child { margin-top: 0; }
+    .dia-sticky-top-row { display: flex; align-items: center; gap: 0.85rem; }
+    .dia-sticky-label {
+        display: flex; align-items: center; gap: 0.45rem;
+        background: var(--brand-black); color: #fff; font-weight: 800; font-size: 0.82rem;
+        padding: 0.38rem 0.95rem; border-radius: 20px; text-transform: uppercase;
+        letter-spacing: 0.6px; white-space: nowrap;
+    }
+    .dia-sticky-line { flex: 1; height: 1px; background: var(--brand-border); }
+    /* Segunda fila: misma lógica de centrado que cal-scroll-inner (width:fit-content + margin:auto)
+       y mismas columnas que canchas-grid (minmax = hora-box + gap + partido-card min-width) */
+    .dia-sticky-canchas-row {
+        display: grid;
+        grid-template-columns: minmax(calc(46px + 0.55rem + 380px), auto) minmax(calc(46px + 0.55rem + 380px), auto);
+        gap: 0.75rem; width: fit-content; margin: 0 auto;
+    }
+    .dia-cancha-slot { display: flex; justify-content: center; align-items: center; }
+    .dia-cancha-label {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        background: var(--brand-black); color: #e5e7eb;
+        font-size: 0.75rem; font-weight: 800;
+        padding: 0.35rem 0.9rem; border-radius: 12px;
+        text-transform: uppercase; letter-spacing: 0.7px; white-space: nowrap;
+    }
+    .dia-cancha-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--brand-green); flex-shrink: 0;
+    }
+
+    /* ── Separador de día simple (JS / finales) ── */
     .dia-sep { display: flex; align-items: center; gap: 0.85rem; margin: 1.75rem 0 1rem; }
     .dia-sep:first-of-type { margin-top: 0; }
     .dia-sep-label {
@@ -109,31 +149,55 @@
     .dia-sep-line { flex: 1; height: 1px; background: var(--brand-border); }
 
     /* ── Cabecera de canchas ── */
+    /* cal-scroll-inner: fit-content para que no se expanda al ancho del viewport;
+       el scroll wrapper absorbe el desborde horizontal */
+    .cal-scroll-inner { width: fit-content; margin: 0 auto; }
     .canchas-header { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem; }
     .canchas-header-item {
         font-size: 0.7rem; font-weight: 800; color: #9ca3af; text-transform: uppercase;
         letter-spacing: 0.9px; text-align: center; display: flex;
         align-items: center; justify-content: center; gap: 0.35rem; padding: 0.25rem 0;
     }
-    @media (max-width: 576px) { .canchas-header { display: none; } }
+    /* canchas-header visible en mobile dentro del scroll wrapper */
 
     /* ── Franja horaria ── */
     .franja-block { margin-bottom: 1.25rem; }
-    .franja-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
-    .franja-hora {
-        background: var(--brand-black); color: var(--brand-green); font-weight: 800;
-        font-size: 0.86rem; padding: 0.3rem 0.8rem; border-radius: 20px; letter-spacing: 0.5px;
+    /* separador fino entre franjas — sin pill de hora, la hora va en cada card */
+    .franja-sep { height: 1px; background: var(--brand-border); margin-bottom: 0.65rem; }
+
+    /* ── Cuadradito de hora a la izquierda de cada partido ── */
+    .match-slot { display: flex; gap: 0.55rem; align-items: stretch; }
+    /* sin min-width:0 → la card no se comprime; crece para acomodar los nombres */
+    .match-slot .partido-card { flex: 1; }
+    .hora-box {
+        flex-shrink: 0;
+        width: 46px;          /* ancho fijo, alto sigue a la card (stretch) */
+        background: var(--brand-black); color: var(--brand-green);
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.72rem; font-weight: 900; letter-spacing: -0.3px;
+        white-space: nowrap;
     }
-    .franja-line { flex: 1; height: 1px; background: var(--brand-border); }
 
     /* ── Cards de partido ── */
-    .canchas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-    @media (max-width: 576px) { .canchas-grid { grid-template-columns: 1fr; } }
+    /* auto auto: cada columna toma el ancho que necesita su contenido (nombres sin cortar)
+       el scroll del wrapper absorbe el desborde — altura uniforme garantizada */
+    .canchas-grid { display: grid; grid-template-columns: auto auto; gap: 0.75rem; }
+
+    /* ── Mobile: scroll horizontal de todo el calendario como una tabla ── */
+    .cal-scroll-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: #d1d5db transparent;
+    }
+
 
     .partido-card {
         background: var(--brand-white); border-radius: 14px; padding: 1rem;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid #e5e7eb;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
+        min-width: 380px;
     }
     .partido-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.1); }
     .partido-card.vacio {
@@ -148,11 +212,10 @@
     .badge-grupo { font-size: 0.7rem; font-weight: 600; color: #6b7280; background: rgba(0,0,0,0.06); padding: 0.22rem 0.6rem; border-radius: 20px; }
     .badge-fase { font-size: 0.68rem; font-weight: 800; color: #fff; background: var(--brand-black); padding: 0.2rem 0.55rem; border-radius: 20px; letter-spacing: 0.3px; }
 
-    .vs-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.4rem; }
-    .equipo { font-weight: 700; font-size: 0.9rem; color: var(--brand-black); line-height: 1.3; }
+    /* auto auto auto: cada columna toma el ancho de su contenido (sin cortar nombres) */
+    .vs-row { display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+    .equipo { font-weight: 700; font-size: 0.9rem; color: var(--brand-black); line-height: 1.3; white-space: nowrap; }
     .equipo.equipo-tbd { color: #9ca3af; font-style: italic; font-weight: 600; }
-    .equipo-izq { text-align: right; }
-    .equipo-der { text-align: left; }
     .vs-sep { font-size: 0.63rem; font-weight: 900; color: #fff; text-align: center; background: var(--brand-black); border-radius: 6px; padding: 0.2rem 0.4rem; letter-spacing: 0.5px; }
 
     /* ── Fondos por categoría ── */
@@ -263,61 +326,71 @@
         {# ── FASE DE GRUPOS ── #}
         {% if dias_fase_grupos %}
         <div class="tab-pane fade show active" id="panel-grupos" role="tabpanel">
-            <div class="canchas-header">
-                <div class="canchas-header-item">
-                    <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1
+
+            {% for dia in dias_fase_grupos %}
+            {# dia-sticky FUERA del scroll-wrapper: sticky funciona sin conflicto con overflow-x #}
+            <div class="dia-sticky">
+                <div class="dia-sticky-top-row">
+                    <div class="dia-sticky-label">{{ dia }}</div>
+                    <div class="dia-sticky-line"></div>
                 </div>
-                <div class="canchas-header-item">
-                    <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2
+                <div class="dia-sticky-canchas-row">
+                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 1</span></div>
+                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 2</span></div>
                 </div>
             </div>
 
-            {% for dia in dias_fase_grupos %}
-            <div class="dia-sep">
-                <div class="dia-sep-label">{{ dia }}</div>
-                <div class="dia-sep-line"></div>
-            </div>
+            <div class="cal-scroll-wrapper">
+            <div class="cal-scroll-inner">
 
             {% for hora in horas_orden %}
                 {% if hora in resultado.calendario[dia] %}
                 {% set canchas = resultado.calendario[dia][hora] %}
                 <div class="franja-block">
-                    <div class="franja-header">
-                        <span class="franja-hora"><i class="bi bi-clock me-1"></i>{{ hora }}</span>
-                        <div class="franja-line"></div>
-                    </div>
+                    <div class="franja-sep"></div>
                     <div class="canchas-grid">
                         {% for idx in range(2) %}
                             {% set partido = canchas[idx] if idx < canchas|length else None %}
-                            {% if partido %}
-                            {% set bg_cat = {'Tercera':'#ef4444','Cuarta':'#22c55e','Quinta':'#eab308','Sexta':'#3b82f6','Séptima':'#a855f7'}.get(partido.categoria,'#6b7280') %}
-                            <div class="partido-card" data-cat="{{ partido.categoria }}"
-                                 data-pareja1="{{ partido.pareja1 }}" data-pareja2="{{ partido.pareja2 }}">
-                                <div class="partido-meta">
-                                    <span class="badge-cat" style="background:{{ bg_cat }};">{{ emojis.get(partido.categoria,'🎾') }} {{ partido.categoria }}</span>
-                                    {% if partido.grupo_letra %}<span class="badge-grupo">Grupo {{ partido.grupo_letra }}</span>{% endif %}
+                            <div class="match-slot">
+                                <div class="hora-box">{{ hora }}</div>
+                                {% if partido %}
+                                {% set bg_cat = {'Tercera':'#ef4444','Cuarta':'#22c55e','Quinta':'#eab308','Sexta':'#3b82f6','Séptima':'#a855f7'}.get(partido.categoria,'#6b7280') %}
+                                <div class="partido-card" data-cat="{{ partido.categoria }}"
+                                     data-pareja1="{{ partido.pareja1 }}" data-pareja2="{{ partido.pareja2 }}">
+                                    <div class="partido-meta">
+                                        <span class="badge-cat" style="background:{{ bg_cat }};">{{ emojis.get(partido.categoria,'🎾') }} {{ partido.categoria }}</span>
+                                        {% if partido.grupo_letra %}<span class="badge-grupo">Grupo {{ partido.grupo_letra }}</span>{% endif %}
+                                    </div>
+                                    <div class="vs-row">
+                                        {% set j1 = partido.pareja1.split(' / ') %}
+                                        {% set j2 = partido.pareja2.split(' / ') %}
+                                        <div class="equipo equipo-izq">{% if j1|length == 2 %}{{ j1[0] }} /<br>{{ j1[1] }}{% else %}{{ partido.pareja1 }}{% endif %}</div>
+                                        <div class="vs-sep">VS</div>
+                                        <div class="equipo equipo-der">{% if j2|length == 2 %}{{ j2[0] }} /<br>{{ j2[1] }}{% else %}{{ partido.pareja2 }}{% endif %}</div>
+                                    </div>
                                 </div>
-                                <div class="vs-row">
-                                    <div class="equipo equipo-izq">{{ partido.pareja1 }}</div>
-                                    <div class="vs-sep">VS</div>
-                                    <div class="equipo equipo-der">{{ partido.pareja2 }}</div>
-                                </div>
+                                {% else %}
+                                <div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>
+                                {% endif %}
                             </div>
-                            {% else %}
-                            <div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>
-                            {% endif %}
                         {% endfor %}
                     </div>
                 </div>
                 {% endif %}
             {% endfor %}
+
+            </div>{# /cal-scroll-inner #}
+            </div>{# /cal-scroll-wrapper #}
             {% endfor %}
+
         </div>
         {% endif %}
 
         {# ── FASES FINALES — siempre presente, renderizado por JS ── #}
         <div class="tab-pane fade {% if not dias_fase_grupos %}show active{% endif %}"
              id="panel-finales" role="tabpanel">
+            <div class="cal-scroll-wrapper">
+            <div class="cal-scroll-inner">
             <div class="canchas-header">
                 <div class="canchas-header-item">
                     <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1
@@ -332,6 +405,8 @@
                     <span class="ms-2 small">Cargando calendario...</span>
                 </div>
             </div>
+            </div>{# /cal-scroll-inner #}
+            </div>{# /cal-scroll-wrapper #}
         </div>
 
     </div>
@@ -384,14 +459,13 @@ function mostrarPredefinidoFinales() {
     const numSlotsManana = Math.max(2, Math.ceil(cats.length * 2 / 2)); // ≥ 2 franjas
     const horasManana = ['10:00','11:00','12:00','13:00','14:00','15:00'];
     for (let i = 0; i < numSlotsManana && i < horasManana.length; i++) {
+        const h = horasManana[i];
+        const slotTbd = `<div class="match-slot">${horaBox(h)}<div class="partido-card partido-tbd"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">CF / S</span></div><div class="vs-row"><div class="equipo equipo-izq equipo-tbd">Por definir</div><div class="vs-sep">VS</div><div class="equipo equipo-der equipo-tbd">Por definir</div></div></div></div>`;
         html += `<div class="franja-block">
-            <div class="franja-header">
-                <span class="franja-hora"><i class="bi bi-clock me-1"></i>${horasManana[i]}</span>
-                <div class="franja-line"></div>
-            </div>
+            <div class="franja-sep"></div>
             <div class="canchas-grid">
-                <div class="partido-card partido-tbd"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">CF / S</span></div><div class="vs-row"><div class="equipo equipo-izq equipo-tbd">Por definir</div><div class="vs-sep">VS</div><div class="equipo equipo-der equipo-tbd">Por definir</div></div></div>
-                <div class="partido-card partido-tbd"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">CF / S</span></div><div class="vs-row"><div class="equipo equipo-izq equipo-tbd">Por definir</div><div class="vs-sep">VS</div><div class="equipo equipo-der equipo-tbd">Por definir</div></div></div>
+                ${slotTbd}
+                ${slotTbd}
             </div>
         </div>`;
     }
@@ -416,26 +490,27 @@ function mostrarPredefinidoFinales() {
         if (horaIdx >= horasFinales.length) break;
         const hora = horasFinales[horaIdx];
         const buildCard = (cat) => {
-            if (!cat) return '<div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>';
-            const color = coloresCat[cat] || '#6b7280';
-            const emoji = emojisMap[cat] || '🎾';
-            return `<div class="partido-card partido-tbd" data-cat="${cat}">
-                <div class="partido-meta">
-                    <span class="badge-cat" style="background:${color};">${emoji} ${cat}</span>
-                    <span class="badge-fase">F</span>
-                </div>
-                <div class="vs-row">
-                    <div class="equipo equipo-izq equipo-tbd">Por definir</div>
-                    <div class="vs-sep">VS</div>
-                    <div class="equipo equipo-der equipo-tbd">Por definir</div>
-                </div>
-            </div>`;
+            const card = cat
+                ? (() => {
+                    const color = coloresCat[cat] || '#6b7280';
+                    const emoji = emojisMap[cat] || '🎾';
+                    return `<div class="partido-card partido-tbd" data-cat="${cat}">
+                        <div class="partido-meta">
+                            <span class="badge-cat" style="background:${color};">${emoji} ${cat}</span>
+                            <span class="badge-fase">F</span>
+                        </div>
+                        <div class="vs-row">
+                            <div class="equipo equipo-izq equipo-tbd">Por definir</div>
+                            <div class="vs-sep">VS</div>
+                            <div class="equipo equipo-der equipo-tbd">Por definir</div>
+                        </div>
+                    </div>`;
+                })()
+                : '<div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>';
+            return `<div class="match-slot">${horaBox(hora)}${card}</div>`;
         };
         html += `<div class="franja-block">
-            <div class="franja-header">
-                <span class="franja-hora"><i class="bi bi-clock me-1"></i>${hora}</span>
-                <div class="franja-line"></div>
-            </div>
+            <div class="franja-sep"></div>
             <div class="canchas-grid">
                 ${buildCard(cats[i])}
                 ${buildCard(cats[i + 1] || null)}
@@ -446,10 +521,10 @@ function mostrarPredefinidoFinales() {
     // Si no hay categorías, fallback genérico
     if (!cats.length) {
         html += `<div class="franja-block">
-            <div class="franja-header"><span class="franja-hora"><i class="bi bi-clock me-1"></i>20:00</span><div class="franja-line"></div></div>
+            <div class="franja-sep"></div>
             <div class="canchas-grid">
-                <div class="partido-card partido-tbd"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">F</span></div><div class="vs-row"><div class="equipo equipo-izq equipo-tbd">Por definir</div><div class="vs-sep">VS</div><div class="equipo equipo-der equipo-tbd">Por definir</div></div></div>
-                <div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>
+                <div class="match-slot">${horaBox('20:00')}<div class="partido-card partido-tbd"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">F</span></div><div class="vs-row"><div class="equipo equipo-izq equipo-tbd">Por definir</div><div class="vs-sep">VS</div><div class="equipo equipo-der equipo-tbd">Por definir</div></div></div></div>
+                <div class="match-slot">${horaBox('20:00')}<div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div></div>
             </div>
         </div>`;
     }
@@ -472,26 +547,41 @@ function getFaseLabel(fase, num) {
     return m[fase] || fase;
 }
 
-function htmlSlotCard(slot) {
-    if (!slot) return '<div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>';
-    const color = coloresCat[slot.categoria] || '#6b7280';
-    const emoji = emojisMap[slot.categoria] || '🎾';
-    const faseLabel = getFaseLabel(slot.fase, slot.numero_partido);
-    const p1 = slot.pareja1 || 'Por definir';
-    const p2 = slot.pareja2 || 'Por definir';
-    const esTbd = !slot.pareja1 || slot.pareja1 === 'Por definir';
-    return `<div class="partido-card${esTbd ? ' partido-tbd' : ''}" data-cat="${slot.categoria}"
-         data-pareja1="${p1}" data-pareja2="${p2}">
-        <div class="partido-meta">
-            <span class="badge-cat" style="background:${color};">${emoji} ${slot.categoria}</span>
-            <span class="badge-fase">${faseLabel}</span>
-        </div>
-        <div class="vs-row">
-            <div class="equipo equipo-izq${esTbd ? ' equipo-tbd' : ''}">${p1}</div>
-            <div class="vs-sep">VS</div>
-            <div class="equipo equipo-der${esTbd ? ' equipo-tbd' : ''}">${p2}</div>
-        </div>
-    </div>`;
+function fmtNombre(nombre, clsExtra) {
+    const parts = nombre.split(' / ');
+    const inner = parts.length === 2 ? `${parts[0]} /<br>${parts[1]}` : nombre;
+    return `<div class="equipo ${clsExtra}">${inner}</div>`;
+}
+
+function horaBox(hora) {
+    if (!hora) return '';
+    return `<div class="hora-box">${hora}</div>`;
+}
+
+function htmlSlotCard(slot, hora) {
+    const card = slot
+        ? (() => {
+            const color = coloresCat[slot.categoria] || '#6b7280';
+            const emoji = emojisMap[slot.categoria] || '🎾';
+            const faseLabel = getFaseLabel(slot.fase, slot.numero_partido);
+            const p1 = slot.pareja1 || 'Por definir';
+            const p2 = slot.pareja2 || 'Por definir';
+            const esTbd = !slot.pareja1 || slot.pareja1 === 'Por definir';
+            return `<div class="partido-card${esTbd ? ' partido-tbd' : ''}" data-cat="${slot.categoria}"
+                 data-pareja1="${p1}" data-pareja2="${p2}">
+                <div class="partido-meta">
+                    <span class="badge-cat" style="background:${color};">${emoji} ${slot.categoria}</span>
+                    <span class="badge-fase">${faseLabel}</span>
+                </div>
+                <div class="vs-row">
+                    ${fmtNombre(p1, `equipo-izq${esTbd ? ' equipo-tbd' : ''}`)}
+                    <div class="vs-sep">VS</div>
+                    ${fmtNombre(p2, `equipo-der${esTbd ? ' equipo-tbd' : ''}`)}
+                </div>
+            </div>`;
+        })()
+        : '<div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>';
+    return `<div class="match-slot">${horaBox(hora)}${card}</div>`;
 }
 
 function renderFinalesCalendar(data) {
@@ -532,13 +622,10 @@ function renderFinalesCalendar(data) {
         }
 
         html += `<div class="franja-block">
-            <div class="franja-header">
-                <span class="franja-hora"><i class="bi bi-clock me-1"></i>${hora}</span>
-                <div class="franja-line"></div>
-            </div>
+            <div class="franja-sep"></div>
             <div class="canchas-grid">
-                ${htmlSlotCard(s1)}
-                ${htmlSlotCard(s2)}
+                ${htmlSlotCard(s1, hora)}
+                ${htmlSlotCard(s2, hora)}
             </div>
         </div>`;
     }

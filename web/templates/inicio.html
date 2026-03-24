@@ -9,12 +9,27 @@
         padding: 0 !important;
     }
 
-    /* ── Hero ── */
+    /* ── Navbar overlay (solo inicio) ── */
+    .lpc-navbar {
+        position: fixed !important;
+        left: 0;
+        right: 0;
+        background: transparent !important;
+        box-shadow: none !important;
+        border-bottom-color: transparent !important;
+        transition: background 0.5s ease, box-shadow 0.5s ease, border-bottom-color 0.5s ease;
+    }
+    .lpc-navbar.navbar-scrolled {
+        background: #111111 !important;
+        box-shadow: 0 2px 16px rgba(0,0,0,0.25) !important;
+        border-bottom-color: rgba(255,255,255,0.08) !important;
+    }
+
+    /* ── Hero fullscreen ── */
     .hero-lpc {
         position: relative;
-        height: 80vh;
-        min-height: 480px;
-        max-height: 810px;
+        height: 100vh;
+        min-height: 600px;
         overflow: hidden;
         display: flex;
         align-items: center;
@@ -22,26 +37,55 @@
         text-align: center;
     }
 
-    .hero-lpc-img {
+    /* ── Slideshow ── */
+    .hero-slide {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
         object-position: center 40%;
+        opacity: 0;
+        transition: opacity 1.5s ease-in-out;
+        will-change: opacity, transform;
+        transform: scale(1);
+    }
+    .hero-slide.active {
+        opacity: 1;
+        animation: heroZoom 7s ease-out forwards;
+    }
+    @keyframes heroZoom {
+        from { transform: scale(1.0); }
+        to   { transform: scale(1.06); }
     }
 
+    /* ── Overlay gradient ── */
     .hero-lpc-overlay {
         position: absolute;
         inset: 0;
-        background: rgba(0,0,0,0.52);
+        background: linear-gradient(
+            180deg,
+            rgba(0,0,0,0.3) 0%,
+            rgba(0,0,0,0.45) 40%,
+            rgba(0,0,0,0.6) 100%
+        );
+        z-index: 1;
     }
 
+    /* ── Hero content ── */
     .hero-lpc-content {
         position: relative;
         z-index: 2;
         padding: 2rem 1.5rem;
         max-width: 720px;
+    }
+
+    .hero-lpc-eyebrow,
+    .hero-lpc-title,
+    .hero-lpc-sub,
+    .hero-lpc-actions {
+        opacity: 0;
+        transform: translateY(24px);
     }
 
     .hero-lpc-eyebrow {
@@ -97,6 +141,34 @@
         flex-wrap: wrap;
     }
 
+    /* ── Slide indicators ── */
+    .hero-indicators {
+        position: absolute;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 3;
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    .hero-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.3);
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        transition: all 0.4s ease;
+    }
+    .hero-dot.active {
+        background: rgba(255,255,255,0.9);
+        width: 24px;
+        border-radius: 4px;
+    }
+
+    /* ── Hero buttons ── */
     .btn-hero-taupe {
         background: var(--brand-taupe);
         color: #fff;
@@ -137,6 +209,24 @@
         border-color: rgba(255,255,255,0.7);
         color: #fff;
         transform: translateY(-2px);
+    }
+
+    /* ── Content reveal ── */
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero-lpc-content.revealed .hero-lpc-eyebrow {
+        animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+    }
+    .hero-lpc-content.revealed .hero-lpc-title {
+        animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both;
+    }
+    .hero-lpc-content.revealed .hero-lpc-sub {
+        animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+    }
+    .hero-lpc-content.revealed .hero-lpc-actions {
+        animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.75s both;
     }
 
     /* ── "Pensado para vos" section ── */
@@ -282,26 +372,30 @@
         font-weight: 300;
         margin-bottom: 2rem;
     }
-
-    /* Page load fade */
-    @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(12px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    .hero-lpc-eyebrow { animation: fadeUp 0.5s ease 0.1s both; }
-    .hero-lpc-title   { animation: fadeUp 0.5s ease 0.2s both; }
-    .hero-lpc-sub     { animation: fadeUp 0.5s ease 0.3s both; }
-    .hero-lpc-actions { animation: fadeUp 0.5s ease 0.4s both; }
 </style>
 {% endblock %}
 
 {% block content %}
 
 <!-- ── Hero ── -->
-<section class="hero-lpc">
+<section class="hero-lpc" id="heroSection">
+    <!-- Slideshow -->
     <img src="{{ url_for('static', filename='img/Fachada.jpg') }}"
-         alt="Lagomar Padel Club"
-         class="hero-lpc-img">
+         alt="Fachada Lagomar Padel Club"
+         class="hero-slide active">
+    <img src="{{ url_for('static', filename='img/Canchas3.jpg') }}"
+         alt="Canchas de pádel"
+         class="hero-slide">
+    <img src="{{ url_for('static', filename='img/HeroWeb.png') }}"
+         alt="Interior del club"
+         class="hero-slide">
+    <img src="{{ url_for('static', filename='img/Canchas5.jpg') }}"
+         alt="Vista de canchas"
+         class="hero-slide">
+    <img src="{{ url_for('static', filename='img/Canchas2.jpg') }}"
+         alt="Canchas panorámica"
+         class="hero-slide">
+
     <div class="hero-lpc-overlay"></div>
 
     <div class="hero-lpc-content">
@@ -343,9 +437,18 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- Slide indicators -->
+    <div class="hero-indicators">
+        <button class="hero-dot active" aria-label="Slide 1"></button>
+        <button class="hero-dot" aria-label="Slide 2"></button>
+        <button class="hero-dot" aria-label="Slide 3"></button>
+        <button class="hero-dot" aria-label="Slide 4"></button>
+        <button class="hero-dot" aria-label="Slide 5"></button>
+    </div>
 </section>
 
-<!-- ── Sección: Pensado para vos ── -->
+<!-- ── Seccion: Pensado para vos ── -->
 <section class="seccion-info">
     <div class="container">
         <div class="row align-items-center gy-4 mb-0">
@@ -442,4 +545,54 @@
     </div>
 </section>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const navbar = document.querySelector('.lpc-navbar');
+    const hero = document.getElementById('heroSection');
+    const slides = document.querySelectorAll('.hero-slide');
+    const dots = document.querySelectorAll('.hero-dot');
+    const content = document.querySelector('.hero-lpc-content');
+    let current = 0;
+    let autoplayInterval;
+
+    /* ── Navbar: transparent -> solid on scroll ── */
+    const navObserver = new IntersectionObserver(([entry]) => {
+        navbar.classList.toggle('navbar-scrolled', !entry.isIntersecting);
+    }, { threshold: 0.05 });
+    navObserver.observe(hero);
+
+    /* ── Content reveal ── */
+    setTimeout(() => content.classList.add('revealed'), 400);
+
+    /* ── Slideshow engine ── */
+    function goToSlide(index) {
+        slides[current].classList.remove('active');
+        dots[current].classList.remove('active');
+        current = index;
+        slides[current].classList.add('active');
+        dots[current].classList.add('active');
+    }
+
+    function nextSlide() {
+        goToSlide((current + 1) % slides.length);
+    }
+
+    function startAutoplay() {
+        autoplayInterval = setInterval(nextSlide, 6000);
+    }
+
+    dots.forEach((dot, i) => {
+        dot.addEventListener('click', () => {
+            clearInterval(autoplayInterval);
+            goToSlide(i);
+            startAutoplay();
+        });
+    });
+
+    startAutoplay();
+});
+</script>
 {% endblock %}

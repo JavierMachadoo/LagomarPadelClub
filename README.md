@@ -44,7 +44,7 @@ Un club de pádel organiza torneos recurrentes con decenas de parejas distribuid
 
 Las parejas llegan al sistema por dos vías:
 
-- **Auto-inscripción:** el jugador se registra (email o Google), ingresa los datos de su pareja, categoría y al menos 2 franjas horarias disponibles
+- **Auto-inscripción con invitación:** el jugador se registra (email o Google), busca a su compañero por teléfono e lo invita directamente. Si el compañero no tiene cuenta, se genera un link compartible (WhatsApp) para que se registre y acepte. Ambos jugadores quedan vinculados por cuenta — no por nombre de texto — lo que garantiza identidad confiable para el ranking.
 - **Carga masiva:** el admin sube un archivo CSV con todas las parejas y sus disponibilidades
 
 ### 2. Generación de grupos (el corazón del sistema)
@@ -94,6 +94,7 @@ Al terminar, el admin archiva el torneo con nombre (ej: "Torneo Marzo 2026"). To
 | Mínimo de disponibilidad | Cada pareja debe tener al menos 2 franjas horarias |
 | Tamaño de grupo | Exactamente 3 parejas (excepcionalmente 2 si no hay suficientes) |
 | Inscripción tardía | Si alguien se inscribe después de generar grupos, se intenta ubicar en un grupo incompleto de su categoría; si no hay espacio, queda sin asignar para que el admin lo resuelva |
+| Invitación de compañero | Al inscribirse, la pareja queda en estado `pendiente_companero` hasta que el segundo jugador acepte (in-app o vía link). Si rechaza, la inscripción se cancela. Las invitaciones expiran a las 48h. |
 | Resultados editables | El admin puede corregir resultados antes de archivar; standings y bracket se recalculan automáticamente |
 | Un torneo a la vez | Solo puede haber un torneo activo; para empezar otro hay que archivar el anterior |
 
@@ -165,3 +166,4 @@ Tras ejecutar el algoritmo, el sistema entrega:
 - **Cero errores en standings:** el cálculo de posiciones y seeding de finales es automático y consistente
 - **Autonomía del jugador:** se inscribe solo, ve su grupo y resultados sin depender del admin
 - **Historial perpetuo:** cada torneo queda archivado y consultable, base para un futuro sistema de ranking
+- **Identidad real de jugadores:** ambos integrantes de cada pareja tienen cuenta propia — elimina homónimos y permite ranking individual preciso

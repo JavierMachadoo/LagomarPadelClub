@@ -228,8 +228,13 @@
                     <li class="nav-item">
                         <a class="nav-link {{ 'active-link' if request.endpoint == 'inscripcion.pagina_inscripcion' else '' }}"
                            href="{{ url_for('inscripcion.pagina_inscripcion') }}"
-                           style="color: var(--brand-green) !important;">
+                           style="color: var(--brand-green) !important; position: relative;">
                             <i class="bi bi-pencil-square me-1"></i>Inscribirse
+                            <span id="navBadgeInvitaciones"
+                                  style="display:none; position:absolute; top:-4px; right:-8px;
+                                         background:#ef4444; color:#fff; border-radius:50%;
+                                         width:16px; height:16px; font-size:10px; font-weight:700;
+                                         align-items:center; justify-content:center; line-height:1;">!</span>
                         </a>
                     </li>
                     {% endif %}
@@ -323,5 +328,23 @@
     <script src="{{ url_for('static', filename='js/app.js') }}?v=1.3"></script>
 
     {% block extra_js %}{% endblock %}
+
+    <!-- Badge de invitaciones pendientes (solo jugadores logueados en fase inscripcion) -->
+    {% if es_jugador and fase_torneo == 'inscripcion' %}
+    <script>
+    (async function checkInvitacionesPendientes() {
+        const badge = document.getElementById('navBadgeInvitaciones');
+        if (!badge) return;
+        try {
+            const resp = await fetch('/api/inscripcion/invitaciones-pendientes');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data.invitaciones && data.invitaciones.length > 0) {
+                badge.style.display = 'flex';
+            }
+        } catch {}
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>

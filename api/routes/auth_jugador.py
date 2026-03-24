@@ -65,11 +65,12 @@ def register():
       2. Inserta perfil en tabla `jugadores` con service_role (bypasea RLS)
     """
     data = request.get_json(silent=True) or {}
-    email    = data.get("email", "").strip()
-    password = data.get("password", "")
-    nombre   = data.get("nombre", "").strip()
-    apellido = data.get("apellido", "").strip()
-    telefono = data.get("telefono", "").strip()
+    email        = data.get("email", "").strip()
+    password     = data.get("password", "")
+    nombre       = data.get("nombre", "").strip()
+    apellido     = data.get("apellido", "").strip()
+    telefono     = data.get("telefono", "").strip()
+    invite_token = data.get("invite_token", "").strip() or request.args.get("invite_token", "").strip() or ""
 
     if not all([email, password, nombre, apellido]):
         return jsonify({"error": "email, password, nombre y apellido son obligatorios"}), 400
@@ -84,7 +85,7 @@ def register():
         if not auth_response.user:
             return jsonify({"error": "No se pudo crear el usuario"}), 400
 
-        user_id = auth_response.user.id
+        user_id = str(auth_response.user.id)
 
         # 2. Insertar perfil en tabla jugadores usando SERVICE_ROLE_KEY
         sb_admin = _get_supabase_admin()
@@ -96,6 +97,16 @@ def register():
         }).execute()
 
         logger.info("Jugador registrado: %s (%s)", email, user_id)
+
+        # 3. Si hay invite_token, auto-aceptar la invitación después del registro
+        if invite_token:
+            try:
+                _auto_aceptar_invitacion_post_registro(sb_admin, invite_token, user_id, f"{nombre} {apellido}".strip())
+                logger.info("Invitación auto-aceptada post-registro: token=%s, jugador=%s", invite_token, user_id)
+            except Exception as e:
+                logger.warning("No se pudo auto-aceptar invitación post-registro: %s", e)
+                # No bloquear el registro si falla la invitación
+
         return jsonify({"message": "Registro exitoso. Revisa tu email para confirmar tu cuenta."}), 201
 
     except Exception as e:
@@ -105,9 +116,59 @@ def register():
         if "already registered" in error_msg or "already been registered" in error_msg:
             return jsonify({"error": "Este email ya está registrado"}), 409
         if "SUPABASE_SERVICE_ROLE_KEY no está configurada" in error_msg or "SUPABASE_ANON_KEY no está configurada" in error_msg:
-            # Error de configuración del servidor: exponer mensaje claro
             return jsonify({"error": error_msg}), 500
         return jsonify({"error": "Error al registrar. Intenta de nuevo."}), 500
+
+
+def _auto_aceptar_invitacion_post_registro(sb, token: str, jugador_id: str, nombre_jugador: str) -> None:
+    """Auto-acepta una invitación pendiente después del registro.
+    Se llama opcionalmente — no debe bloquear el flujo principal de registro."""
+    from datetime import datetime, timezone
+
+    token_resp = (sb.table('invitacion_tokens')
+                  .select('inscripcion_id, expira_at, usado')
+                  .eq('token', token)
+                  .execute())
+
+    if not token_resp.data:
+        return
+
+    token_data = token_resp.data[0]
+    if token_data['usado']:
+        return
+
+    expira = datetime.fromisoformat(token_data['expira_at'].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expira:
+        return
+
+    # Obtener la inscripción
+    ins_resp = (sb.table('inscripciones')
+                .select('*')
+                .eq('id', token_data['inscripcion_id'])
+                .eq('estado', 'pendiente_companero')
+                .execute())
+
+    if not ins_resp.data:
+        return
+
+    inscripcion = ins_resp.data[0]
+
+    # Verificar que no sea la propia inscripción
+    if inscripcion['jugador_id'] == jugador_id:
+        return
+
+    # Verificar que si tiene jugador2_id especificado, coincida
+    if inscripcion.get('jugador2_id') and inscripcion['jugador2_id'] != jugador_id:
+        return
+
+    # Aceptar
+    sb.table('inscripciones').update({
+        'jugador2_id': jugador_id,
+        'integrante2': nombre_jugador,
+        'estado':      'confirmado',
+    }).eq('id', inscripcion['id']).execute()
+
+    sb.table('invitacion_tokens').update({'usado': True}).eq('token', token).execute()
 
 
 def _login_admin_fallback(usuario, password):
@@ -150,6 +211,8 @@ def login():
     data = request.get_json(silent=True) or {}
     email    = data.get("email", "").strip()
     password = data.get("password", "")
+    # next_url: destino de redirección post-login (ej: /inscripcion/invitar?token=XXX)
+    next_url = data.get("next", "").strip() or request.args.get("next", "").strip() or ""
 
     if not email or not password:
         return jsonify({"error": "Usuario/email y contraseña son obligatorios"}), 400
@@ -211,10 +274,11 @@ def login():
                 'timestamp': int(time.time()),
             }
             token = jwt_handler.generar_token(token_data)
+            redirect_to = next_url if next_url and next_url.startswith('/') else '/grupos'
             response = make_response(jsonify({
                 "message":  "Login exitoso",
                 "nombre":   f"{nombre} {apellido}".strip(),
-                "redirect": "/grupos",
+                "redirect": redirect_to,
             }), 200)
             response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2)
             logger.info("Jugador autenticado: %s", user.id)

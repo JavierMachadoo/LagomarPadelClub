@@ -335,11 +335,12 @@
             mensajeEl.style.display = 'none';
 
             const payload = {
-                nombre:   document.getElementById('nombre').value.trim(),
-                apellido: document.getElementById('apellido').value.trim(),
-                email:    document.getElementById('email').value.trim(),
-                telefono: document.getElementById('telefono').value.trim(),
-                password: document.getElementById('password').value,
+                nombre:       document.getElementById('nombre').value.trim(),
+                apellido:     document.getElementById('apellido').value.trim(),
+                email:        document.getElementById('email').value.trim(),
+                telefono:     document.getElementById('telefono').value.trim(),
+                password:     document.getElementById('password').value,
+                invite_token: new URLSearchParams(window.location.search).get('invite_token') || '',
             };
 
             try {

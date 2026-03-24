@@ -111,7 +111,7 @@ def crear_app():
                 elif role == 'jugador':
                     g.es_jugador = True
         # Rutas públicas: no requieren autenticación
-        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones', '/torneos']
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/jugadores/buscar', '/api/admin/inscripciones', '/torneos']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 

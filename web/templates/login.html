@@ -309,6 +309,7 @@
                     body: JSON.stringify({
                         email:    document.getElementById('login-email').value.trim(),
                         password: document.getElementById('login-password').value,
+                        next:     new URLSearchParams(window.location.search).get('next') || '',
                     }),
                 });
                 const json = await res.json();

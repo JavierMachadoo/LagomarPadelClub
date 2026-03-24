@@ -86,3 +86,43 @@ CREATE INDEX IF NOT EXISTS idx_grupos_categoria    ON grupos(categoria);
 CREATE INDEX IF NOT EXISTS idx_partidos_grupo_id   ON partidos(grupo_id);
 CREATE INDEX IF NOT EXISTS idx_pf_torneo_cat       ON partidos_finales(torneo_id, categoria);
 CREATE INDEX IF NOT EXISTS idx_pf_categoria_fase   ON partidos_finales(categoria, fase);
+
+-- ============================================================
+-- Sistema de invitación de compañero
+-- Migración: vincular ambos jugadores por UUID de Supabase Auth
+-- ============================================================
+
+-- Columna para vincular al compañero (Player B) en la inscripción
+ALTER TABLE inscripciones ADD COLUMN IF NOT EXISTS jugador2_id UUID REFERENCES jugadores(id);
+
+-- Un jugador no puede ser invitado por 2 personas distintas en el mismo torneo
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_jugador2_torneo
+  ON inscripciones(torneo_id, jugador2_id)
+  WHERE jugador2_id IS NOT NULL;
+
+-- Tokens de invitación para links compartibles
+CREATE TABLE IF NOT EXISTS invitacion_tokens (
+    id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    inscripcion_id UUID        NOT NULL REFERENCES inscripciones(id) ON DELETE CASCADE,
+    token          TEXT        NOT NULL UNIQUE,
+    expira_at      TIMESTAMPTZ NOT NULL,
+    usado          BOOLEAN     DEFAULT FALSE,
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invitacion_token ON invitacion_tokens(token);
+
+-- Función para expirar invitaciones vencidas (verificación lazy)
+CREATE OR REPLACE FUNCTION expirar_invitaciones(p_torneo_id UUID)
+RETURNS void AS $$
+  UPDATE inscripciones i
+  SET estado = 'cancelada'
+  WHERE i.torneo_id = p_torneo_id
+    AND i.estado = 'pendiente_companero'
+    AND NOT EXISTS (
+      SELECT 1 FROM invitacion_tokens t
+      WHERE t.inscripcion_id = i.id
+        AND t.expira_at > NOW()
+        AND t.usado = FALSE
+    );
+$$ LANGUAGE sql;

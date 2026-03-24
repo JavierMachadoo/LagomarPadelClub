@@ -3,7 +3,7 @@
 ## Estado actual del sistema
 
 Plataforma funcional con flujo completo: inscripciones → grupos → resultados → historial.
-Próximo objetivo: ranking anual por categoría.
+Próximo objetivo: sistema de invitación de compañero (vincular ambos jugadores por cuenta).
 
 **Implementado:**
 - State machine del torneo (`inscripcion` ↔ `torneo` → `finalizado`)
@@ -37,7 +37,9 @@ Próximo objetivo: ranking anual por categoría.
 torneo_actual   (id, datos JSONB)                          -- 1 fila, estado mutable
 torneos         (id, nombre, tipo, estado, datos_blob JSONB, created_at)
 inscripciones   (id, torneo_id, jugador_id, integrante1, integrante2,
-                 telefono, categoria, franjas_disponibles, estado, created_at)
+                 telefono, categoria, franjas_disponibles, estado,
+                 jugador2_id UUID, created_at)
+invitacion_tokens (id, inscripcion_id, token, expira_at, usado, created_at)
 grupos          (id, torneo_id, categoria, franja, cancha, created_at)
 parejas_grupo   (grupo_id, nombre, posicion)               -- PK compuesta
 partidos        (id, grupo_id, pareja1, pareja2, resultado JSONB)
@@ -48,9 +50,90 @@ partidos_finales(id, torneo_id, categoria, fase, pareja1, pareja2, ganador)
 
 ## Próximos pasos (en orden)
 
-### Paso 1 — Ranking Anual por Categoría ← ACTUAL
+### Paso 1 — Sistema de Invitación de Compañero ← ACTUAL
 
-**Prerequisito:** tablas relacionales disponibles — ya hecho.
+**Problema:** Hoy Player B es solo texto (`integrante2`). No tiene vínculo con su cuenta, no puede ver sus partidos ni acumular ranking.
+
+**Solución:** Ambos jugadores crean cuenta. Player A invita a Player B (por búsqueda de teléfono o link compartible). Player B acepta y quedan vinculados por UUID.
+
+**Decisiones tomadas:**
+
+| Decisión | Opción | Razón |
+|---|---|---|
+| Identificación de Player B | UUID de Supabase Auth (no nombre/apellido) | Homónimos, typos, ranking confiable |
+| Búsqueda de compañero | Por teléfono | WhatsApp es el medio de comunicación natural |
+| Link compartible | Abierto (cualquier registrado puede aceptar) | Máxima simplicidad, el link se comparte de forma privada |
+| Expiración de invitación | 48 horas, verificación lazy | Sin cron jobs, simple para la escala actual |
+| Si Player B rechaza | Se cancela la inscripción | Decisión del usuario |
+
+**Migración SQL:**
+```sql
+ALTER TABLE inscripciones ADD COLUMN jugador2_id UUID REFERENCES jugadores(id);
+CREATE UNIQUE INDEX idx_unique_jugador2_torneo
+  ON inscripciones(torneo_id, jugador2_id) WHERE jugador2_id IS NOT NULL;
+
+CREATE TABLE invitacion_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    inscripcion_id UUID NOT NULL REFERENCES inscripciones(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expira_at TIMESTAMPTZ NOT NULL,
+    usado BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE OR REPLACE FUNCTION expirar_invitaciones(p_torneo_id UUID)
+RETURNS void AS $$
+  UPDATE inscripciones i SET estado = 'cancelada'
+  WHERE i.torneo_id = p_torneo_id AND i.estado = 'pendiente_companero'
+    AND NOT EXISTS (
+      SELECT 1 FROM invitacion_tokens t
+      WHERE t.inscripcion_id = i.id AND t.expira_at > NOW() AND t.usado = FALSE
+    );
+$$ LANGUAGE sql;
+```
+
+**Nuevos endpoints:**
+- `GET /api/jugadores/buscar?telefono=XXX` — buscar compañero por teléfono (enmascarado)
+- `GET /api/inscripcion/invitaciones-pendientes` — Player B ve sus invitaciones
+- `POST /api/inscripcion/<id>/aceptar` — Player B acepta
+- `POST /api/inscripcion/<id>/rechazar` — Player B rechaza (cancela inscripción)
+- `GET /inscripcion/invitar?token=XXX` — página de invitación por link
+
+**Cambios en endpoints existentes:**
+- `POST /api/inscripcion` — acepta `jugador2_id` opcional, genera token, estado `pendiente_companero`
+- `POST /api/auth/register` — acepta `invite_token` opcional para auto-aceptar post-registro
+
+**Frontend:**
+- `inscripcion.html` — reemplazar campo texto integrante2 por búsqueda + invitación
+- `invitacion.html` — **nuevo**, página de invitación por link
+- `base.html` — badge de notificación para invitaciones pendientes
+
+**Flujo completo:**
+```
+Player A → busca compañero por teléfono
+  → Encontrado: invita directamente (jugador2_id)
+  → No encontrado: genera link compartible (WhatsApp)
+Inscripción: estado "pendiente_compañero"
+Player B → ve invitación in-app O abre link
+  → Acepta: estado → "confirmado", auto-asigna en grupos
+  → Rechaza: inscripción cancelada
+  → 48h sin respuesta: invitación expira, inscripción cancelada
+```
+
+**Archivos a modificar:**
+- `api/routes/inscripcion.py` (alta complejidad)
+- `web/templates/inscripcion.html` (media)
+- `web/templates/invitacion.html` (nuevo, baja)
+- `api/routes/auth_jugador.py` (baja)
+- `main.py` (baja)
+- `web/templates/base.html` (baja)
+- `supabase_schema.sql` (documentación)
+
+---
+
+### Paso 2 — Ranking Anual por Categoría
+
+**Prerequisito:** tablas relacionales disponibles — ya hecho. Sistema de invitaciones — Paso 1.
 
 - Ranking **anual** acumulado, una tabla de posiciones por categoría
 - Crear tabla `puntos_historicos`

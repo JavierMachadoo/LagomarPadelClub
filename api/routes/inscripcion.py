@@ -508,6 +508,11 @@ def mis_datos():
         resp = sb.table('inscripciones').select('*').eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).execute()
         inscripcion = resp.data[0] if resp.data else None
 
+        # Si no encontró como creador, buscar como jugador2 (invitado que ya aceptó)
+        if not inscripcion:
+            resp2 = sb.table('inscripciones').select('*').eq('torneo_id', torneo_id).eq('jugador2_id', jugador_id).execute()
+            inscripcion = resp2.data[0] if resp2.data else None
+
         # Si tiene inscripción pendiente_companero, incluir el link de invitación
         if inscripcion and inscripcion.get('estado') == 'pendiente_companero':
             token_resp = (sb.table('invitacion_tokens')
@@ -655,6 +660,17 @@ def estado_inscripcion():
                               .execute())
                 if token_resp.data:
                     inscripcion['invitacion_link'] = _construir_link_invitacion(token_resp.data[0]['token'])
+
+        # ── Inscripción confirmada donde soy Player B (ya acepté) ───────────
+        if not inscripcion:
+            resp_b = (sb.table('inscripciones')
+                      .select('*')
+                      .eq('torneo_id', torneo_id)
+                      .eq('jugador2_id', jugador_id)
+                      .neq('estado', 'pendiente_companero')
+                      .execute())
+            if resp_b.data:
+                inscripcion = resp_b.data[0]
 
         # ── Invitaciones recibidas (como Player B) ───────────────────────────
         inv_resp = (sb.table('inscripciones')

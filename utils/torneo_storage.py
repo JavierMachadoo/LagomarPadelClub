@@ -5,16 +5,9 @@ En producción (Render, Railway, etc.) usa Supabase para persistencia real.
 En desarrollo local, cae a JSON si no hay variables de Supabase configuradas.
 
 Variables de entorno requeridas para Supabase:
-    SUPABASE_URL       → URL del proyecto Supabase
-    SUPABASE_ANON_KEY  → clave anon/public del proyecto
-Sistema de almacenamiento persistente del torneo activo.
-
-En producción (Render, Railway, etc.) usa Supabase para persistencia real.
-En desarrollo local, cae a JSON si no hay variables de Supabase configuradas.
-
-Variables de entorno requeridas para Supabase:
-    SUPABASE_URL       → URL del proyecto Supabase
-    SUPABASE_ANON_KEY  → clave anon/public del proyecto
+    SUPABASE_URL              → URL del proyecto Supabase
+    SUPABASE_SERVICE_ROLE_KEY → clave service_role (bypasea RLS — solo para backend)
+    SUPABASE_ANON_KEY         → fallback si no hay service_role key
 """
 
 import json
@@ -23,7 +16,6 @@ import os
 import time
 import uuid
 from datetime import datetime
-from pathlib import Path
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -34,26 +26,12 @@ _BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ── Detectar si Supabase está disponible ──────────────────────────────────────
 _SUPABASE_URL = os.getenv('SUPABASE_URL', '').strip()
-_SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY', '').strip()
-_USE_SUPABASE = bool(_SUPABASE_URL and _SUPABASE_KEY)
-
-if _USE_SUPABASE:
-    try:
-        from supabase import create_client, Client as SupabaseClient
-    except ImportError:
-        logger.warning('supabase package no instalado. Usando almacenamiento JSON.')
-        _USE_SUPABASE = False
-
-# ─────────────────────────────────────────────────────────────────────────────
-
-logger = logging.getLogger(__name__)
-
-# Directorio base del proyecto (dos niveles arriba de este archivo)
-_BASE_DIR = Path(__file__).resolve().parent.parent
-
-# ── Detectar si Supabase está disponible ──────────────────────────────────────
-_SUPABASE_URL = os.getenv('SUPABASE_URL', '').strip()
-_SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY', '').strip()
+# El storage es código de servidor puro → usa service_role key para bypassar RLS.
+# La anon_key queda para clientes del browser que sí deben pasar por RLS.
+_SUPABASE_KEY = (
+    os.getenv('SUPABASE_SERVICE_ROLE_KEY', '').strip()
+    or os.getenv('SUPABASE_ANON_KEY', '').strip()
+)
 _USE_SUPABASE = bool(_SUPABASE_URL and _SUPABASE_KEY)
 
 if _USE_SUPABASE:
@@ -266,6 +244,5 @@ class TorneoStorage:
             return False
 
 
-# Instancia global compartida por todos los módulos
 # Instancia global compartida por todos los módulos
 storage = TorneoStorage()

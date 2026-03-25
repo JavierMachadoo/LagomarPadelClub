@@ -204,7 +204,6 @@ def _login_admin_fallback(usuario, password):
     }
     token = jwt_handler.generar_token(token_data)
     response = make_response(jsonify({"message": "Login exitoso", "redirect": "/"}), 200)
-    from flask import current_app
     response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
     logger.info("Admin autenticado via fallback .env")
     return response

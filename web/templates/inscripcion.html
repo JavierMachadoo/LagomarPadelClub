@@ -160,45 +160,50 @@
     <div id="cardPendienteCompanero" class="insc-card" style="display:none;">
         <div class="inscripcion-pendiente mb-4">
             <div class="d-flex align-items-center gap-2 mb-3">
-                <i class="bi bi-hourglass-split text-warning fs-4"></i>
-                <h5 class="mb-0 fw-bold">Esperando confirmación del compañero</h5>
+                <i class="bi bi-check-circle-fill text-success fs-4"></i>
+                <h5 class="mb-0 fw-bold">¡Inscripción creada!</h5>
             </div>
-            <p class="text-muted mb-3" id="pendiente-info">
-                Tu inscripción está pendiente de que tu compañero acepte la invitación.
+            <p class="text-muted mb-3">
+                Compartí el link con tu compañero. Cuando lo toque, quedará inscripto automáticamente.
             </p>
-            <div class="row g-2 mb-3">
+            <div class="row g-2 mb-4">
                 <div class="col-sm-6">
-                    <small class="text-muted d-block">Integrante 1</small>
+                    <small class="text-muted d-block">Jugador 1</small>
                     <strong id="pend-integrante1"></strong>
-                </div>
-                <div class="col-sm-6">
-                    <small class="text-muted d-block">Compañero invitado</small>
-                    <strong id="pend-integrante2"></strong>
                 </div>
                 <div class="col-sm-6">
                     <small class="text-muted d-block">Categoría</small>
                     <strong id="pend-categoria"></strong>
                 </div>
-                <div class="col-sm-6">
+                <div class="col-12">
                     <small class="text-muted d-block">Franjas</small>
                     <strong id="pend-franjas"></strong>
                 </div>
             </div>
 
             <div id="pend-link-container">
-                <label class="form-label fw-semibold mb-1">
-                    <i class="bi bi-link-45deg me-1"></i>Link de invitación
-                </label>
-                <div class="link-copiable">
-                    <span id="pend-link-text" class="flex-grow-1"></span>
-                    <button class="btn btn-sm btn-outline-primary rounded-pill" onclick="copiarLink()">
-                        <i class="bi bi-clipboard me-1"></i>Copiar
+                <!-- Link copiable -->
+                <div class="link-copiable mb-3">
+                    <span id="pend-link-text" class="flex-grow-1" style="font-size:0.78rem; word-break:break-all; color:#475569;"></span>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill flex-shrink-0 ms-2"
+                            onclick="copiarLink()" title="Copiar link">
+                        <i class="bi bi-clipboard"></i>
                     </button>
                 </div>
-                <small class="text-muted mt-1 d-block">Compartí este link con tu compañero para que acepte la invitación.</small>
+                <!-- Botones de compartir -->
+                <div class="d-flex gap-2">
+                    <a id="btn-compartir-wa" href="#" target="_blank" rel="noopener"
+                       class="btn btn-success rounded-pill flex-fill fw-semibold">
+                        <i class="bi bi-whatsapp me-1"></i>WhatsApp
+                    </a>
+                    <button onclick="compartirNativo()" id="btn-compartir-nativo"
+                            class="btn btn-outline-primary rounded-pill flex-fill fw-semibold">
+                        <i class="bi bi-share me-1"></i>Compartir
+                    </button>
+                </div>
             </div>
         </div>
-        <button class="btn btn-outline-danger rounded-pill px-4"
+        <button class="btn btn-outline-danger rounded-pill px-4 mt-2"
                 onclick="cancelarInscripcion()">
             <i class="bi bi-x-circle me-2"></i>Cancelar inscripción
         </button>
@@ -221,46 +226,6 @@
                        placeholder="Nombre y apellido" required>
             </div>
 
-            <!-- Buscar compañero -->
-            <div class="mb-3">
-                <label class="form-label fw-semibold">
-                    <i class="bi bi-person-plus me-1"></i>Buscar compañero <span class="text-danger">*</span>
-                </label>
-                <p class="text-muted mb-2" style="font-size:0.85rem;">
-                    Buscá a tu compañero por teléfono. Si no tiene cuenta, podés generar un link de invitación.
-                </p>
-                <div class="input-group">
-                    <input type="tel" class="form-control" id="buscarTelefono"
-                           placeholder="Últimos dígitos del teléfono (mín. 4)">
-                    <button class="btn btn-outline-success" type="button" id="btnBuscar" onclick="buscarCompanero()">
-                        <i class="bi bi-search me-1"></i>Buscar
-                    </button>
-                </div>
-                <div id="resultadosBusqueda" class="mt-2"></div>
-
-                <!-- Compañero seleccionado (hidden) -->
-                <input type="hidden" name="jugador2_id" id="jugador2_id" value="">
-                <div id="companeroSeleccionado" style="display:none;" class="mt-2">
-                    <div class="busqueda-resultado border-success">
-                        <div>
-                            <i class="bi bi-person-check text-success me-1"></i>
-                            <strong id="companero-nombre"></strong>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" onclick="quitarCompanero()">
-                            <i class="bi bi-x"></i> Cambiar
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Opción: invitar sin cuenta -->
-                <div id="opcionLinkAbierto" class="mt-2" style="display:none;">
-                    <div class="alert alert-info py-2 mb-0" style="font-size:0.85rem;">
-                        <i class="bi bi-info-circle me-1"></i>
-                        No encontramos a tu compañero. Al inscribirte se generará un <strong>link de invitación</strong>
-                        que podés compartir por WhatsApp para que se registre y acepte.
-                    </div>
-                </div>
-            </div>
 
             <!-- Teléfono y Categoría -->
             <div class="row g-3 mb-4">
@@ -305,7 +270,7 @@
             </div>
 
             <button type="submit" class="btn-inscribirse" id="btnInscribirse">
-                <i class="bi bi-send-fill me-2"></i>Inscribirse y enviar invitación
+                <i class="bi bi-send-fill me-2"></i>Inscribirse
             </button>
         </form>
     </div>
@@ -317,42 +282,40 @@
 
 {% block extra_js %}
 <script>
-// ── Estado global ───────────────────────────────────────────────────────────
-let companeroSeleccionadoId = null;
-let busquedaRealizada = false;
-
 // ── Inicialización ──────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async function() {
     const loading = document.getElementById('loadingInscripcion');
     if (!loading) return; // fase != 'inscripcion'
 
     try {
-        // Cargar en paralelo: mi inscripción + invitaciones pendientes
-        const [misDatosResp, invResp] = await Promise.all([
-            fetch('/api/inscripcion/mis-datos'),
-            fetch('/api/inscripcion/invitaciones-pendientes'),
-        ]);
-
-        const misDatos = await misDatosResp.json();
-        const invData  = await invResp.json();
+        // Un único request devuelve inscripción propia + invitaciones pendientes
+        const estadoResp = await fetch('/api/inscripcion/estado');
+        const estado = await estadoResp.json();
 
         loading.style.display = 'none';
 
         // 1) Mostrar invitaciones pendientes (como Player B)
-        if (invData.invitaciones && invData.invitaciones.length > 0) {
-            mostrarInvitacionesPendientes(invData.invitaciones);
+        if (estado.invitaciones && estado.invitaciones.length > 0) {
+            mostrarInvitacionesPendientes(estado.invitaciones);
         }
 
         // 2) Mostrar estado de mi inscripción (como Player A)
-        if (misDatos.inscripcion) {
-            const i = misDatos.inscripcion;
+        if (estado.inscripcion) {
+            const i = estado.inscripcion;
             if (i.estado === 'pendiente_companero') {
                 mostrarPendienteCompanero(i);
             } else {
                 mostrarInscripcionExistente(i);
             }
-        } else {
-            document.getElementById('cardFormulario').style.display = '';
+        } else if (!estado.invitaciones || estado.invitaciones.length === 0) {
+            // No hay inscripción propia ni invitaciones directas.
+            // Intentar recuperar un token de invitación guardado (caso: perdió la URL original)
+            const tokenGuardado = sessionStorage.getItem('pendingInviteToken');
+            if (tokenGuardado) {
+                await intentarAceptarTokenPendiente(tokenGuardado);
+            } else {
+                document.getElementById('cardFormulario').style.display = '';
+            }
         }
 
     } catch {
@@ -380,17 +343,44 @@ function mostrarInscripcionExistente(i) {
 // ── Mostrar inscripción pendiente de compañero ──────────────────────────────
 function mostrarPendienteCompanero(i) {
     document.getElementById('pend-integrante1').textContent = i.integrante1 || '';
-    document.getElementById('pend-integrante2').textContent = i.integrante2 || 'Pendiente (link abierto)';
     document.getElementById('pend-categoria').textContent   = i.categoria || '';
     document.getElementById('pend-franjas').textContent     = (i.franjas_disponibles || []).join(', ');
 
     if (i.invitacion_link) {
         document.getElementById('pend-link-text').textContent = i.invitacion_link;
+        _actualizarBotonesCompartir(i.invitacion_link);
+        document.getElementById('pend-link-container').style.display = '';
     } else {
         document.getElementById('pend-link-container').style.display = 'none';
     }
 
     document.getElementById('cardPendienteCompanero').style.display = '';
+}
+
+function _actualizarBotonesCompartir(link) {
+    const texto = `¡Te invito a ser mi pareja en el torneo! Tocá el link para inscribirte: ${link}`;
+    document.getElementById('btn-compartir-wa').href =
+        `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    const btnNativo = document.getElementById('btn-compartir-nativo');
+    btnNativo.dataset.link  = link;
+    btnNativo.dataset.texto = texto;
+}
+
+async function compartirNativo() {
+    const btn  = document.getElementById('btn-compartir-nativo');
+    const link = btn.dataset.link;
+    const text = btn.dataset.texto;
+    if (navigator.share) {
+        try { await navigator.share({ title: 'Invitación al torneo', text, url: link }); }
+        catch {}  // el usuario canceló — no es error
+    } else {
+        try {
+            await navigator.clipboard.writeText(link);
+            Toast.success('Link copiado al portapapeles');
+        } catch {
+            Toast.error('No se pudo copiar el link');
+        }
+    }
 }
 
 // ── Mostrar invitaciones pendientes (Player B) ──────────────────────────────
@@ -442,94 +432,15 @@ function mostrarInvitacionesPendientes(invitaciones) {
     container.style.display = '';
 }
 
-// ── Buscar compañero por teléfono ───────────────────────────────────────────
-async function buscarCompanero() {
-    const input = document.getElementById('buscarTelefono');
-    const tel = input.value.trim();
-    if (tel.length < 4) {
-        Toast.warning('Ingresá al menos 4 dígitos del teléfono');
-        input.focus();
-        return;
-    }
-
-    const btn = document.getElementById('btnBuscar');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-
-    try {
-        const resp = await fetch(`/api/jugadores/buscar?telefono=${encodeURIComponent(tel)}`);
-        const data = await resp.json();
-
-        const container = document.getElementById('resultadosBusqueda');
-        container.innerHTML = '';
-        busquedaRealizada = true;
-
-        if (data.jugadores && data.jugadores.length > 0) {
-            document.getElementById('opcionLinkAbierto').style.display = 'none';
-            for (const j of data.jugadores) {
-                const div = document.createElement('div');
-                div.className = 'busqueda-resultado';
-                div.innerHTML = `
-                    <div>
-                        <i class="bi bi-person me-1"></i>
-                        <strong>${escapeHtml(j.nombre)} ${escapeHtml(j.apellido)}</strong>
-                        <small class="text-muted ms-2">${escapeHtml(j.telefono_parcial)}</small>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-success rounded-pill"
-                            onclick="seleccionarCompanero('${j.id}', '${escapeHtml(j.nombre)} ${escapeHtml(j.apellido)}')">
-                        <i class="bi bi-plus-lg me-1"></i>Invitar
-                    </button>
-                `;
-                container.appendChild(div);
-            }
-        } else {
-            container.innerHTML = '<p class="text-muted mb-0" style="font-size:0.85rem;">No se encontraron jugadores con ese teléfono.</p>';
-            document.getElementById('opcionLinkAbierto').style.display = '';
-        }
-    } catch {
-        Toast.error('Error al buscar');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-search me-1"></i>Buscar';
-    }
-}
-
-function seleccionarCompanero(id, nombre) {
-    companeroSeleccionadoId = id;
-    document.getElementById('jugador2_id').value = id;
-    document.getElementById('companero-nombre').textContent = nombre;
-    document.getElementById('companeroSeleccionado').style.display = '';
-    document.getElementById('resultadosBusqueda').innerHTML = '';
-    document.getElementById('buscarTelefono').disabled = true;
-    document.getElementById('btnBuscar').disabled = true;
-    document.getElementById('opcionLinkAbierto').style.display = 'none';
-}
-
-function quitarCompanero() {
-    companeroSeleccionadoId = null;
-    document.getElementById('jugador2_id').value = '';
-    document.getElementById('companeroSeleccionado').style.display = 'none';
-    document.getElementById('buscarTelefono').disabled = false;
-    document.getElementById('btnBuscar').disabled = false;
-    document.getElementById('buscarTelefono').value = '';
-    document.getElementById('resultadosBusqueda').innerHTML = '';
-    document.getElementById('opcionLinkAbierto').style.display = 'none';
-    busquedaRealizada = false;
-}
 
 // ── Copiar link de invitación ───────────────────────────────────────────────
 async function copiarLink() {
-    const linkText = document.getElementById('pend-link-text').textContent;
+    const link = document.getElementById('pend-link-text').textContent;
     try {
-        await navigator.clipboard.writeText(linkText);
-        Toast.success('Link copiado al portapapeles');
+        await navigator.clipboard.writeText(link);
+        Toast.success('Link copiado');
     } catch {
-        // Fallback: seleccionar el texto
-        const range = document.createRange();
-        range.selectNodeContents(document.getElementById('pend-link-text'));
-        window.getSelection().removeAllRanges();
-        window.getSelection().addRange(range);
-        Toast.info('Seleccioná y copiá el link manualmente');
+        Toast.info('Copiá el link manualmente');
     }
 }
 
@@ -565,6 +476,29 @@ async function rechazarInvitacion(inscripcionId) {
     }
 }
 
+// ── Recuperar invitación desde sessionStorage ────────────────────────────────
+async function intentarAceptarTokenPendiente(token) {
+    try {
+        const resp = await fetch('/api/inscripcion/aceptar-por-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+        });
+        const data = await resp.json();
+        sessionStorage.removeItem('pendingInviteToken'); // limpiar siempre, éxito o error
+        if (resp.ok && data.ok) {
+            // Recargar para mostrar la inscripción confirmada
+            location.reload();
+        } else {
+            // Token inválido/expirado/ya usado → mostrar formulario normalmente
+            document.getElementById('cardFormulario').style.display = '';
+        }
+    } catch {
+        sessionStorage.removeItem('pendingInviteToken');
+        document.getElementById('cardFormulario').style.display = '';
+    }
+}
+
 // ── Submit del formulario ───────────────────────────────────────────────────
 document.getElementById('formInscripcion')?.addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -573,13 +507,6 @@ document.getElementById('formInscripcion')?.addEventListener('submit', async fun
     if (!telefonoVal) {
         Toast.error('El teléfono de contacto es obligatorio');
         document.querySelector('[name="telefono"]').focus();
-        return;
-    }
-
-    // Validar que buscó compañero o seleccionó link abierto
-    if (!companeroSeleccionadoId && !busquedaRealizada) {
-        Toast.warning('Buscá a tu compañero por teléfono antes de inscribirte');
-        document.getElementById('buscarTelefono').focus();
         return;
     }
 
@@ -601,11 +528,6 @@ document.getElementById('formInscripcion')?.addEventListener('submit', async fun
         franjas,
     };
 
-    // Si seleccionó un compañero por búsqueda, incluir su ID
-    if (companeroSeleccionadoId) {
-        payload.jugador2_id = companeroSeleccionadoId;
-    }
-
     try {
         const resp = await fetch('/api/inscripcion', {
             method: 'POST',
@@ -615,17 +537,23 @@ document.getElementById('formInscripcion')?.addEventListener('submit', async fun
         const data = await resp.json();
 
         if (resp.ok && data.ok) {
-            Toast.success('¡Inscripción creada! Esperando confirmación del compañero.');
-            setTimeout(() => location.reload(), 900);
+            // Ocultar formulario y mostrar el card con link sin recargar la página
+            document.getElementById('cardFormulario').style.display = 'none';
+            mostrarPendienteCompanero({
+                integrante1:       payload.integrante1,
+                categoria:         payload.categoria,
+                franjas_disponibles: payload.franjas,
+                invitacion_link:   data.invitacion_link,
+            });
         } else {
             Toast.error(data.error || 'Error al inscribirse');
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Inscribirse y enviar invitación';
+            btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Inscribirse';
         }
     } catch {
         Toast.error('Error de conexión');
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Inscribirse y enviar invitación';
+        btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Inscribirse';
     }
 });
 
@@ -645,14 +573,6 @@ async function cancelarInscripcion() {
         Toast.error('Error de conexión');
     }
 }
-
-// ── Permitir buscar con Enter ───────────────────────────────────────────────
-document.getElementById('buscarTelefono')?.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        buscarCompanero();
-    }
-});
 
 // ── Utility ─────────────────────────────────────────────────────────────────
 function escapeHtml(str) {

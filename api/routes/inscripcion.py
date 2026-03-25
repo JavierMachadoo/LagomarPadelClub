@@ -27,6 +27,7 @@ from core import Pareja, Grupo
 from utils.torneo_storage import storage
 from utils.api_helpers import verificar_autenticacion_api
 from config import FRANJAS_HORARIAS, TIPOS_TORNEO, CATEGORIAS
+from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO, MAX_CATEGORIA
 
 logger = logging.getLogger(__name__)
 
@@ -183,11 +184,103 @@ def _validar_jugador_no_inscrito(sb, torneo_id: str, jugador_id: str) -> str | N
     return None
 
 
+def _cancelar_inscripcion_pendiente_propia(sb, torneo_id: str, jugador_id: str, excluir_id: str) -> None:
+    """Si el jugador tiene una inscripción pendiente_companero propia (como Player A),
+    la cancela automáticamente antes de que acepte ser Player B de otro.
+    No toca inscripciones confirmadas ni la inscripción que está por aceptar."""
+    resp = (sb.table('inscripciones')
+            .select('id')
+            .eq('torneo_id', torneo_id)
+            .eq('jugador_id', jugador_id)
+            .eq('estado', 'pendiente_companero')
+            .neq('id', excluir_id)
+            .execute())
+    for ins in (resp.data or []):
+        sb.table('inscripciones').delete().eq('id', ins['id']).execute()
+        logger.info(
+            'Inscripción pendiente previa auto-cancelada: id=%s, jugador=%s (aceptó otra invitación)',
+            ins['id'], jugador_id
+        )
+
+
 def _construir_link_invitacion(token: str) -> str:
     """Construye la URL completa del link de invitación."""
     from flask import request as req
     base = req.host_url.rstrip('/')
     return f"{base}/inscripcion/invitar?token={token}"
+
+
+def _ejecutar_aceptar_invitacion(sb, token: str, jugador_id: str, torneo_id: str) -> tuple[bool, str | None]:
+    """Acepta una invitación por token.
+    Devuelve (True, None) si tuvo éxito o (False, mensaje_error) si falló.
+    Usado tanto desde la ruta GET /inscripcion/invitar (auto-aceptar) como desde el POST API."""
+    token_resp = (sb.table('invitacion_tokens')
+                  .select('inscripcion_id, expira_at, usado')
+                  .eq('token', token)
+                  .execute())
+    if not token_resp.data:
+        return False, 'Token de invitación inválido'
+
+    token_data = token_resp.data[0]
+    if token_data['usado']:
+        return False, 'Esta invitación ya fue utilizada'
+
+    expira = datetime.fromisoformat(token_data['expira_at'].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expira:
+        return False, 'Esta invitación expiró'
+
+    ins_resp = (sb.table('inscripciones')
+                .select('*')
+                .eq('id', token_data['inscripcion_id'])
+                .eq('estado', 'pendiente_companero')
+                .execute())
+    if not ins_resp.data:
+        return False, 'La inscripción ya no está disponible'
+
+    inscripcion = ins_resp.data[0]
+
+    if inscripcion['jugador_id'] == jugador_id:
+        return False, 'No podés aceptar tu propia inscripción'
+
+    if inscripcion.get('jugador2_id') and inscripcion['jugador2_id'] != jugador_id:
+        return False, 'Esta invitación es para otro jugador'
+
+    error_inscrito = _validar_jugador_no_inscrito(sb, torneo_id, jugador_id)
+    if error_inscrito:
+        check = (sb.table('inscripciones').select('id')
+                 .eq('id', inscripcion['id'])
+                 .eq('jugador2_id', jugador_id)
+                 .execute())
+        if not check.data:
+            return False, error_inscrito
+
+    perfil_resp = sb.table('jugadores').select('nombre, apellido').eq('id', jugador_id).execute()
+    nombre_j2 = ''
+    if perfil_resp.data:
+        p = perfil_resp.data[0]
+        nombre_j2 = f"{p['nombre']} {p['apellido']}".strip()
+
+    # Si Player B tenía su propia inscripción pendiente, cancelarla (primer servidor gana)
+    _cancelar_inscripcion_pendiente_propia(sb, torneo_id, jugador_id, excluir_id=inscripcion['id'])
+
+    sb.table('inscripciones').update({
+        'jugador2_id': jugador_id,
+        'integrante2': nombre_j2,
+        'estado':      'confirmado',
+    }).eq('id', inscripcion['id']).execute()
+
+    sb.table('invitacion_tokens').update({'usado': True}).eq('token', token).execute()
+
+    logger.info('Invitación aceptada: inscripcion=%s, jugador2=%s', inscripcion['id'], jugador_id)
+
+    updated = sb.table('inscripciones').select('*').eq('id', inscripcion['id']).execute()
+    if updated.data:
+        try:
+            _auto_asignar_en_grupos(updated.data[0])
+        except Exception as e:
+            logger.error('Error en auto-asignación post-aceptar: %s', e, exc_info=True)
+
+    return True, None
 
 
 # ── API: buscar jugadores por teléfono (GET /api/jugadores/buscar) ───────────
@@ -320,6 +413,14 @@ def crear_inscripcion():
         return jsonify({'error': 'El teléfono de contacto es obligatorio'}), 400
     if not categoria:
         return jsonify({'error': 'La categoría es obligatoria'}), 400
+
+    error_len = validar_longitud({
+        'Nombre':    (integrante1, MAX_NOMBRE),
+        'Teléfono':  (telefono, MAX_TELEFONO),
+        'Categoría': (categoria, MAX_CATEGORIA),
+    })
+    if error_len:
+        return jsonify({'error': error_len}), 400
     if len(franjas) < 2:
         return jsonify({'error': 'Seleccioná al menos 2 franjas horarias'}), 400
 
@@ -347,17 +448,20 @@ def crear_inscripcion():
                 return jsonify({'error': error_inscrito}), 409
 
         # Crear inscripción en estado pendiente_companero
-        resp = sb.table('inscripciones').insert({
+        insert_data = {
             'torneo_id':           torneo_id,
             'jugador_id':          jugador_id,
-            'jugador2_id':         jugador2_id,
             'integrante1':         integrante1,
-            'integrante2':         integrante2,  # vacío si link abierto
             'telefono':            telefono or None,
             'categoria':           categoria,
             'franjas_disponibles': franjas,
             'estado':              'pendiente_companero',
-        }).execute()
+        }
+        # jugador2_id e integrante2 solo se incluyen si ya se conoce el compañero
+        if jugador2_id:
+            insert_data['jugador2_id'] = jugador2_id
+            insert_data['integrante2'] = integrante2 or None
+        resp = sb.table('inscripciones').insert(insert_data).execute()
 
         inscripcion = resp.data[0] if resp.data else {}
         logger.info('Inscripción creada (pendiente_companero): jugador=%s, categoria=%s', jugador_id, categoria)
@@ -375,10 +479,11 @@ def crear_inscripcion():
 
     except Exception as e:
         error_msg = str(e)
+        logger.error('Error al crear inscripción: %s', error_msg)
         if 'unique' in error_msg.lower() or 'duplicate' in error_msg.lower():
             return jsonify({'error': 'Ya tenés una inscripción para este torneo'}), 409
-        logger.error('Error al crear inscripción: %s', e)
-        return jsonify({'error': 'Error al guardar la inscripción'}), 500
+        # Exponer el error real de Supabase para facilitar el debugging
+        return jsonify({'error': f'Error al guardar la inscripción: {error_msg}'}), 500
 
 
 # ── API: mis datos (GET /api/inscripcion/mis-datos) ───────────────────────────
@@ -512,6 +617,85 @@ def invitaciones_pendientes():
         return jsonify({'error': 'Error al cargar invitaciones'}), 500
 
 
+# ── API: estado completo de inscripción (GET /api/inscripcion/estado) ─────────
+
+@inscripcion_bp.route('/api/inscripcion/estado', methods=['GET'])
+def estado_inscripcion():
+    """Devuelve en una sola llamada la inscripción propia y las invitaciones pendientes.
+    Reemplaza los dos endpoints separados para evitar doble round-trip y doble RPC."""
+    autenticado, error = verificar_autenticacion_api(roles_permitidos=['jugador', 'admin'])
+    if not autenticado:
+        return error
+
+    jugador_id = _get_jugador_id()
+    if not jugador_id:
+        return jsonify({'error': 'No se pudo identificar al jugador'}), 401
+
+    torneo_id = storage.get_torneo_id()
+    try:
+        sb = _get_supabase_admin()
+        _expirar_invitaciones_vencidas(sb, torneo_id)  # Una sola vez por page load
+
+        # ── Inscripción propia (como Player A) ───────────────────────────────
+        inscripcion = None
+        resp = (sb.table('inscripciones')
+                .select('*')
+                .eq('torneo_id', torneo_id)
+                .eq('jugador_id', jugador_id)
+                .execute())
+        if resp.data:
+            inscripcion = resp.data[0]
+            if inscripcion.get('estado') == 'pendiente_companero':
+                token_resp = (sb.table('invitacion_tokens')
+                              .select('token')
+                              .eq('inscripcion_id', inscripcion['id'])
+                              .eq('usado', False)
+                              .order('created_at', desc=True)
+                              .limit(1)
+                              .execute())
+                if token_resp.data:
+                    inscripcion['invitacion_link'] = _construir_link_invitacion(token_resp.data[0]['token'])
+
+        # ── Invitaciones recibidas (como Player B) ───────────────────────────
+        inv_resp = (sb.table('inscripciones')
+                    .select('id, integrante1, categoria, franjas_disponibles, jugador_id, created_at')
+                    .eq('torneo_id', torneo_id)
+                    .eq('jugador2_id', jugador_id)
+                    .eq('estado', 'pendiente_companero')
+                    .execute())
+
+        invitaciones = []
+        for ins in (inv_resp.data or []):
+            perfil_resp = sb.table('jugadores').select('nombre, apellido').eq('id', ins['jugador_id']).execute()
+            nombre_invitador = ins['integrante1']
+            if perfil_resp.data:
+                p = perfil_resp.data[0]
+                nombre_invitador = f"{p['nombre']} {p['apellido']}".strip()
+
+            token_resp = (sb.table('invitacion_tokens')
+                          .select('expira_at')
+                          .eq('inscripcion_id', ins['id'])
+                          .eq('usado', False)
+                          .order('created_at', desc=True)
+                          .limit(1)
+                          .execute())
+
+            invitaciones.append({
+                'inscripcion_id':   ins['id'],
+                'nombre_invitador': nombre_invitador,
+                'categoria':        ins['categoria'],
+                'franjas':          ins['franjas_disponibles'],
+                'created_at':       ins['created_at'],
+                'expira_at':        token_resp.data[0]['expira_at'] if token_resp.data else None,
+            })
+
+        return jsonify({'inscripcion': inscripcion, 'invitaciones': invitaciones})
+
+    except Exception as e:
+        logger.error('Error al obtener estado de inscripción: %s', e)
+        return jsonify({'inscripcion': None, 'invitaciones': []})
+
+
 # ── API: aceptar invitación (POST /api/inscripcion/<id>/aceptar) ─────────────
 
 @inscripcion_bp.route('/api/inscripcion/<inscripcion_id>/aceptar', methods=['POST'])
@@ -558,6 +742,9 @@ def aceptar_invitacion(inscripcion_id):
         if perfil_resp.data:
             p = perfil_resp.data[0]
             nombre_j2 = f"{p['nombre']} {p['apellido']}".strip()
+
+        # Si Player B tenía su propia inscripción pendiente, cancelarla (primer servidor gana)
+        _cancelar_inscripcion_pendiente_propia(sb, torneo_id, jugador_id, excluir_id=inscripcion_id)
 
         # Actualizar inscripción: vincular jugador2, confirmar, rellenar integrante2
         sb.table('inscripciones').update({
@@ -631,61 +818,70 @@ def rechazar_invitacion(inscripcion_id):
 
 @inscripcion_bp.route('/inscripcion/invitar', methods=['GET'])
 def pagina_invitacion_link():
-    """Página que muestra la invitación y permite aceptar/rechazar.
-    Si el usuario no está logueado, redirige a login con redirect back."""
+    """Procesa el link de invitación.
+    - Jugador logueado → acepta automáticamente y redirige a /inscripcion.
+    - No logueado → muestra la página con opciones de login/registro."""
     token = request.args.get('token', '').strip()
     if not token:
         return render_template('invitacion.html', error='Link de invitación inválido')
 
+    jugador_data = _get_jugador_data()
+
+    if jugador_data:
+        # Ya autenticado: aceptar directamente sin pasar por el template
+        jugador_id = jugador_data.get('user_id')
+        if not jugador_id:
+            return render_template('invitacion.html', error='No se pudo identificar al jugador')
+        try:
+            sb = _get_supabase_admin()
+            torneo_id = storage.get_torneo_id()
+            ok, error_msg = _ejecutar_aceptar_invitacion(sb, token, jugador_id, torneo_id)
+            if ok:
+                return redirect(url_for('inscripcion.pagina_inscripcion'))
+            return render_template('invitacion.html', error=error_msg)
+        except Exception as e:
+            logger.error('Error al auto-aceptar invitación: %s', e)
+            return render_template('invitacion.html', error='Error al procesar la invitación')
+
+    # No autenticado: mostrar detalles + opciones de login/registro
     try:
         sb = _get_supabase_admin()
 
-        # Buscar token
         token_resp = (sb.table('invitacion_tokens')
                       .select('inscripcion_id, expira_at, usado')
                       .eq('token', token)
                       .execute())
-
         if not token_resp.data:
             return render_template('invitacion.html', error='Link de invitación inválido o expirado')
 
         token_data = token_resp.data[0]
-
         if token_data['usado']:
             return render_template('invitacion.html', error='Esta invitación ya fue utilizada')
 
-        # Verificar expiración
         expira = datetime.fromisoformat(token_data['expira_at'].replace('Z', '+00:00'))
         if datetime.now(timezone.utc) > expira:
             return render_template('invitacion.html', error='Esta invitación expiró')
 
-        # Obtener datos de la inscripción
         ins_resp = (sb.table('inscripciones')
                     .select('*')
                     .eq('id', token_data['inscripcion_id'])
                     .eq('estado', 'pendiente_companero')
                     .execute())
-
         if not ins_resp.data:
             return render_template('invitacion.html', error='La inscripción ya no está disponible')
 
         inscripcion = ins_resp.data[0]
 
-        # Obtener nombre del invitador
         perfil_resp = sb.table('jugadores').select('nombre, apellido').eq('id', inscripcion['jugador_id']).execute()
         nombre_invitador = inscripcion['integrante1']
         if perfil_resp.data:
             p = perfil_resp.data[0]
             nombre_invitador = f"{p['nombre']} {p['apellido']}".strip()
 
-        # Verificar si el usuario está logueado
-        jugador_data = _get_jugador_data()
-
         return render_template('invitacion.html',
                                inscripcion=inscripcion,
                                nombre_invitador=nombre_invitador,
                                token=token,
-                               es_logueado=jugador_data is not None,
                                error=None)
 
     except Exception as e:
@@ -713,83 +909,12 @@ def aceptar_por_token():
 
     try:
         sb = _get_supabase_admin()
-
-        # Buscar y validar token
-        token_resp = (sb.table('invitacion_tokens')
-                      .select('inscripcion_id, expira_at, usado')
-                      .eq('token', token)
-                      .execute())
-
-        if not token_resp.data:
-            return jsonify({'error': 'Token de invitación inválido'}), 404
-
-        token_data = token_resp.data[0]
-
-        if token_data['usado']:
-            return jsonify({'error': 'Esta invitación ya fue utilizada'}), 410
-
-        expira = datetime.fromisoformat(token_data['expira_at'].replace('Z', '+00:00'))
-        if datetime.now(timezone.utc) > expira:
-            return jsonify({'error': 'Esta invitación expiró'}), 410
-
-        # Obtener la inscripción
-        ins_resp = (sb.table('inscripciones')
-                    .select('*')
-                    .eq('id', token_data['inscripcion_id'])
-                    .eq('estado', 'pendiente_companero')
-                    .execute())
-
-        if not ins_resp.data:
-            return jsonify({'error': 'La inscripción ya no está disponible'}), 404
-
-        inscripcion = ins_resp.data[0]
-
-        # No puede aceptar su propia inscripción
-        if inscripcion['jugador_id'] == jugador_id:
-            return jsonify({'error': 'No podés aceptar tu propia inscripción'}), 400
-
-        # Si la inscripción tiene jugador2_id, verificar que coincida
-        if inscripcion.get('jugador2_id') and inscripcion['jugador2_id'] != jugador_id:
-            return jsonify({'error': 'Esta invitación es para otro jugador'}), 403
-
-        # Verificar que el jugador no esté ya inscrito en otra pareja
         torneo_id = storage.get_torneo_id()
-        error_inscrito = _validar_jugador_no_inscrito(sb, torneo_id, jugador_id)
-        if error_inscrito:
-            # Permitir si el único match es esta misma inscripción
-            check = sb.table('inscripciones').select('id').eq('id', inscripcion['id']).eq('jugador2_id', jugador_id).execute()
-            if not check.data:
-                return jsonify({'error': error_inscrito}), 409
-
-        # Obtener nombre del jugador que acepta
-        perfil_resp = sb.table('jugadores').select('nombre, apellido').eq('id', jugador_id).execute()
-        nombre_j2 = ''
-        if perfil_resp.data:
-            p = perfil_resp.data[0]
-            nombre_j2 = f"{p['nombre']} {p['apellido']}".strip()
-
-        # Actualizar inscripción
-        sb.table('inscripciones').update({
-            'jugador2_id':  jugador_id,
-            'integrante2':  nombre_j2,
-            'estado':       'confirmado',
-        }).eq('id', inscripcion['id']).execute()
-
-        # Marcar token como usado
-        sb.table('invitacion_tokens').update({'usado': True}).eq('token', token).execute()
-
-        logger.info('Invitación aceptada por token: inscripcion=%s, jugador2=%s', inscripcion['id'], jugador_id)
-
-        # Auto-asignar en grupos
-        updated = sb.table('inscripciones').select('*').eq('id', inscripcion['id']).execute()
-        if updated.data:
-            try:
-                _auto_asignar_en_grupos(updated.data[0])
-            except Exception as e:
-                logger.error('Error en auto-asignación post-aceptar-token: %s', e, exc_info=True)
-
-        return jsonify({'ok': True, 'mensaje': 'Invitación aceptada. ¡Ya estás inscripto!'})
-
+        ok, error_msg = _ejecutar_aceptar_invitacion(sb, token, jugador_id, torneo_id)
+        if ok:
+            return jsonify({'ok': True, 'mensaje': 'Invitación aceptada. ¡Ya estás inscripto!'})
+        code = 409 if 'ya tiene una inscripción' in (error_msg or '') else 400
+        return jsonify({'error': error_msg}), code
     except Exception as e:
         logger.error('Error al aceptar invitación por token: %s', e)
         return jsonify({'error': 'Error al aceptar la invitación'}), 500

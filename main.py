@@ -50,7 +50,12 @@ def crear_app():
     # Configuración básica
     app.secret_key = SECRET_KEY
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB — protección DoS en uploads
     
+    # Rate limiting — protección contra fuerza bruta
+    from utils.rate_limiter import limiter
+    limiter.init_app(app)
+
     # Inicializar JWT handler con expiración de 2 horas (seguridad)
     jwt_handler = JWTHandler(SECRET_KEY, expiration_hours=2)
     app.jwt_handler = jwt_handler  # Hacer accesible en toda la app
@@ -129,8 +134,8 @@ def crear_app():
     def logout():
         """Cerrar sesión — limpia cookies de admin y jugador."""
         response = make_response(redirect(url_for('login')))
-        response.set_cookie('token', '', expires=0)
-        response.set_cookie('sb_token', '', expires=0)
+        response.set_cookie('token', '', expires=0, secure=not app.debug)
+        response.set_cookie('sb_token', '', expires=0, secure=not app.debug)
         return response
     
     # Landing pública
@@ -402,7 +407,7 @@ def crear_app():
             }
             token = jwt_handler.generar_token(token_data)
             response = make_response(redirect(url_for('grupos_publico')))
-            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2)
+            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not app.debug)
             return response
 
         except Exception as e:
@@ -441,6 +446,7 @@ def _registrar_extras(app):
     @app.errorhandler(500)
     def server_error(e):
         from flask import request, jsonify
+        logger.error('Error 500 en %s %s: %s', request.method, request.path, e, exc_info=True)
         if request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Error interno del servidor'}), 500
         return render_template('base.html'), 500

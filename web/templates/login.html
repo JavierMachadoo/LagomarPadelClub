@@ -296,6 +296,14 @@
             msgEl.style.display = 'block';
         }
 
+        // Si el ?next= lleva un token de invitación, guardarlo en sessionStorage
+        // para que inscripcion.html lo recupere si el jugador pierde la URL
+        (function() {
+            const next = new URLSearchParams(window.location.search).get('next') || '';
+            const m = next.match(/[?&]token=([^&]+)/);
+            if (m) sessionStorage.setItem('pendingInviteToken', decodeURIComponent(m[1]));
+        })();
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             btn.disabled = true;

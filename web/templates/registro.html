@@ -328,6 +328,13 @@
             mensajeEl.style.display = 'block';
         }
 
+        // Si hay ?invite_token= en la URL, guardarlo en sessionStorage
+        // para que inscripcion.html lo recupere después del login post-registro
+        (function() {
+            const t = new URLSearchParams(window.location.search).get('invite_token') || '';
+            if (t) sessionStorage.setItem('pendingInviteToken', t);
+        })();
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             btnSubmit.disabled = true;

@@ -273,7 +273,7 @@
                 <i class="bi bi-house me-2"></i>Ir al inicio
             </a>
 
-            {% elif not es_logueado %}
+            {% else %}
             <!-- No logueado: mostrar datos y botones de login/registro -->
             <div class="inv-icon">
                 <i class="bi bi-envelope-open"></i>
@@ -314,119 +314,11 @@
                 </small>
             </div>
 
-            {% else %}
-            <!-- Logueado: puede aceptar o rechazar directamente -->
-            <div class="inv-icon">
-                <i class="bi bi-envelope-open"></i>
-            </div>
-            <p class="inv-titulo">Te invitaron a jugar</p>
-            <p class="inv-sub">
-                <strong style="color: var(--brand-green);">{{ nombre_invitador }}</strong>
-                te invitó a ser su pareja en el torneo.
-            </p>
-
-            <div class="bg-dark rounded-3 p-3 mb-4" style="border: 1px solid rgba(255,255,255,0.07);">
-                <div class="dato-row">
-                    <span class="label">Invitado por</span>
-                    <span class="value">{{ nombre_invitador }}</span>
-                </div>
-                <div class="dato-row">
-                    <span class="label">Categoría</span>
-                    <span class="value">{{ inscripcion.get('categoria', '') }}</span>
-                </div>
-                <div class="dato-row">
-                    <span class="label">Franjas horarias</span>
-                    <span class="value">{{ (inscripcion.get('franjas_disponibles') or []) | join(', ') }}</span>
-                </div>
-            </div>
-
-            <div id="mensaje-resultado" style="display:none;" class="mb-3"></div>
-
-            <div id="acciones">
-                <button class="btn-aceptar mb-3" id="btnAceptar" onclick="aceptarInvitacion()">
-                    <i class="bi bi-check-lg me-2"></i>Aceptar invitación
-                </button>
-                <button class="btn-rechazar" id="btnRechazar" onclick="rechazarInvitacion()">
-                    <i class="bi bi-x-lg me-2"></i>Rechazar invitación
-                </button>
-            </div>
             {% endif %}
 
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    {% if es_logueado and not error %}
-    <script>
-        const TOKEN = {{ token | tojson }};
-        const mensajeEl = document.getElementById('mensaje-resultado');
-
-        function mostrarMensaje(texto, tipo) {
-            mensajeEl.className = tipo === 'success' ? 'msg-success' : 'msg-error';
-            mensajeEl.textContent = texto;
-            mensajeEl.style.display = 'block';
-        }
-
-        async function aceptarInvitacion() {
-            const btn = document.getElementById('btnAceptar');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Aceptando...';
-
-            try {
-                const resp = await fetch('/api/inscripcion/aceptar-por-token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: TOKEN }),
-                });
-                const data = await resp.json();
-
-                if (resp.ok && data.ok) {
-                    mostrarMensaje('¡Invitación aceptada! Ya estás inscripto en el torneo.', 'success');
-                    document.getElementById('acciones').style.display = 'none';
-                    setTimeout(() => { window.location.href = '/inscripcion'; }, 2000);
-                } else {
-                    mostrarMensaje(data.error || 'Error al aceptar la invitación', 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-check-lg me-2"></i>Aceptar invitación';
-                }
-            } catch {
-                mostrarMensaje('Error de conexión. Intentá de nuevo.', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-check-lg me-2"></i>Aceptar invitación';
-            }
-        }
-
-        async function rechazarInvitacion() {
-            if (!confirm('¿Rechazar esta invitación? La pareja quedará sin compañero.')) return;
-
-            const inscripcionId = {{ inscripcion.id | tojson }};
-            const btn = document.getElementById('btnRechazar');
-            btn.disabled = true;
-            btn.textContent = 'Rechazando...';
-
-            try {
-                const resp = await fetch(`/api/inscripcion/${inscripcionId}/rechazar`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                const data = await resp.json();
-
-                if (resp.ok && data.ok) {
-                    mostrarMensaje('Invitación rechazada.', 'error');
-                    document.getElementById('acciones').style.display = 'none';
-                    setTimeout(() => { window.location.href = '/'; }, 2000);
-                } else {
-                    mostrarMensaje(data.error || 'Error al rechazar', 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-x-lg me-2"></i>Rechazar invitación';
-                }
-            } catch {
-                mostrarMensaje('Error de conexión.', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-x-lg me-2"></i>Rechazar invitación';
-            }
-        }
-    </script>
-    {% endif %}
 </body>
 </html>

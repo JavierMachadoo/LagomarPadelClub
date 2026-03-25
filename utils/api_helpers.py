@@ -149,10 +149,12 @@ def crear_respuesta_con_token_actualizado(data_respuesta, datos_token=None, stat
     response = make_response(jsonify(data_respuesta_con_token), status)
     
     # Establecer token en cookie (httponly para seguridad)
+    from flask import current_app
     response.set_cookie('token', nuevo_token,
                        httponly=True,
                        samesite='Lax',
-                       max_age=60*60*2)  # 2 horas
+                       max_age=60*60*2,  # 2 horas
+                       secure=not current_app.debug)
     
     return response
 

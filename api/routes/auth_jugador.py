@@ -19,6 +19,8 @@ import time
 from flask import Blueprint, request, jsonify, make_response, current_app, redirect, session, url_for
 
 from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
+from utils.rate_limiter import limiter
+from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO, MAX_EMAIL, MAX_PASSWORD
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,7 @@ def _get_supabase_anon():
 
 
 @auth_jugador_bp.route("/register", methods=["POST"])
+@limiter.limit("3/minute")
 def register():
     """
     Registra un nuevo jugador.
@@ -74,8 +77,20 @@ def register():
 
     if not all([email, password, nombre, apellido]):
         return jsonify({"error": "email, password, nombre y apellido son obligatorios"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "La contraseña debe tener al menos 8 caracteres"}), 400
     if not telefono:
         return jsonify({"error": "El teléfono es obligatorio"}), 400
+
+    error_len = validar_longitud({
+        'Nombre':    (nombre, MAX_NOMBRE),
+        'Apellido':  (apellido, MAX_NOMBRE),
+        'Email':     (email, MAX_EMAIL),
+        'Teléfono':  (telefono, MAX_TELEFONO),
+        'Contraseña': (password, MAX_PASSWORD),
+    })
+    if error_len:
+        return jsonify({"error": error_len}), 400
 
     try:
         # 1. Crear usuario en Supabase Auth usando ANON_KEY
@@ -189,12 +204,14 @@ def _login_admin_fallback(usuario, password):
     }
     token = jwt_handler.generar_token(token_data)
     response = make_response(jsonify({"message": "Login exitoso", "redirect": "/"}), 200)
-    response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2)
+    from flask import current_app
+    response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
     logger.info("Admin autenticado via fallback .env")
     return response
 
 
 @auth_jugador_bp.route("/login", methods=["POST"])
+@limiter.limit("5/minute")
 def login():
     """
     Endpoint de login unificado: un solo form para admin y jugadores.
@@ -248,7 +265,7 @@ def login():
                 }
                 token = jwt_handler.generar_token(token_data)
                 response = make_response(jsonify({"message": "Login exitoso", "redirect": "/admin"}), 200)
-                response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2)
+                response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
                 logger.info("Admin autenticado via Supabase: %s", user.id)
                 return response
 
@@ -280,7 +297,7 @@ def login():
                 "nombre":   f"{nombre} {apellido}".strip(),
                 "redirect": redirect_to,
             }), 200)
-            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2)
+            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
             logger.info("Jugador autenticado: %s", user.id)
             return response
 

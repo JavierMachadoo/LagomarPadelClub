@@ -149,9 +149,11 @@ def crear_respuesta_con_token(jwt_handler, data, mensaje='', status=200):
     response = jsonify(response_data)
     
     # También establecer como cookie para facilitar acceso desde el navegador
-    response.set_cookie('token', token, 
+    from flask import current_app
+    response.set_cookie('token', token,
                        httponly=True,  # No accesible desde JavaScript
                        samesite='Lax',  # CSRF protection
-                       max_age=60*60*2)  # 2 horas
+                       max_age=60*60*2,  # 2 horas
+                       secure=not current_app.debug)
     
     return response, status

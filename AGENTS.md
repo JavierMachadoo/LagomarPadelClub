@@ -125,10 +125,14 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 - `parejas.py` — CRUD for couples/pairs
 - `finales.py` — finals fixture management
 - `grupos.py` — group generation from confirmed inscriptions
-- `inscripcion.py` — player registration for active tournament
+- `inscripcion.py` — player registration; busca inscripción por `jugador1_id` **y** `jugador2_id` para que Player B vea su pareja tras aceptar invitación
 - `auth_jugador.py` — Supabase Auth (email/password + Google OAuth)
 - `historial.py` — tournament archiving and historical views
 - `calendario.py` — public calendar view blueprint
+
+### Utils de seguridad (`utils/`)
+- `utils/input_validation.py` — validación de longitud de inputs (nombre, teléfono, email, categoría)
+- `utils/rate_limiter.py` — rate limiting con flask-limiter (login: 5/min, registro: 3/min)
 
 ### Frontend
 - Bootstrap 5, vanilla JS, mobile-first CSS
@@ -169,7 +173,7 @@ Copy `.env` and set:
 - `SECRET_KEY` — JWT signing key
 - `ADMIN_USERNAME` / `ADMIN_PASSWORD` — login credentials
 - `SUPABASE_URL` / `SUPABASE_ANON_KEY` — Supabase project URL and anon key
-- `SUPABASE_SERVICE_ROLE_KEY` — required for auth operations (register/login jugadores); present in Render env vars
+- `SUPABASE_SERVICE_ROLE_KEY` — requerida para **todo acceso backend a Supabase** (torneo_storage + auth); la anon_key queda bloqueada por RLS; present in Render env vars
 - `DEBUG` — True/False
 
 **Dev/Prod setup:**

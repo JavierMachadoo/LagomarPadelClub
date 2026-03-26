@@ -1,5 +1,37 @@
 from typing import Dict
+import unicodedata
 from config import HORARIOS_POR_DIA
+
+
+def _normalizar_franja(franja: str) -> str:
+    """Normaliza una franja horaria limpiando caracteres UTF-8 corruptos.
+    
+    Maneja casos donde 'Sábado' se ha guardado como 'SÃ¡bado' (UTF-8 double-encoded).
+    También normaliza espacios y diacríticos.
+    """
+    if not franja:
+        return franja
+    
+    # Intenta múltiples formas de arreglar la corrupción UTF-8
+    try:
+        # Opción 1: Si contiene caracteres problemáticos como Ã
+        if 'Ã' in franja or '¡' in franja:
+            # Re-codificar como latin-1 y decodificar como UTF-8
+            franja = franja.encode('latin-1').decode('utf-8')
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        # Si eso falla, dejar como está
+        pass
+    
+    # Normaliza espacios y diacríticos
+    franja = unicodedata.normalize('NFKD', franja)  # Separar caracteres base y diacríticos
+    franja = ''.join(c for c in franja if unicodedata.category(c) != 'Mn')  # Remover diacríticos
+    franja = unicodedata.normalize('NFKC', franja).strip()  # Normalizar composición normal
+    
+    # Reconstruir con el acento correcto (si era Sábado)
+    if 'Sabado' in franja and 'Sábado' not in franja:
+        franja = franja.replace('Sabado', 'Sábado')
+    
+    return franja
 
 
 class CalendarioBuilder:
@@ -68,10 +100,11 @@ class CalendarioBuilder:
         }
     
     def _asignar_partidos_grupo(self, calendario, grupo, categoria, franjas_a_horas, cancha_asignada=None, grupo_letra='A'):
-        franja_grupo = grupo.franja_horaria
+        franja_grupo = _normalizar_franja(grupo.franja_horaria) if grupo.franja_horaria else None
         
         for franja_key, (dia, horas_disponibles) in franjas_a_horas.items():
-            if franja_key in franja_grupo:
+            franja_key_normalizado = _normalizar_franja(franja_key)
+            if franja_key_normalizado and franja_grupo and franja_key_normalizado in franja_grupo:
                 hora_idx = 0
                 for partido_num, (p1, p2) in enumerate(grupo.partidos):
                     if hora_idx >= len(horas_disponibles):

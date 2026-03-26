@@ -25,7 +25,7 @@ from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
 from api.routes.inscripcion import inscripcion_bp
-from api.routes.historial import historial_bp
+from api.routes.historial import historial_bp, _cargar_archivado
 from utils.torneo_storage import storage
 from utils.jwt_handler import JWTHandler
 from core.fixture_finales_generator import GeneradorFixtureFinales
@@ -94,6 +94,7 @@ def crear_app():
             es_jugador=getattr(g, 'es_jugador', False),
             torneo_tiene_datos=tiene_datos,
             fase_torneo=fase,
+            proximo_torneo=torneo.get('proximo_torneo'),
         )
 
     # Middleware: Verificar autenticación
@@ -273,7 +274,32 @@ def crear_app():
         muestra pantalla de "torneo en organización".
         """
         torneo = storage.cargar()
-        if torneo.get('fase', 'inscripcion') != 'torneo':
+        fase = torneo.get('fase', 'inscripcion')
+
+        # Estado espera: mostrar datos del último torneo archivado
+        if fase == 'espera':
+            ultimo_id = torneo.get('ultimo_torneo_id')
+            if ultimo_id:
+                archivado = _cargar_archivado(ultimo_id)
+                if archivado:
+                    datos_blob = archivado.get('datos_blob') or {}
+                    resultado = datos_blob.get('resultado_algoritmo')
+                    fixtures = datos_blob.get('fixtures_finales', {})
+                    tipo_torneo = datos_blob.get('tipo_torneo', 'fin1')
+                    categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+                    return make_response(render_template('grupos_publico.html',
+                                         resultado=resultado,
+                                         fixtures=fixtures,
+                                         categorias=categorias_torneo,
+                                         colores=COLORES_CATEGORIA,
+                                         emojis=EMOJI_CATEGORIA,
+                                         torneo=torneo,
+                                         tipo_torneo=tipo_torneo,
+                                         es_ultimo_torneo=True,
+                                         nombre_ultimo_torneo=archivado.get('nombre', '')))
+            return make_response(render_template('organizando.html', torneo=torneo))
+
+        if fase != 'torneo':
             return make_response(render_template('organizando.html', torneo=torneo))
 
         datos = obtener_datos_torneo()
@@ -311,10 +337,33 @@ def crear_app():
     def calendario_publico():
         """Vista pública del calendario de partidos — sin controles de admin.
 
-        Solo visible cuando fase='torneo'.
+        Visible cuando fase='torneo' o fase='espera' (muestra último torneo).
         """
         torneo = storage.cargar()
-        if torneo.get('fase', 'inscripcion') != 'torneo':
+        fase = torneo.get('fase', 'inscripcion')
+
+        # Estado espera: mostrar calendario del último torneo archivado
+        if fase == 'espera':
+            ultimo_id = torneo.get('ultimo_torneo_id')
+            if ultimo_id:
+                archivado = _cargar_archivado(ultimo_id)
+                if archivado:
+                    datos_blob = archivado.get('datos_blob') or {}
+                    resultado = datos_blob.get('resultado_algoritmo')
+                    tipo_torneo = datos_blob.get('tipo_torneo', 'fin1')
+                    categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+                    return make_response(render_template('calendario_publico.html',
+                                         resultado=resultado,
+                                         categorias=categorias_torneo,
+                                         colores=COLORES_CATEGORIA,
+                                         emojis=EMOJI_CATEGORIA,
+                                         torneo=torneo,
+                                         tipo_torneo=tipo_torneo,
+                                         es_ultimo_torneo=True,
+                                         nombre_ultimo_torneo=archivado.get('nombre', '')))
+            return make_response(render_template('organizando.html', torneo=torneo))
+
+        if fase != 'torneo':
             return make_response(render_template('organizando.html', torneo=torneo))
 
         resultado = torneo.get('resultado_algoritmo')

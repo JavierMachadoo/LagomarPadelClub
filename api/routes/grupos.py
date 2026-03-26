@@ -496,7 +496,7 @@ def obtener_datos_categoria(categoria):
 
 @grupos_bp.route('/cambiar-fase', methods=['POST'])
 def cambiar_fase():
-    """Cambia la fase del torneo (inscripcion ↔ torneo).
+    """Cambia la fase del torneo (inscripcion ↔ torneo ↔ espera).
 
     Solo el admin puede ejecutarla.
     Esto controla la visibilidad pública de grupos, finales y calendario.
@@ -504,7 +504,7 @@ def cambiar_fase():
     data = request.get_json(silent=True) or {}
     nueva_fase = data.get('fase')
 
-    fases_validas = ('inscripcion', 'torneo')
+    fases_validas = ('inscripcion', 'torneo', 'espera')
     if nueva_fase not in fases_validas:
         return jsonify({'error': 'Fase inválida'}), 400
 

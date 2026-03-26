@@ -167,7 +167,11 @@ class TorneoStorage:
 
 
     def limpiar(self) -> None:
-        """Reinicia el torneo preservando el tipo de torneo activo."""
+        """Reinicia el torneo preservando el tipo de torneo activo.
+
+        Limpia también los campos de estado 'espera' (ultimo_torneo_id,
+        proximo_torneo) para dejar un torneo completamente nuevo.
+        """
         torneo = self.cargar()
         tipo_actual = torneo.get('tipo_torneo', 'fin1')
         torneo['parejas'] = []
@@ -176,7 +180,9 @@ class TorneoStorage:
         torneo['estado'] = 'creando'
         torneo['fase'] = 'inscripcion'
         torneo['tipo_torneo'] = tipo_actual
-        torneo['torneo_id'] = str(uuid.uuid4())  # Nuevo UUID para el siguiente torneo
+        torneo['torneo_id'] = str(uuid.uuid4())
+        torneo.pop('ultimo_torneo_id', None)
+        torneo.pop('proximo_torneo', None)
         self.guardar(torneo)
 
     def get_torneo_id(self) -> str:
@@ -208,17 +214,56 @@ class TorneoStorage:
         return torneo_id
 
     def get_fase(self) -> str:
-        """Devuelve la fase actual del torneo ('inscripcion' | 'torneo')."""
+        """Devuelve la fase actual del torneo ('inscripcion' | 'torneo' | 'espera')."""
         torneo = self.cargar()
         return torneo.get('fase', 'inscripcion')
 
     def set_fase(self, nueva_fase: str) -> None:
         """Cambia la fase del torneo. Valida que sea un valor permitido."""
-        if nueva_fase not in ('inscripcion', 'torneo'):
+        if nueva_fase not in ('inscripcion', 'torneo', 'espera'):
             raise ValueError(f"Fase inválida: {nueva_fase}")
         torneo = self.cargar()
         torneo['fase'] = nueva_fase
         self.guardar(torneo)
+
+    def transicion_a_espera(self, ultimo_torneo_id: str) -> None:
+        """Transiciona a estado 'espera' tras archivar un torneo.
+
+        Limpia datos del torneo (parejas, resultado, fixtures) y guarda
+        referencia al último torneo archivado para que las vistas públicas
+        puedan mostrar sus resultados.
+        """
+        torneo = self.cargar()
+        tipo_actual = torneo.get('tipo_torneo', 'fin1')
+        torneo['parejas'] = []
+        torneo['resultado_algoritmo'] = None
+        torneo['fixtures_finales'] = {}
+        torneo['estado'] = 'creando'
+        torneo['fase'] = 'espera'
+        torneo['tipo_torneo'] = tipo_actual
+        torneo['torneo_id'] = str(uuid.uuid4())
+        torneo['ultimo_torneo_id'] = ultimo_torneo_id
+        self.guardar(torneo)
+
+    def get_ultimo_torneo_id(self) -> Optional[str]:
+        """Devuelve el ID del último torneo archivado (usado en estado 'espera')."""
+        torneo = self.cargar()
+        return torneo.get('ultimo_torneo_id')
+
+    def set_proximo_torneo(self, fecha: str, categorias: list, descripcion: str = '') -> None:
+        """Guarda la info del próximo torneo (visible durante estado 'espera')."""
+        torneo = self.cargar()
+        torneo['proximo_torneo'] = {
+            'fecha': fecha,
+            'categorias': categorias,
+            'descripcion': descripcion,
+        }
+        self.guardar(torneo)
+
+    def get_proximo_torneo(self) -> Optional[Dict]:
+        """Devuelve la info del próximo torneo, o None si no está configurado."""
+        torneo = self.cargar()
+        return torneo.get('proximo_torneo')
 
     def get_tipo_torneo(self) -> str:
         """Devuelve el tipo de torneo activo ('fin1' o 'fin2')."""

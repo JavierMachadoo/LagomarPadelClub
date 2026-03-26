@@ -247,9 +247,62 @@ def terminar_torneo():
         with open(_HISTORIAL_FILE, 'w', encoding='utf-8') as f:
             json.dump(torneos, f, indent=2, ensure_ascii=False)
 
-    storage.limpiar()
-    logger.info('Torneo "%s" (%s) archivado y reseteado', nombre, torneo_id)
+    storage.transicion_a_espera(torneo_id)
+    logger.info('Torneo "%s" (%s) archivado → estado espera', nombre, torneo_id)
     return jsonify({'ok': True})
+
+
+@historial_bp.route('/api/admin/abrir-inscripciones', methods=['POST'])
+def abrir_inscripciones():
+    """Transiciona de estado 'espera' a 'inscripcion'.
+
+    Limpia completamente el torneo (parejas, resultado, etc.) y abre
+    el período de inscripción para el próximo torneo.
+    """
+    autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
+    if not autenticado:
+        return error
+
+    fase_actual = storage.get_fase()
+    if fase_actual != 'espera':
+        return jsonify({'error': f'Solo se puede abrir inscripciones desde estado espera (actual: {fase_actual})'}), 400
+
+    storage.limpiar()
+    logger.info('Inscripciones abiertas — transición espera → inscripcion')
+    return jsonify({'ok': True, 'fase': 'inscripcion'})
+
+
+@historial_bp.route('/api/admin/proximo-torneo', methods=['POST'])
+def configurar_proximo_torneo():
+    """Guarda la info del próximo torneo (solo durante estado 'espera')."""
+    autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
+    if not autenticado:
+        return error
+
+    fase_actual = storage.get_fase()
+    if fase_actual != 'espera':
+        return jsonify({'error': 'Solo se puede configurar el próximo torneo en estado espera'}), 400
+
+    data = request.get_json(silent=True) or {}
+    fecha = (data.get('fecha') or '').strip()
+    categorias = data.get('categorias') or []
+    descripcion = (data.get('descripcion') or '').strip()
+
+    if not fecha:
+        return jsonify({'error': 'La fecha es obligatoria'}), 400
+
+    storage.set_proximo_torneo(fecha, categorias, descripcion)
+    logger.info('Próximo torneo configurado: %s, categorías: %s', fecha, categorias)
+    return jsonify({'ok': True, 'proximo_torneo': storage.get_proximo_torneo()})
+
+
+@historial_bp.route('/api/proximo-torneo', methods=['GET'])
+def obtener_proximo_torneo():
+    """Devuelve la info del próximo torneo (endpoint público)."""
+    proximo = storage.get_proximo_torneo()
+    if not proximo:
+        return jsonify({'proximo_torneo': None})
+    return jsonify({'proximo_torneo': proximo})
 
 
 @historial_bp.route('/torneos')

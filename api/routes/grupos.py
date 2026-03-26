@@ -259,6 +259,30 @@ def asignar_pareja_a_grupo():
         grupo_encontrado['parejas'].append(pareja_a_asignar)
 
     recalcular_score_grupo(grupo_encontrado)
+    
+    # Si el grupo está completo, regenerar los partidos
+    if len(grupo_encontrado['parejas']) == 3:
+        try:
+            from core import Grupo, Pareja
+            grupo_obj = Grupo(id=grupo_encontrado['id'], categoria=categoria)
+            grupo_obj.franja_horaria = grupo_encontrado.get('franja_horaria')
+            for p in grupo_encontrado['parejas']:
+                grupo_obj.parejas.append(Pareja.from_dict(p))
+            grupo_obj.generar_partidos()
+            grupo_encontrado['partidos'] = [
+                {
+                    'pareja1': p1.nombre,
+                    'pareja2': p2.nombre,
+                    'pareja1_id': p1.id,
+                    'pareja2_id': p2.id,
+                }
+                for p1, p2 in grupo_obj.partidos
+            ]
+            grupo_encontrado['resultados'] = {}
+            grupo_encontrado['resultados_completos'] = False
+        except Exception as e:
+            logger.warning('No se pudieron regenerar partidos del grupo: %s', e)
+    
     regenerar_calendario(resultado_data)
     estadisticas = recalcular_estadisticas(resultado_data)
 

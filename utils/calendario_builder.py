@@ -1,5 +1,29 @@
 from typing import Dict
+import unicodedata
 from config import HORARIOS_POR_DIA
+
+
+def _normalizar_franja(franja: str) -> str:
+    """Normaliza una franja horaria limpiando caracteres UTF-8 corruptos.
+    
+    Maneja casos donde 'Sábado' se ha guardado como 'SÃ¡bado' (UTF-8 double-encoded).
+    """
+    if not franja:
+        return franja
+    
+    # Intenta decodificar como UTF-8 doble-encoded
+    try:
+        # Si es una cadena que fue convertida incorrectamente, intenta arreglarlo
+        if 'Ã' in franja:
+            # Trata como bytes incorrectamente decodificados
+            encoded = franja.encode('latin-1')
+            franja = encoded.decode('utf-8')
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        pass
+    
+    # Normaliza espacios y diacríticos
+    franja = unicodedata.normalize('NFKC', franja).strip()
+    return franja
 
 
 class CalendarioBuilder:
@@ -68,10 +92,11 @@ class CalendarioBuilder:
         }
     
     def _asignar_partidos_grupo(self, calendario, grupo, categoria, franjas_a_horas, cancha_asignada=None, grupo_letra='A'):
-        franja_grupo = grupo.franja_horaria
+        franja_grupo = _normalizar_franja(grupo.franja_horaria) if grupo.franja_horaria else None
         
         for franja_key, (dia, horas_disponibles) in franjas_a_horas.items():
-            if franja_key in franja_grupo:
+            franja_key_normalizado = _normalizar_franja(franja_key)
+            if franja_key_normalizado and franja_grupo and franja_key_normalizado in franja_grupo:
                 hora_idx = 0
                 for partido_num, (p1, p2) in enumerate(grupo.partidos):
                     if hora_idx >= len(horas_disponibles):

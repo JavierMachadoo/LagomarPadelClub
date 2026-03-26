@@ -5,6 +5,7 @@ Helper functions para trabajar con JWT en las rutas de la API.
 from flask import current_app, jsonify, make_response, request
 from utils.torneo_storage import storage
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,6 @@ def crear_respuesta_con_token_actualizado(data_respuesta, datos_token=None, stat
     jwt_handler = current_app.jwt_handler
     
     # Token mínimo - mantiene autenticación
-    import time
     token_data = {
         'authenticated': True,
         'session_id': 'torneo_session',
@@ -149,7 +149,6 @@ def crear_respuesta_con_token_actualizado(data_respuesta, datos_token=None, stat
     response = make_response(jsonify(data_respuesta_con_token), status)
     
     # Establecer token en cookie (httponly para seguridad)
-    from flask import current_app
     response.set_cookie('token', nuevo_token,
                        httponly=True,
                        samesite='Lax',

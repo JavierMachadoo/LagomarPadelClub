@@ -100,6 +100,8 @@ def _auto_asignar_en_grupos(inscripcion: dict) -> None:
         (g for g in grupos_categoria if len(g.get('parejas', [])) < 3),
         None
     )
+    
+    grupo_completado = False
 
     if grupo_destino:
         grupo_destino['parejas'].append(pareja_dict)
@@ -107,6 +109,7 @@ def _auto_asignar_en_grupos(inscripcion: dict) -> None:
 
         # Si el grupo llega a 3 parejas, regenerar la lista de partidos
         if len(grupo_destino['parejas']) == 3:
+            grupo_completado = True
             try:
                 grupo_obj = Grupo(id=grupo_destino['id'], categoria=categoria)
                 grupo_obj.franja_horaria = grupo_destino.get('franja_horaria')
@@ -140,9 +143,20 @@ def _auto_asignar_en_grupos(inscripcion: dict) -> None:
 
     # Actualizar lista plana de parejas y estadísticas
     torneo.setdefault('parejas', []).append(pareja_dict)
-    recalcular_estadisticas(resultado)
+    resultado['estadisticas'] = recalcular_estadisticas(resultado)
+    
+    # Regenerar calendario si el grupo quedó completo
+    if grupo_completado:
+        from ._helpers import regenerar_calendario
+        try:
+            regenerar_calendario(resultado)
+            logger.info('Calendario regenerado exitosamente para grupo_id=%s', grupo_destino['id'])
+        except Exception as e:
+            logger.error('Error al regenerar calendario post-inscripción: %s', e, exc_info=True)
+    
     torneo['resultado_algoritmo'] = resultado
     storage.guardar(torneo)
+    logger.info('Inscripción completada y torneo guardado con resultado actualizado')
 
 
 # ── Helpers de invitación ─────────────────────────────────────────────────────

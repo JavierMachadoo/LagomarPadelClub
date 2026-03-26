@@ -7,30 +7,22 @@ def _normalizar_franja(franja: str) -> str:
     """Normaliza una franja horaria limpiando caracteres UTF-8 corruptos.
     
     Maneja casos donde 'Sábado' se ha guardado como 'SÃ¡bado' (UTF-8 double-encoded).
-    También normaliza espacios y diacríticos.
     """
     if not franja:
         return franja
     
-    # Intenta múltiples formas de arreglar la corrupción UTF-8
+    # Intenta decodificar como UTF-8 doble-encoded
     try:
-        # Opción 1: Si contiene caracteres problemáticos como Ã
-        if 'Ã' in franja or '¡' in franja:
-            # Re-codificar como latin-1 y decodificar como UTF-8
-            franja = franja.encode('latin-1').decode('utf-8')
+        # Si es una cadena que fue convertida incorrectamente, intenta arreglarlo
+        if 'Ã' in franja:
+            # Trata como bytes incorrectamente decodificados
+            encoded = franja.encode('latin-1')
+            franja = encoded.decode('utf-8')
     except (UnicodeDecodeError, UnicodeEncodeError):
-        # Si eso falla, dejar como está
         pass
     
     # Normaliza espacios y diacríticos
-    franja = unicodedata.normalize('NFKD', franja)  # Separar caracteres base y diacríticos
-    franja = ''.join(c for c in franja if unicodedata.category(c) != 'Mn')  # Remover diacríticos
-    franja = unicodedata.normalize('NFKC', franja).strip()  # Normalizar composición normal
-    
-    # Reconstruir con el acento correcto (si era Sábado)
-    if 'Sabado' in franja and 'Sábado' not in franja:
-        franja = franja.replace('Sabado', 'Sábado')
-    
+    franja = unicodedata.normalize('NFKC', franja).strip()
     return franja
 
 

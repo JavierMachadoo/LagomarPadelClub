@@ -524,7 +524,14 @@ def cambiar_fase():
 
     Solo el admin puede ejecutarla.
     Esto controla la visibilidad pública de grupos, finales y calendario.
+
+    Al cambiar a 'torneo' se generan automáticamente los fixtures y el calendario
+    de finales del domingo (con "Por definir" donde no haya clasificados aún).
     """
+    from core.models import Grupo
+    from core.fixture_finales_generator import GeneradorFixtureFinales
+    from utils.calendario_finales_builder import GeneradorCalendarioFinales
+
     data = request.get_json(silent=True) or {}
     nueva_fase = data.get('fase')
 
@@ -536,6 +543,34 @@ def cambiar_fase():
     fase_actual = torneo.get('fase', 'inscripcion')
 
     torneo['fase'] = nueva_fase
+
+    # Al activar el torneo: generar fixtures y calendario de finales si no existen
+    if nueva_fase == 'torneo':
+        resultado = torneo.get('resultado_algoritmo')
+        if resultado and not torneo.get('fixtures_finales'):
+            try:
+                grupos_por_cat = resultado.get('grupos_por_categoria', {})
+                fixtures_nuevos = {}
+                for cat, grupos_data in grupos_por_cat.items():
+                    grupos = [Grupo.from_dict(g) for g in grupos_data]
+                    fixture = GeneradorFixtureFinales.generar_fixture(cat, grupos)
+                    if fixture:
+                        fixtures_nuevos[cat] = fixture.to_dict()
+                if fixtures_nuevos:
+                    torneo['fixtures_finales'] = fixtures_nuevos
+                    logger.info('Fixtures generados al activar torneo: %s', list(fixtures_nuevos.keys()))
+            except Exception as e:
+                logger.error('Error generando fixtures al activar torneo: %s', e)
+
+        if torneo.get('fixtures_finales') and not torneo.get('calendario_finales'):
+            try:
+                torneo['calendario_finales'] = GeneradorCalendarioFinales.generar_plantilla_calendario(
+                    torneo['fixtures_finales']
+                )
+                logger.info('Calendario de finales generado al activar torneo')
+            except Exception as e:
+                logger.error('Error generando calendario al activar torneo: %s', e)
+
     storage.guardar(torneo)
     logger.info('Fase del torneo cambiada: %s → %s', fase_actual, nueva_fase)
     return jsonify({'ok': True, 'fase': nueva_fase})

@@ -63,15 +63,16 @@ def obtener_fixtures():
             if fixture:
                 fixtures_nuevos[categoria] = fixture.to_dict()
         
-        # Guardar fixtures generados
+        # Guardar fixtures y calendario (se fija una sola vez, no cambia con los resultados)
         torneo['fixtures_finales'] = fixtures_nuevos
+        torneo['calendario_finales'] = GeneradorCalendarioFinales.asignar_horarios(fixtures_nuevos)
         storage.guardar(torneo)
-        
+
         return jsonify({
             'success': True,
             'fixtures': fixtures_nuevos
         })
-        
+
     except Exception as e:
         logger.error(f"Error al obtener fixtures: {str(e)}", exc_info=True)
         return jsonify({
@@ -165,8 +166,9 @@ def regenerar_fixtures():
             if fixture:
                 fixtures_nuevos[categoria] = fixture.to_dict()
         
-        # Guardar fixtures regenerados
+        # Guardar fixtures y recalcular calendario (el admin eligió regenerar explícitamente)
         torneo['fixtures_finales'] = fixtures_nuevos
+        torneo['calendario_finales'] = GeneradorCalendarioFinales.asignar_horarios(fixtures_nuevos)
         storage.guardar(torneo)
         
         return jsonify({
@@ -248,8 +250,15 @@ def actualizar_ganador_partido(partido_id):
         # Guardar fixture actualizado
         fixtures_dict[categoria_encontrada] = fixture.to_dict()
         torneo['fixtures_finales'] = fixtures_dict
+
+        # Sincronizar calendario con los nuevos clasificados
+        if torneo.get('calendario_finales'):
+            torneo['calendario_finales'] = GeneradorCalendarioFinales.sincronizar_parejas(
+                torneo['calendario_finales'], fixtures_dict
+            )
+
         storage.guardar(torneo)
-        
+
         return jsonify({
             'success': True,
             'message': 'Ganador actualizado exitosamente',
@@ -393,8 +402,15 @@ def guardar_resultado_partido(partido_id):
             fixtures_dict[categoria_encontrada][fase_key][fase_idx]['sets'] = sets
 
         torneo['fixtures_finales'] = fixtures_dict
+
+        # Sincronizar calendario con los nuevos clasificados
+        if torneo.get('calendario_finales'):
+            torneo['calendario_finales'] = GeneradorCalendarioFinales.sincronizar_parejas(
+                torneo['calendario_finales'], fixtures_dict
+            )
+
         storage.guardar(torneo)
-        
+
         return jsonify({
             'success': True,
             'message': 'Resultado guardado exitosamente',
@@ -414,18 +430,25 @@ def obtener_calendario():
     """Obtiene el calendario de finales del domingo"""
     try:
         torneo = storage.cargar()
+
+        # Usar calendario persistido; si no existe aún, generarlo on-the-fly (retrocompatibilidad)
+        calendario = torneo.get('calendario_finales')
         fixtures = torneo.get('fixtures_finales', {})
-        
-        if not fixtures:
-            return jsonify({
-                'success': False,
-                'message': 'No hay fixtures disponibles'
-            }), 404
-        
-        # Generar calendario
-        calendario = GeneradorCalendarioFinales.asignar_horarios(fixtures)
+
+        if not calendario:
+            if not fixtures:
+                return jsonify({
+                    'success': False,
+                    'message': 'No hay fixtures disponibles'
+                }), 404
+            calendario = GeneradorCalendarioFinales.generar_plantilla_calendario(fixtures)
+
+        # Sincronizar nombres de parejas desde fixtures actuales
+        if fixtures:
+            calendario = GeneradorCalendarioFinales.sincronizar_parejas(calendario, fixtures)
+
         resumen = GeneradorCalendarioFinales.generar_resumen_horarios()
-        
+
         return jsonify({
             'success': True,
             'calendario': calendario,

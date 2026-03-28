@@ -1,5 +1,62 @@
 # Roadmap — Algoritmo-Torneos
 
+## Deuda técnica pendiente
+
+### `fetchWithToken` en `jwt-helper.js` — dos problemas a resolver
+
+**Problema 1 — `Content-Type: application/json` siempre forzado (bajo impacto)**
+El wrapper manda este header en todos los requests, incluyendo GETs. Actualmente no rompe nada porque siempre se usa con JSON, pero es incorrecto semánticamente. Fix: solo agregar el header si el request tiene body (`options.body !== undefined`).
+
+**Problema 2 — `response.json()` sin try/catch en el handler 401 (puede romper en producción)**
+Si Railway o un proxy devuelve un 401 con body vacío o HTML (timeout, error de red), `await response.json()` lanza una excepción y el usuario no es redirigido al login. Fix: envolver el `response.json()` del bloque 401 en try/catch propio.
+
+```js
+// Fix sugerido
+if (response.status === 401) {
+    try {
+        const data = await response.json();
+        if (data.redirect) {
+            window.location.href = data.redirect;
+            return response;
+        }
+    } catch (_) { /* body vacío o no-JSON — ignorar, no redirigir */ }
+}
+```
+
+### `calendario_finales_builder.py` — filtro de partidos 'Vacío' incompleto
+
+Líneas 108 y 113 filtran con `slot1_info != 'Vacío'` pero no chequean `slot2_info`. Un partido con `slot1` asignado pero `slot2` vacío (pareja no asignada aún) pasa el filtro y entra al calendario como si fuera válido. La semántica correcta según el propio comentario del código es filtrar por presencia real de `pareja1`/`pareja2`, no por `slot_info` que es metadata de display.
+
+```python
+# Fix sugerido — líneas 108 y 113
+if p and p.get('id') and p.get('pareja1') and p.get('pareja2')]
+```
+
+Requiere probar con fixture real de octavos antes de aplicar — el cambio afecta qué partidos entran al calendario de finales.
+
+---
+
+### `historial.py` — `torneo_id` puede ser None y `calendario_finales` no se archiva
+
+**Problema 1 — `torneo_id` None en torneos pre-migración**
+`torneo.get('torneo_id')` devuelve `None` si el torneo fue creado antes de que existiera ese campo. El upsert con `id=None` falla silenciosamente. Fix: usar `storage.get_torneo_id()` que fue creado específicamente para cubrir este caso.
+
+**Problema 2 — `calendario_finales` no se persiste en el blob archivado**
+Al archivar, `datos_blob` no incluye `calendario_finales`. Sin embargo, `main.py` en fase `espera` intenta leerlo de `datos_blob` para renderizar el fixture del último torneo. Resultado: el calendario de finales nunca aparece en la vista pública durante `espera`. Fix: agregar `'calendario_finales': torneo.get('calendario_finales', {})` al blob antes del upsert.
+
+```python
+# Fix sugerido en historial.py ~línea 202
+torneo_id = storage.get_torneo_id()
+datos_blob = {
+    'resultado_algoritmo': torneo.get('resultado_algoritmo'),
+    'fixtures_finales':    torneo.get('fixtures_finales', {}),
+    'calendario_finales':  torneo.get('calendario_finales', {}),  # ← agregar
+    'tipo_torneo':         tipo,
+}
+```
+
+---
+
 ## Estado actual del sistema
 
 Plataforma funcional con flujo completo: inscripciones → grupos → resultados → finales → archivado → espera.

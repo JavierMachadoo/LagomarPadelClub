@@ -16,6 +16,7 @@ import base64
 import logging
 import secrets
 import time
+from urllib.parse import urlparse
 from flask import Blueprint, request, jsonify, make_response, current_app, redirect, session, url_for
 
 from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
@@ -25,6 +26,24 @@ from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO, M
 logger = logging.getLogger(__name__)
 
 auth_jugador_bp = Blueprint("auth_jugador", __name__, url_prefix="/api/auth")
+
+
+def _es_redirect_seguro(url: str) -> bool:
+    """
+    Valida que la URL sea un path relativo interno seguro.
+
+    Rechaza:
+      - URLs vacías
+      - Rutas scheme-relative tipo //evil.com (open redirect)
+      - URLs con scheme (http://, https://)
+      - URLs con netloc (dominio externo)
+
+    Acepta solo paths que empiecen con '/' y no contengan '//' al inicio.
+    """
+    if not url:
+        return False
+    parsed = urlparse(url)
+    return parsed.scheme == "" and parsed.netloc == "" and url.startswith("/") and not url.startswith("//")
 
 
 def _get_supabase_admin():
@@ -290,7 +309,7 @@ def login():
                 'timestamp': int(time.time()),
             }
             token = jwt_handler.generar_token(token_data)
-            redirect_to = next_url if next_url and next_url.startswith('/') else '/grupos'
+            redirect_to = next_url if _es_redirect_seguro(next_url) else '/grupos'
             response = make_response(jsonify({
                 "message":  "Login exitoso",
                 "nombre":   f"{nombre} {apellido}".strip(),

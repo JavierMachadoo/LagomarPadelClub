@@ -105,12 +105,12 @@ class GeneradorCalendarioFinales:
         fases = []
 
         octavos = [p for p in fixture.get('octavos', [])
-                   if p and p.get('id') and p.get('slot1_info') != 'Vacío']
+                   if p and p.get('id') and p.get('pareja1') and p.get('pareja2')]
         if octavos:
             fases.append(('octavos', octavos))
 
         cuartos = [p for p in fixture.get('cuartos', [])
-                   if p and p.get('id') and p.get('slot1_info') != 'Vacío']
+                   if p and p.get('id') and p.get('pareja1') and p.get('pareja2')]
         if cuartos:
             fases.append(('cuartos', cuartos))
 

@@ -16,7 +16,7 @@ const JWTHelper = (() => {
             ...options,
             headers: {
                 ...options.headers,
-                'Content-Type': 'application/json',
+                ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
             },
             credentials: 'same-origin', // Envía la cookie HttpOnly
         };
@@ -25,11 +25,13 @@ const JWTHelper = (() => {
             const response = await fetch(url, config);
 
             if (response.status === 401) {
-                const data = await response.json();
-                if (data.redirect) {
-                    window.location.href = data.redirect;
-                    return response;
-                }
+                try {
+                    const data = await response.json();
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                        return response;
+                    }
+                } catch (_) { /* body vacío o no-JSON — ignorar, no redirigir */ }
             }
 
             return response;

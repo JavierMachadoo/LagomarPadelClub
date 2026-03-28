@@ -1796,16 +1796,196 @@
     {% endif %}
 {% endmacro %}
 
+<!-- Macro auxiliar: renderiza partidos de fase de grupos (reutilizable) -->
+{% macro _partidos_fase_grupos(categoria, grupos, border_color, bg_color) %}
+    <div class="row">
+        {% for grupo in grupos %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header" style="background: linear-gradient(135deg, {{ border_color }} 0%, {{ border_color }}dd 100%);">
+                    <h6 class="mb-0 text-white fw-bold">
+                        {% if loop.index == 1 %}GRUPO A
+                        {% elif loop.index == 2 %}GRUPO B
+                        {% elif loop.index == 3 %}GRUPO C
+                        {% elif loop.index == 4 %}GRUPO D
+                        {% else %}GRUPO {{ loop.index }}
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body" style="background-color: {{ bg_color }};" id="partidos-grupo-{{ grupo.id }}" data-franja="{{ grupo.franja_horaria }}">
+                    <div class="mb-3 p-2 bg-white rounded border">
+                        <small class="text-muted d-block">
+                            <i class="bi bi-calendar3"></i> <strong>{{ grupo.franja_horaria or 'Por coordinar' }}</strong>
+                        </small>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-geo-alt-fill"></i> <strong>Cancha {{ grupo.cancha or 'Por asignar' }}</strong>
+                        </small>
+                    </div>
+
+                    {% if grupo.partidos %}
+                        {% set hora_base = grupo.franja_horaria.split(' ')[1] if grupo.franja_horaria and ' ' in grupo.franja_horaria else '20:00' %}
+                        {% set hora_partes = hora_base.split(':') %}
+                        {% set hora_inicio = hora_partes[0]|int %}
+
+                        {% for partido in grupo.partidos %}
+                            {% set hora_partido = (hora_inicio + loop.index0) % 24 %}
+                            {% set hora_str = '%02d:00'|format(hora_partido) %}
+                            {% set p1_id = partido.pareja1_id if partido.pareja1_id is defined else 0 %}
+                            {% set p2_id = partido.pareja2_id if partido.pareja2_id is defined else 0 %}
+                            {% set resultado_key = [p1_id, p2_id]|sort|join('-') if p1_id and p2_id else '' %}
+                            {% set resultado = grupo.resultados.get(resultado_key, {}) if grupo.resultados and resultado_key else {} %}
+                            {% set tiene_resultado = resultado.get('ganador_id') is not none %}
+                            {% set puede_ingresar = p1_id > 0 and p2_id > 0 %}
+
+                            <div class="partido-card mb-3 p-3 bg-white rounded border shadow-sm {{ 'border-success border-2' if tiene_resultado else '' }}{{ ' border-danger' if not puede_ingresar else '' }}"
+                                 style="cursor: {{ 'pointer' if puede_ingresar else 'not-allowed' }}; transition: all 0.2s; {{ 'opacity: 0.6;' if not puede_ingresar else '' }}"
+                                 {% if puede_ingresar %}
+                                 onclick="abrirModalPorIds('{{ categoria }}', {{ grupo.id }}, {{ p1_id }}, {{ p2_id }})"
+                                 onmouseenter="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+                                 onmouseleave="this.style.transform=''; this.style.boxShadow='';"
+                                 {% else %}
+                                 title="Recarga la página para actualizar los datos del partido"
+                                 {% endif %}>
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="me-2">
+                                        <span class="badge bg-primary">
+                                            <i class="bi bi-clock-fill"></i> {{ hora_str }}
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted">Partido {{ loop.index }}</small>
+                                    </div>
+                                    {% if tiene_resultado %}
+                                        <div class="ms-2">
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle-fill"></i> Completado
+                                            </span>
+                                        </div>
+                                    {% else %}
+                                        <div class="ms-2">
+                                            <span class="badge bg-secondary">
+                                                <i class="bi bi-pencil-fill"></i> Pendiente
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="row g-0 align-items-center">
+                                    <div class="col-5">
+                                        <div class="text-end pe-2">
+                                            <div class="fw-bold text-truncate {{ 'text-success' if resultado.get('ganador_id') == partido.pareja1_id else '' }}"
+                                                 style="font-size: 0.95rem;" title="{{ partido.pareja1 }}">
+                                                {% if resultado.get('ganador_id') == partido.pareja1_id %}
+                                                    <i class="bi bi-trophy-fill text-warning"></i>
+                                                {% endif %}
+                                                {{ partido.pareja1 }}
+                                            </div>
+                                            {% if tiene_resultado %}
+                                                <small class="text-muted">
+                                                    {{ resultado.get('games_set1_pareja1', '-') }}-{{ resultado.get('games_set1_pareja2', '-') }},
+                                                    {{ resultado.get('games_set2_pareja1', '-') }}-{{ resultado.get('games_set2_pareja2', '-') }}
+                                                    {% if resultado.get('tiebreak_pareja1') is not none %}
+                                                        , TB: {{ resultado.get('tiebreak_pareja1', '-') }}-{{ resultado.get('tiebreak_pareja2', '-') }}
+                                                    {% endif %}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-2">
+                                        <div class="text-center">
+                                            <span class="badge bg-secondary">VS</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-5">
+                                        <div class="ps-2">
+                                            <div class="fw-bold text-truncate {{ 'text-success' if resultado.get('ganador_id') == partido.pareja2_id else '' }}"
+                                                 style="font-size: 0.95rem;" title="{{ partido.pareja2 }}">
+                                                {{ partido.pareja2 }}
+                                                {% if resultado.get('ganador_id') == partido.pareja2_id %}
+                                                    <i class="bi bi-trophy-fill text-warning"></i>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if not tiene_resultado %}
+                                    {% if puede_ingresar %}
+                                        <div class="text-center mt-2">
+                                            <small class="text-muted">
+                                                <i class="bi bi-hand-index"></i> Click para ingresar resultado
+                                            </small>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center mt-2">
+                                            <small class="text-danger">
+                                                <i class="bi bi-exclamation-triangle"></i> Recarga la página para ingresar resultado
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-light mb-0">
+                            <i class="bi bi-info-circle"></i> No hay partidos generados aún
+                        </div>
+                    {% endif %}
+
+                    <!-- Tabla de Posiciones -->
+                    <div class="mt-4" id="tabla-posiciones-{{ categoria }}-{{ grupo.id }}">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-trophy"></i> Tabla de Posiciones
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-primary">
+                                    <tr>
+                                        <th class="text-center" style="width: 10%;">Pos</th>
+                                        <th>Pareja</th>
+                                        <th class="text-center" style="width: 10%;">PJ</th>
+                                        <th class="text-center" style="width: 10%;">PG</th>
+                                        <th class="text-center" style="width: 15%;">Sets</th>
+                                        <th class="text-center" style="width: 15%;">Games</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-posiciones-{{ categoria }}-{{ grupo.id }}">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">
+                                            <small>Ingresa los resultados de los partidos para ver la tabla</small>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% endmacro %}
+
 <!-- Macro para mostrar solo los grupos/series de una categoría -->
 {% macro mostrar_grupos_categoria_solo_series(categoria, grupos, border_color, bg_color) %}
     {% if grupos %}
+        {# --- Fase torneo: solo partidos (grupos ocultos) --- #}
+        {% if fase_torneo == 'torneo' %}
+        <div class="mt-2">
+            <h5 class="fw-bold mb-3">🏆 Partidos de la Fase de Grupos</h5>
+            {{ _partidos_fase_grupos(categoria, grupos, border_color, bg_color) }}
+        </div>
+        {% endif %}
+
+        {# --- Fase inscripcion: gestión de grupos + partidos bloqueados --- #}
+        {% if fase_torneo != 'torneo' %}
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0">Grupos de {{ categoria }}</h4>
             <button class="btn btn-success" onclick="abrirModalCrearGrupo('{{ categoria }}')">
                 <i class="bi bi-plus-circle-fill"></i> Nuevo Grupo
             </button>
         </div>
-        
+
         <!-- Parejas No Asignadas -->
         <div id="parejas-no-asignadas-{{ categoria }}" class="mb-4">
             <!-- Se carga dinámicamente -->
@@ -1971,176 +2151,17 @@
             {% endfor %}
         </div>
         
-        <!-- Listado de Partidos debajo de las cards -->
-        <div class="mt-4">
-            <h5 class="fw-bold mb-3">🏆 Partidos de la Fase de Grupos</h5>
-            <div class="row">
-                {% for grupo in grupos %}
-                <div class="col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm">
-                        <div class="card-header" style="background: linear-gradient(135deg, {{ border_color }} 0%, {{ border_color }}dd 100%);">
-                            <h6 class="mb-0 text-white fw-bold">
-                                {% if loop.index == 1 %}GRUPO A
-                                {% elif loop.index == 2 %}GRUPO B
-                                {% elif loop.index == 3 %}GRUPO C
-                                {% elif loop.index == 4 %}GRUPO D
-                                {% else %}GRUPO {{ loop.index }}
-                                {% endif %}
-                            </h6>
-                        </div>
-                        <div class="card-body" style="background-color: {{ bg_color }};" id="partidos-grupo-{{ grupo.id }}" data-franja="{{ grupo.franja_horaria }}">
-                            <div class="mb-3 p-2 bg-white rounded border">
-                                <small class="text-muted d-block">
-                                    <i class="bi bi-calendar3"></i> <strong>{{ grupo.franja_horaria or 'Por coordinar' }}</strong>
-                                </small>
-                                <small class="text-muted d-block">
-                                    <i class="bi bi-geo-alt-fill"></i> <strong>Cancha {{ grupo.cancha or 'Por asignar' }}</strong>
-                                </small>
-                            </div>
-                            
-                            {% if grupo.partidos %}
-                                {% set hora_base = grupo.franja_horaria.split(' ')[1] if grupo.franja_horaria and ' ' in grupo.franja_horaria else '20:00' %}
-                                {% set hora_partes = hora_base.split(':') %}
-                                {% set hora_inicio = hora_partes[0]|int %}
-                                
-                                {% for partido in grupo.partidos %}
-                                    {% set hora_partido = (hora_inicio + loop.index0) % 24 %}
-                                    {% set hora_str = '%02d:00'|format(hora_partido) %}
-                                    {% set p1_id = partido.pareja1_id if partido.pareja1_id is defined else 0 %}
-                                    {% set p2_id = partido.pareja2_id if partido.pareja2_id is defined else 0 %}
-                                    {% set resultado_key = [p1_id, p2_id]|sort|join('-') if p1_id and p2_id else '' %}
-                                    {% set resultado = grupo.resultados.get(resultado_key, {}) if grupo.resultados and resultado_key else {} %}
-                                    {% set tiene_resultado = resultado.get('ganador_id') is not none %}
-                                    {% set puede_ingresar = p1_id > 0 and p2_id > 0 %}
-                                    
-                                    <div class="partido-card mb-3 p-3 bg-white rounded border shadow-sm {{ 'border-success border-2' if tiene_resultado else '' }}{{ ' border-danger' if not puede_ingresar else '' }}" 
-                                         style="cursor: {{ 'pointer' if puede_ingresar else 'not-allowed' }}; transition: all 0.2s; {{ 'opacity: 0.6;' if not puede_ingresar else '' }}"
-                                         {% if puede_ingresar %}
-                                         onclick="abrirModalPorIds('{{ categoria }}', {{ grupo.id }}, {{ p1_id }}, {{ p2_id }})"
-                                         onmouseenter="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
-                                         onmouseleave="this.style.transform=''; this.style.boxShadow='';"
-                                         {% else %}
-                                         title="Recarga la página para actualizar los datos del partido"
-                                         {% endif %}>
-                                        <div class="d-flex align-items-center mb-2">
-                                            <div class="me-2">
-                                                <span class="badge bg-primary">
-                                                    <i class="bi bi-clock-fill"></i> {{ hora_str }}
-                                                </span>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <small class="text-muted">Partido {{ loop.index }}</small>
-                                            </div>
-                                            {% if tiene_resultado %}
-                                                <div class="ms-2">
-                                                    <span class="badge bg-success">
-                                                        <i class="bi bi-check-circle-fill"></i> Completado
-                                                    </span>
-                                                </div>
-                                            {% else %}
-                                                <div class="ms-2">
-                                                    <span class="badge bg-secondary">
-                                                        <i class="bi bi-pencil-fill"></i> Pendiente
-                                                    </span>
-                                                </div>
-                                            {% endif %}
-                                        </div>
-                                        
-                                        <div class="row g-0 align-items-center">
-                                            <div class="col-5">
-                                                <div class="text-end pe-2">
-                                                    <div class="fw-bold text-truncate {{ 'text-success' if resultado.get('ganador_id') == partido.pareja1_id else '' }}" 
-                                                         style="font-size: 0.95rem;" title="{{ partido.pareja1 }}">
-                                                        {% if resultado.get('ganador_id') == partido.pareja1_id %}
-                                                            <i class="bi bi-trophy-fill text-warning"></i>
-                                                        {% endif %}
-                                                        {{ partido.pareja1 }}
-                                                    </div>
-                                                    {% if tiene_resultado %}
-                                                        <small class="text-muted">
-                                                            {{ resultado.get('games_set1_pareja1', '-') }}-{{ resultado.get('games_set1_pareja2', '-') }}, 
-                                                            {{ resultado.get('games_set2_pareja1', '-') }}-{{ resultado.get('games_set2_pareja2', '-') }}
-                                                            {% if resultado.get('tiebreak_pareja1') is not none %}
-                                                                , TB: {{ resultado.get('tiebreak_pareja1', '-') }}-{{ resultado.get('tiebreak_pareja2', '-') }}
-                                                            {% endif %}
-                                                        </small>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                            <div class="col-2">
-                                                <div class="text-center">
-                                                    <span class="badge bg-secondary">VS</span>
-                                                </div>
-                                            </div>
-                                            <div class="col-5">
-                                                <div class="ps-2">
-                                                    <div class="fw-bold text-truncate {{ 'text-success' if resultado.get('ganador_id') == partido.pareja2_id else '' }}" 
-                                                         style="font-size: 0.95rem;" title="{{ partido.pareja2 }}">
-                                                        {{ partido.pareja2 }}
-                                                        {% if resultado.get('ganador_id') == partido.pareja2_id %}
-                                                            <i class="bi bi-trophy-fill text-warning"></i>
-                                                        {% endif %}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        {% if not tiene_resultado %}
-                                            {% if puede_ingresar %}
-                                                <div class="text-center mt-2">
-                                                    <small class="text-muted">
-                                                        <i class="bi bi-hand-index"></i> Click para ingresar resultado
-                                                    </small>
-                                                </div>
-                                            {% else %}
-                                                <div class="text-center mt-2">
-                                                    <small class="text-danger">
-                                                        <i class="bi bi-exclamation-triangle"></i> Recarga la página para ingresar resultado
-                                                    </small>
-                                                </div>
-                                            {% endif %}
-                                        {% endif %}
-                                    </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="alert alert-light mb-0">
-                                    <i class="bi bi-info-circle"></i> No hay partidos generados aún
-                                </div>
-                            {% endif %}
-                            
-                            <!-- Tabla de Posiciones -->
-                            <div class="mt-4" id="tabla-posiciones-{{ categoria }}-{{ grupo.id }}">
-                                <h6 class="fw-bold mb-3">
-                                    <i class="bi bi-trophy"></i> Tabla de Posiciones
-                                </h6>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-bordered">
-                                        <thead class="table-primary">
-                                            <tr>
-                                                <th class="text-center" style="width: 10%;">Pos</th>
-                                                <th>Pareja</th>
-                                                <th class="text-center" style="width: 10%;">PJ</th>
-                                                <th class="text-center" style="width: 10%;">PG</th>
-                                                <th class="text-center" style="width: 15%;">Sets</th>
-                                                <th class="text-center" style="width: 15%;">Games</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tbody-posiciones-{{ categoria }}-{{ grupo.id }}">
-                                            <tr>
-                                                <td colspan="6" class="text-center text-muted">
-                                                    <small>Ingresa los resultados de los partidos para ver la tabla</small>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
+        <!-- Partidos visibles pero bloqueados en fase inscripcion -->
+        <div class="mt-4 position-relative">
+            <div style="opacity: 0.45; pointer-events: none; filter: grayscale(30%);">
+                <h5 class="fw-bold mb-3">🏆 Partidos de la Fase de Grupos</h5>
+                {{ _partidos_fase_grupos(categoria, grupos, border_color, bg_color) }}
+            </div>
+            <div class="alert alert-warning text-center mt-2 mb-0">
+                <i class="bi bi-lock-fill"></i> <strong>Activa el torneo</strong> para ingresar resultados de partidos.
             </div>
         </div>
+        {% endif %}{# fin fase_torneo != 'torneo' #}
     {% else %}
         <div class="alert alert-info">
             <i class="bi bi-info-circle"></i> No hay grupos formados en la categoría {{ categoria }}

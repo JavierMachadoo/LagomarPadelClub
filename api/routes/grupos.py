@@ -41,6 +41,9 @@ def ejecutar_algoritmo():
 
     Si no hay ninguna fuente, devuelve error.
     """
+    if storage.get_fase() == 'torneo':
+        return jsonify({'error': 'El torneo ya está activo. No se puede ejecutar el algoritmo.'}), 403
+
     from utils.api_helpers import _verificar_supabase_jwt  # noqa: F401 (evita importación circular)
 
     datos_actuales = obtener_datos_desde_token()
@@ -131,6 +134,9 @@ def obtener_resultado_algoritmo():
 @grupos_bp.route('/intercambiar-pareja', methods=['POST'])
 def intercambiar_pareja():
     """Intercambia parejas entre slots específicos de grupos."""
+    if storage.get_fase() == 'torneo':
+        return jsonify({'error': 'El torneo ya está activo. No se pueden modificar los grupos.'}), 403
+
     data = request.json
     pareja_id = data.get('pareja_id')
     grupo_origen_id = data.get('grupo_origen')
@@ -199,6 +205,9 @@ def intercambiar_pareja():
 @grupos_bp.route('/asignar-pareja-a-grupo', methods=['POST'])
 def asignar_pareja_a_grupo():
     """Asigna una pareja no asignada a un grupo, opcionalmente en un slot específico."""
+    if storage.get_fase() == 'torneo':
+        return jsonify({'error': 'El torneo ya está activo. No se pueden modificar los grupos.'}), 403
+
     data = request.json
     pareja_id = data.get('pareja_id')
     grupo_id = data.get('grupo_id')
@@ -301,6 +310,9 @@ def asignar_pareja_a_grupo():
 @grupos_bp.route('/crear-grupo-manual', methods=['POST'])
 def crear_grupo_manual():
     """Crea un nuevo grupo manualmente para una categoría."""
+    if storage.get_fase() == 'torneo':
+        return jsonify({'error': 'El torneo ya está activo. No se pueden crear grupos.'}), 403
+
     data = request.json
     categoria = data.get('categoria')
     franja_horaria = data.get('franja_horaria')
@@ -385,6 +397,9 @@ def crear_grupo_manual():
 @grupos_bp.route('/editar-grupo', methods=['POST'])
 def editar_grupo():
     """Edita la franja horaria y cancha de un grupo."""
+    if storage.get_fase() == 'torneo':
+        return jsonify({'error': 'El torneo ya está activo. No se pueden editar grupos.'}), 403
+
     data = request.json
     grupo_id = data.get('grupo_id')
     categoria = data.get('categoria')

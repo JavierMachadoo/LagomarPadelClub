@@ -7,6 +7,7 @@ from utils.api_helpers import (
     sincronizar_con_storage_y_token,
     verificar_autenticacion_api
 )
+from utils.torneo_storage import storage
 from ._helpers import (
     regenerar_fixtures_categoria,
     verificar_posiciones_completas,
@@ -26,6 +27,9 @@ def verificar_auth():
 @resultados_bp.route('/asignar-posicion', methods=['POST'])
 def asignar_posicion():
     """Asigna la posición final de una pareja en su grupo."""
+    if storage.get_fase() != 'torneo':
+        return jsonify({'error': 'El torneo no está activo. No se pueden asignar posiciones.'}), 403
+
     data = request.json
     pareja_id = data.get('pareja_id')
     posicion = data.get('posicion')  # 0 (deseleccionar), 1, 2, o 3
@@ -83,6 +87,9 @@ def asignar_posicion():
 @resultados_bp.route('/guardar-resultado-partido', methods=['POST'])
 def guardar_resultado_partido():
     """Guarda o actualiza el resultado de un partido de grupo."""
+    if storage.get_fase() != 'torneo':
+        return jsonify({'error': 'El torneo no está activo. No se pueden ingresar resultados.'}), 403
+
     from core.models import ResultadoPartido
     from core.clasificacion import CalculadorClasificacion
     from core.fixture_finales_generator import GeneradorFixtureFinales

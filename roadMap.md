@@ -2,11 +2,12 @@
 
 ## Estado actual del sistema
 
-Plataforma funcional con flujo completo: inscripciones → grupos → resultados → historial.
-Próximo objetivo: estado `espera` entre torneos para mostrar calendario del club y próximo torneo.
+Plataforma funcional con flujo completo: inscripciones → grupos → resultados → finales → archivado → espera.
+Próximo objetivo: migración de infraestructura a Brasil y schema SQL completo y versionado.
 
 **Implementado:**
-- State machine del torneo (`inscripcion` ↔ `torneo` → `finalizado`)
+- State machine del torneo (`espera` ↔ `inscripcion` ↔ `torneo` → `finalizado` → `espera`)
+- Estado `espera` entre torneos con info de próximo torneo y datos del último archivado
 - Inscripciones de jugadores con auto-asignación
 - Sistema de invitación de compañero por UUID (Player A invita a Player B por teléfono o link compartible)
 - Vistas públicas con filtros "Mi Grupo" y "Mi Calendario"
@@ -27,105 +28,110 @@ Próximo objetivo: estado `espera` entre torneos para mostrar calendario del clu
 | Frontend | Mantener Jinja2 + Bootstrap 5 | Los templates existentes no justifican migrar a React |
 | Repo frontend separado | No | Dos servicios Render + CORS + dos repos = overhead puro para un solo dev |
 | Admin auth | Mantener JWT custom | Cero riesgo por ahora |
-| Base de datos | Migración incremental (tablas nuevas junto al blob) | No romper lo que funciona |
+| Torneo activo | Blob JSONB (`torneo_actual.datos`) | ~15 parejas/categoría, volumen trivial; no necesita queries SQL durante el torneo |
+| Tablas relacionales | Solo para datos cross-torneo (inscripciones, jugadores, archivo) | KPIs, retención de usuarios, ranking futuro — lo que sí necesita SQL |
 | Deployment | Único servicio Render | Sin razón para dividir |
+| Región | Migración pendiente a São Paulo (Brasil) | Usuarios en Uruguay; ~20-30ms vs ~150ms desde US East |
 
 ---
 
-## Tablas Supabase actuales
+## Filosofía de la base de datos
+
+El sistema usa dos estrategias de almacenamiento complementarias:
+
+| Capa | Almacenamiento | Razón |
+|---|---|---|
+| **Torneo activo** | Blob JSONB en `torneo_actual` | Es el estado mutable de un solo torneo. Max ~15 parejas/categoría → no necesita queries SQL. El backend lo lee/escribe completo. |
+| **Datos cross-torneo** | Tablas relacionales (`inscripciones`, `jugadores`, `torneos`, `grupos`, etc.) | Esto sí necesita SQL: "¿cuántos usuarios se anotaron en los últimos 10 torneos?", KPIs de retención, ranking. |
+| **Archivo de torneo** | `torneos.datos_blob` + tablas relacionales | El blob es cache de lectura para el dashboard histórico. Las tablas son la fuente de verdad queryable. |
+
+---
+
+## Tablas Supabase (schema objetivo)
 
 ```sql
-torneo_actual   (id, datos JSONB)                          -- 1 fila, estado mutable
-torneos         (id, nombre, tipo, estado, datos_blob JSONB, created_at)
-inscripciones   (id, torneo_id, jugador_id, integrante1, integrante2,
-                 telefono, categoria, franjas_disponibles, estado,
-                 jugador2_id UUID, created_at)
-invitacion_tokens (id, inscripcion_id, token, expira_at, usado, created_at)
-grupos          (id, torneo_id, categoria, franja, cancha, created_at)
-parejas_grupo   (grupo_id, nombre, posicion)               -- PK compuesta
-partidos        (id, grupo_id, pareja1, pareja2, resultado JSONB)
-partidos_finales(id, torneo_id, categoria, fase, pareja1, pareja2, ganador)
+-- === TORNEO ACTIVO (blob) ===
+torneo_actual     (id, datos JSONB)                          -- 1 fila, estado mutable
+
+-- === DATOS CROSS-TORNEO (relacional) ===
+jugadores         (id UUID → auth.users, nombre, apellido, telefono, created_at)
+inscripciones     (id, torneo_id → torneos, jugador_id → auth.users,
+                   integrante1, integrante2, telefono, categoria,
+                   franjas_disponibles JSONB, estado, jugador2_id → jugadores,
+                   created_at)
+invitacion_tokens (id, inscripcion_id → inscripciones, token UNIQUE,
+                   expira_at, usado, created_at)
+
+-- === ARCHIVO DE TORNEO (relacional) ===
+torneos           (id, nombre, tipo, estado, datos_blob JSONB, created_at)
+grupos            (id, torneo_id → torneos, categoria, franja, cancha, created_at)
+parejas_grupo     (grupo_id → grupos, nombre, posicion)      -- PK compuesta
+partidos          (id, grupo_id → grupos, pareja1, pareja2, resultado JSONB)
+partidos_finales  (id, torneo_id → torneos, categoria, fase, pareja1, pareja2, ganador)
+
+-- === CONTROL DE MIGRACIONES ===
+_migrations       (id SERIAL, name TEXT UNIQUE, applied_at)
 ```
+
+**CHECKs importantes:**
+- `torneos.estado`: `inscripcion`, `torneo`, `finalizado`, `espera`
+- `inscripciones.estado`: `pendiente`, `confirmado`, `rechazado`, `pendiente_companero`, `cancelada`
+- `inscripciones.franjas_disponibles`: tipo `JSONB` (no `text[]`) — consistente entre entornos
 
 ---
 
 ## Próximos pasos (en orden)
 
-### Paso 1 — Estado `espera` entre torneos ← ACTUAL
+### Paso 1 — Migración a Brasil + Schema versionado ← ACTUAL
 
-**Problema:** Hoy al terminar un torneo el sistema salta directo a inscripciones. No hay un período "entre torneos" donde los jugadores consulten resultados del último torneo y vean cuándo es el próximo. El club publica un calendario anual y necesita mostrar esta info.
+**Problema:** Prod está en US East (~150ms para usuarios en Uruguay). Además el schema de Prod está desactualizado respecto a Dev (le faltan columnas, tablas y constraints). No hay un mecanismo formal para migrar cambios de schema entre entornos.
 
-**Solución:** Nuevo estado `espera` en la máquina de estados. Al terminar un torneo se entra en espera; el admin configura fecha y categorías del próximo torneo; cuando esté listo abre inscripciones manualmente.
+**Solución:**
 
-**Máquina de estados nueva:**
+1. **Reescribir `supabase_schema.sql` como `migrations/000_schema_inicial.sql`**
+   - Schema completo y autosuficiente (ejecutable en un Supabase vacío)
+   - Incluye: todas las tablas, CHECKs, RLS + policies, índices, función de expiración
+   - Basado en el schema de Dev (el más actualizado)
+   - Unifica `franjas_disponibles` a `JSONB`
+
+2. **Crear proyectos Supabase en São Paulo**
+   - `LagomarPadelDB-Prod-BR` y `LagomarPadelDB-Dev-BR`
+   - Ejecutar `000_schema_inicial.sql` en ambos
+
+3. **Migrar datos de Prod actual a Prod-BR**
+   - Los torneos archivados, jugadores registrados, etc.
+
+4. **Actualizar Render**
+   - Apuntar env vars a los nuevos proyectos de Supabase
+   - Evaluar migrar Render a São Paulo también
+
+5. **Establecer flujo de migraciones**
+   - Tabla `_migrations` para tracking
+   - Cada cambio futuro es un archivo `migrations/NNN_descripcion.sql`
+   - Workflow: probar en Dev-BR → escribir migración → aplicar en Prod-BR
+
+**Estructura de migraciones:**
 ```
-inscripcion ↔ torneo → (terminar+archivar) → espera → inscripcion
+migrations/
+  000_schema_inicial.sql      ← crea TODO desde cero
+  001_xxx.sql                 ← cambios futuros
 ```
 
-**Decisiones tomadas:**
-
-| Decisión | Opción | Razón |
-|---|---|---|
-| Info del próximo torneo | Campo `proximo_torneo` en `torneo_actual` | Aprovecha storage existente, sin tabla nueva |
-| Mostrar último torneo en espera | Guardar `ultimo_torneo_id` y cargar desde tabla `torneos` | Evita datos duplicados en `torneo_actual` |
-| Transición espera → inscripcion | Admin dispara manualmente desde el panel | Mismo patrón que cambio de fase actual |
-| Cuándo se configura próximo torneo | Durante el estado `espera` | Formulario en el panel admin |
-
-**Comportamiento por vista durante `espera`:**
-
-| Vista | Qué muestra |
-|-------|-------------|
-| `/grupos` | Datos del **último torneo archivado** con banner "Último torneo: [nombre]" |
-| `/calendario` | Calendario del **último torneo archivado** con mismo banner |
-| Pantalla principal (público) | "Próximo torneo: [fecha], [categorías]" |
-| Tab inscripción (navbar) | **Oculto** |
-| Panel admin | Badge "Entre Torneos" + form próximo torneo + botón "Abrir Inscripciones" |
-
-**Cambios en storage (`utils/torneo_storage.py`):**
-- `set_fase()` acepta `'espera'` como fase válida
-- Nuevo método `transicion_a_espera(ultimo_torneo_id)` — limpia datos, genera nuevo UUID, pone fase `espera`, guarda referencia al último torneo
-- `limpiar()` existente se usa solo para la transición espera → inscripcion
-- Nuevos métodos: `set_proximo_torneo(fecha, categorias, descripcion)`, `get_proximo_torneo()`, `get_ultimo_torneo_id()`
-
-**Nuevos endpoints:**
-- `POST /api/admin/abrir-inscripciones` — transiciona de espera a inscripcion (llama `storage.limpiar()`)
-- `POST /api/admin/proximo-torneo` — guarda fecha, categorías y descripción del próximo torneo
-- `GET /api/proximo-torneo` — público, devuelve info del próximo torneo
-
-**Cambios en endpoints existentes:**
-- `POST /api/admin/terminar-torneo` — en vez de `storage.limpiar()`, llama `storage.transicion_a_espera(torneo_id)` para ir a espera
-- `POST /api/cambiar-fase` — acepta `'espera'` como fase válida
-
-**Cambios en rutas (`main.py`):**
-- `/grupos` y `/calendario` — si fase == 'espera', cargar último torneo archivado y renderizar con flag `es_ultimo_torneo=True`
-
-**Frontend:**
-- `homePanel.html` — nuevo case para `espera`: badge "Entre Torneos", form próximo torneo, botón "Abrir Inscripciones". Mejorar label del input nombre al terminar → "Nombre para archivar el torneo"
-- `base.html` — banner de próximo torneo cuando fase == 'espera'
-- `grupos_publico.html` + `calendario_publico.html` — banner superior "Resultados del último torneo: [nombre]"
-- `organizando.html` — manejo del estado espera con info de próximo torneo
-
-**Archivos a modificar:**
-- `utils/torneo_storage.py` (media complejidad)
-- `api/routes/historial.py` (media)
-- `api/routes/grupos.py` (baja)
-- `main.py` (media)
-- `web/templates/homePanel.html` (media)
-- `web/templates/base.html` (baja)
-- `web/templates/grupos_publico.html` (baja)
-- `web/templates/calendario_publico.html` (baja)
-- `web/templates/organizando.html` (baja)
-
-**Edge case:** Si no hay último torneo archivado (primer uso), `/grupos` y `/calendario` muestran `organizando.html` normal.
+**Archivos a modificar/crear:**
+- `migrations/000_schema_inicial.sql` (nuevo — reemplaza `supabase_schema.sql`)
+- `supabase_schema.sql` (eliminar — reemplazado por migrations/)
+- Variables de entorno en Render y `.env` local
 
 ---
 
 ### Paso 2 — Ranking Anual por Categoría
 
-**Prerequisito:** tablas relacionales disponibles — ya hecho. Sistema de invitaciones — Paso 1 anterior (completado).
+**Prerequisito:** Migración a Brasil completada (Paso 1). Tablas relacionales disponibles.
+
+**Decisión pendiente:** `parejas_grupo` y `partidos` hoy referencian parejas por nombre (texto). Para el ranking esto puede ser un problema si la misma pareja se inscribe con nombres distintos entre torneos. Evaluar si conviene vincular por `inscripciones.id` o por par de `jugador_id`s antes de implementar.
 
 - Ranking **anual** acumulado, una tabla de posiciones por categoría
-- Crear tabla `puntos_historicos`
+- Crear tabla `puntos_historicos` (puntos por **jugador individual**, no por pareja — las parejas cambian pero los jugadores no)
 - Blueprint `api/routes/ranking.py`
   - `GET /ranking` → leaderboard público con tabs por categoría + filtro por año
   - `GET /ranking/<categoria>` → tabla de una categoría específica
@@ -133,6 +139,7 @@ inscripcion ↔ torneo → (terminar+archivar) → espera → inscripcion
 - Templates: `ranking.html`, `mis_puntos.html` (historial del jugador)
 - Fórmula inicial: 1°=10pts, 2°=7pts, 3°=5pts, participación=2pts
 - Agregar "Ranking" al nav de jugador y público
+- Migración: `migrations/001_ranking.sql`
 
 ---
 

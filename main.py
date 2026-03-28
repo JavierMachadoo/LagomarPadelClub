@@ -29,6 +29,7 @@ from api.routes.historial import historial_bp, _cargar_archivado
 from utils.torneo_storage import storage
 from utils.jwt_handler import JWTHandler
 from core.fixture_finales_generator import GeneradorFixtureFinales
+from utils.calendario_finales_builder import GeneradorCalendarioFinales
 from core.models import Grupo
 
 
@@ -265,6 +266,28 @@ def crear_app():
         
         return response
     
+    def _build_calendario_index(calendario: dict) -> dict:
+        """Devuelve {partido_id: {cancha, hora_inicio}} a partir del calendario persistido."""
+        if not calendario:
+            return {}
+        index = {}
+        for lista in [calendario.get('cancha_1', []), calendario.get('cancha_2', [])]:
+            for p in lista:
+                index[p['partido_id']] = {'cancha': p['cancha'], 'hora_inicio': p['hora_inicio']}
+        return index
+
+    def _build_franjas_finales(calendario: dict) -> list:
+        """Convierte el calendario persistido en lista de (hora, partido_c1, partido_c2)
+        para renderizar el panel de finales en Jinja2 con la misma estética que grupos."""
+        if not calendario:
+            return []
+        por_hora = {}
+        for p in calendario.get('cancha_1', []):
+            por_hora.setdefault(p['hora_inicio'], [None, None])[0] = p
+        for p in calendario.get('cancha_2', []):
+            por_hora.setdefault(p['hora_inicio'], [None, None])[1] = p
+        return [(h, slots[0], slots[1]) for h, slots in sorted(por_hora.items())]
+
     # Rutas públicas (sin login)
     @app.route('/grupos')
     def grupos_publico():
@@ -285,11 +308,13 @@ def crear_app():
                     datos_blob = archivado.get('datos_blob') or {}
                     resultado = datos_blob.get('resultado_algoritmo')
                     fixtures = datos_blob.get('fixtures_finales', {})
+                    cal_arch = datos_blob.get('calendario_finales', {})
                     tipo_torneo = datos_blob.get('tipo_torneo', 'fin1')
                     categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
                     return make_response(render_template('grupos_publico.html',
                                          resultado=resultado,
                                          fixtures=fixtures,
+                                         calendario_index=_build_calendario_index(cal_arch),
                                          categorias=categorias_torneo,
                                          colores=COLORES_CATEGORIA,
                                          emojis=EMOJI_CATEGORIA,
@@ -322,11 +347,14 @@ def crear_app():
                         guardado = True
             if guardado:
                 torneo['fixtures_finales'] = fixtures
+                torneo['calendario_finales'] = GeneradorCalendarioFinales.asignar_horarios(fixtures)
                 storage.guardar(torneo)
 
+        calendario_finales = torneo.get('calendario_finales', {})
         return make_response(render_template('grupos_publico.html',
                              resultado=resultado,
                              fixtures=fixtures,
+                             calendario_index=_build_calendario_index(calendario_finales),
                              categorias=categorias_torneo,
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
@@ -352,6 +380,7 @@ def crear_app():
                     resultado = datos_blob.get('resultado_algoritmo')
                     tipo_torneo = datos_blob.get('tipo_torneo', 'fin1')
                     categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+                    cal_arch = datos_blob.get('calendario_finales', {})
                     return make_response(render_template('calendario_publico.html',
                                          resultado=resultado,
                                          categorias=categorias_torneo,
@@ -359,6 +388,7 @@ def crear_app():
                                          emojis=EMOJI_CATEGORIA,
                                          torneo=torneo,
                                          tipo_torneo=tipo_torneo,
+                                         franjas_finales=_build_franjas_finales(cal_arch),
                                          es_ultimo_torneo=True,
                                          nombre_ultimo_torneo=archivado.get('nombre', '')))
             return make_response(render_template('organizando.html', torneo=torneo))
@@ -369,6 +399,7 @@ def crear_app():
         resultado = torneo.get('resultado_algoritmo')
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+        calendario_finales = torneo.get('calendario_finales', {})
 
         return make_response(render_template('calendario_publico.html',
                              resultado=resultado,
@@ -376,7 +407,8 @@ def crear_app():
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,
-                             tipo_torneo=tipo_torneo))
+                             tipo_torneo=tipo_torneo,
+                             franjas_finales=_build_franjas_finales(calendario_finales)))
 
     @app.route('/cuadro')
     def cuadro_publico():

@@ -386,7 +386,7 @@
         </div>
         {% endif %}
 
-        {# ── FASES FINALES — siempre presente, renderizado por JS ── #}
+        {# ── FASES FINALES ── #}
         <div class="tab-pane fade {% if not dias_fase_grupos %}show active{% endif %}"
              id="panel-finales" role="tabpanel">
             <div class="cal-scroll-wrapper">
@@ -399,12 +399,81 @@
                     <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2
                 </div>
             </div>
-            <div id="finales-calendar-content">
-                <div class="finales-loading">
-                    <div class="spinner-border spinner-border-sm text-success" role="status"></div>
-                    <span class="ms-2 small">Cargando calendario...</span>
+
+            {# Mapa de abreviatura de fase para el badge #}
+            {% set fase_abrev = {
+                'Octavos de Final': 'OF',
+                'Cuartos de Final': 'CF',
+                'Semifinal': 'Semis',
+                'Final': 'Final'
+            } %}
+
+            {% if franjas_finales %}
+                {# ── Renderizado server-side con la misma estética que la fase de grupos ── #}
+                {% for hora, c1, c2 in franjas_finales %}
+                <div class="franja-block">
+                    <div class="franja-sep"></div>
+                    <div class="canchas-grid">
+
+                        {# Cancha 1 #}
+                        <div class="match-slot">
+                            <div class="hora-box">{{ hora }}</div>
+                            {% if c1 %}
+                                {% set color = colores.get(c1.categoria, '#6b7280') %}
+                                {% set emoji = emojis.get(c1.categoria, '🎾') %}
+                                {% set es_tbd = not c1.pareja1 or not c1.pareja2 %}
+                                <div class="partido-card {{ 'partido-tbd' if es_tbd else '' }}" data-cat="{{ c1.categoria }}">
+                                    <div class="partido-meta">
+                                        <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c1.categoria }}</span>
+                                        <span class="badge-fase">{{ fase_abrev.get(c1.fase, c1.fase) }}</span>
+                                    </div>
+                                    <div class="vs-row">
+                                        <div class="equipo equipo-izq {{ 'equipo-tbd' if not c1.pareja1 else '' }}">{{ c1.pareja1 or 'Por definir' }}</div>
+                                        <div class="vs-sep">VS</div>
+                                        <div class="equipo equipo-der {{ 'equipo-tbd' if not c1.pareja2 else '' }}">{{ c1.pareja2 or 'Por definir' }}</div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>
+                            {% endif %}
+                        </div>
+
+                        {# Cancha 2 #}
+                        <div class="match-slot">
+                            <div class="hora-box">{{ hora }}</div>
+                            {% if c2 %}
+                                {% set color = colores.get(c2.categoria, '#6b7280') %}
+                                {% set emoji = emojis.get(c2.categoria, '🎾') %}
+                                {% set es_tbd = not c2.pareja1 or not c2.pareja2 %}
+                                <div class="partido-card {{ 'partido-tbd' if es_tbd else '' }}" data-cat="{{ c2.categoria }}">
+                                    <div class="partido-meta">
+                                        <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c2.categoria }}</span>
+                                        <span class="badge-fase">{{ fase_abrev.get(c2.fase, c2.fase) }}</span>
+                                    </div>
+                                    <div class="vs-row">
+                                        <div class="equipo equipo-izq {{ 'equipo-tbd' if not c2.pareja1 else '' }}">{{ c2.pareja1 or 'Por definir' }}</div>
+                                        <div class="vs-sep">VS</div>
+                                        <div class="equipo equipo-der {{ 'equipo-tbd' if not c2.pareja2 else '' }}">{{ c2.pareja2 or 'Por definir' }}</div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>
+                            {% endif %}
+                        </div>
+
+                    </div>
                 </div>
-            </div>
+                {% endfor %}
+            {% else %}
+                {# Fallback JS para torneos sin calendario persistido aún #}
+                <div id="finales-calendar-content">
+                    <div class="finales-loading">
+                        <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                        <span class="ms-2 small">Cargando calendario...</span>
+                    </div>
+                </div>
+            {% endif %}
+
             </div>{# /cal-scroll-inner #}
             </div>{# /cal-scroll-wrapper #}
         </div>

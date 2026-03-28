@@ -3,12 +3,19 @@
 {% block title %}Categorías — {{ torneo.nombre or 'Torneo de Pádel' }}{% endblock %}
 
 {# ── Macro: renderiza un partido de finales (read-only) ── #}
-{% macro render_partido(partido) %}
+{% macro render_partido(partido, cal={}) %}
 {% set p1 = partido.pareja1 %}
 {% set p2 = partido.pareja2 %}
 {% set ganador = partido.ganador %}
 {% set sets = partido.sets if partido.sets is defined else [] %}
+{% set info = cal.get(partido.id) if cal and partido.id is defined else none %}
 <div class="bk-match {{ 'tiene-ganador' if partido.tiene_ganador else '' }}">
+{% if info %}
+<div class="bk-match-head">
+    <span class="bk-match-cancha"><i class="bi bi-geo-alt-fill"></i> Cancha {{ info.cancha }}</span>
+    <span class="bk-match-hora"><i class="bi bi-clock"></i> {{ info.hora_inicio }}</span>
+</div>
+{% endif %}
     <div class="bk-team {{ 'winner' if ganador and p1 and ganador.id == p1.id else '' }} {{ 'tbd' if not p1 else '' }}">
         <span class="bk-team-name">{{ p1.nombre if p1 else (partido.slot1_info or 'Por definir') }}</span>
         {% if ganador and p1 and ganador.id == p1.id %}
@@ -457,6 +464,30 @@
     }
     .bk-grupo-team:first-child { border-top: none; }
 
+    /* Header de cancha/hora dentro de la card del bracket */
+    .bk-match-head {
+        background: var(--brand-black, #111);
+        padding: 0.32rem 0.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.4rem;
+    }
+    .bk-match-cancha {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-weight: 700;
+        font-size: 0.72rem;
+        color: var(--brand-green, #2E9B0E);
+    }
+    .bk-match-hora {
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.45);
+        display: flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+    .bk-match-head .bi { font-size: 0.6rem; }
+
     /* Match card (inside bracket) */
     .bk-match {
         background: #fff;
@@ -723,8 +754,8 @@
                             {% set oct = fixture.octavos %}
                             {% for i in range(0, oct|length, 2) %}
                             <div class="bk-pair">
-                                {{ render_partido(oct[i]) }}
-                                {% if i + 1 < oct|length %}{{ render_partido(oct[i + 1]) }}{% endif %}
+                                {{ render_partido(oct[i], calendario_index) }}
+                                {% if i + 1 < oct|length %}{{ render_partido(oct[i + 1], calendario_index) }}{% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -739,8 +770,8 @@
                             {% set cuartos = fixture.cuartos %}
                             {% for i in range(0, cuartos|length, 2) %}
                             <div class="bk-pair">
-                                {{ render_partido(cuartos[i]) }}
-                                {% if i + 1 < cuartos|length %}{{ render_partido(cuartos[i + 1]) }}{% endif %}
+                                {{ render_partido(cuartos[i], calendario_index) }}
+                                {% if i + 1 < cuartos|length %}{{ render_partido(cuartos[i + 1], calendario_index) }}{% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -755,8 +786,8 @@
                             {% set semis = fixture.semifinales %}
                             {% for i in range(0, semis|length, 2) %}
                             <div class="bk-pair">
-                                {{ render_partido(semis[i]) }}
-                                {% if i + 1 < semis|length %}{{ render_partido(semis[i + 1]) }}{% endif %}
+                                {{ render_partido(semis[i], calendario_index) }}
+                                {% if i + 1 < semis|length %}{{ render_partido(semis[i + 1], calendario_index) }}{% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -770,7 +801,7 @@
                             <i class="bi bi-trophy-fill me-1"></i>Final
                         </div>
                         <div class="bk-col-cards">
-                            {{ render_partido(fixture.final) }}
+                            {{ render_partido(fixture.final, calendario_index) }}
                         </div>
                     </div>
                     {% endif %}

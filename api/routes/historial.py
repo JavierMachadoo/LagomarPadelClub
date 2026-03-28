@@ -199,15 +199,15 @@ def terminar_torneo():
         return jsonify({'error': 'El nombre del torneo es obligatorio'}), 400
 
     torneo = storage.cargar()
-    torneo_id = torneo.get('torneo_id')
+    torneo_id = storage.get_torneo_id()
     tipo = torneo.get('tipo_torneo', 'fin1')
 
     datos_blob = {
         'resultado_algoritmo': torneo.get('resultado_algoritmo'),
         'fixtures_finales': torneo.get('fixtures_finales', {}),
+        'calendario_finales': torneo.get('calendario_finales', {}),
         'tipo_torneo': tipo,
     }
-
     if _use_supabase():
         sb = _sb_admin()  # Una sola instancia para todo el bloque
         try:

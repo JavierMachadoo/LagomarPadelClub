@@ -229,6 +229,7 @@ def crear_app():
         torneo = storage.cargar()
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+        fixtures = torneo.get('fixtures_finales', {})
 
         response = make_response(render_template('dashboard.html',
                              resultado=resultado,
@@ -236,10 +237,11 @@ def crear_app():
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,
-                             tipo_torneo=tipo_torneo))
-        
+                             tipo_torneo=tipo_torneo,
+                             fixtures=fixtures))
+
         return response
-    
+
     @app.route('/finales')
     def finales():
         """Página de visualización de finales y calendario del domingo."""

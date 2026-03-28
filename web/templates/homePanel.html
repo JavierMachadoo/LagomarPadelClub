@@ -16,7 +16,11 @@
                             <p class="text-muted mb-1" style="font-size:0.82rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase;">
                                 Estado del torneo
                             </p>
-                            {% if fase_torneo == 'inscripcion' %}
+                            {% if fase_torneo == 'espera' %}
+                            <span class="badge fs-6 px-3 py-2" style="background:#e0f2fe; color:#075985; border-radius:30px;">
+                                <i class="bi bi-hourglass-split me-1"></i>En Espera
+                            </span>
+                            {% elif fase_torneo == 'inscripcion' %}
                             <span class="badge fs-6 px-3 py-2" style="background:#fef9c3; color:#92400e; border-radius:30px;">
                                 <i class="bi bi-pencil-square me-1"></i>Período de Inscripción
                             </span>
@@ -25,10 +29,32 @@
                                 <i class="bi bi-play-circle-fill me-1"></i>Torneo Activo
                             </span>
                             {% endif %}
+                            {% if fase_torneo in ('inscripcion', 'torneo') %}
+                            <span class="badge px-3 py-2 ms-2" style="background:#f1f5f9; color:#475569; border-radius:30px; font-size:0.8rem;">
+                                {% if tipo_torneo == 'fin1' %}
+                                <i class="bi bi-calendar-week me-1"></i>Fin de semana 1 — 3ra, 5ta, 7ma
+                                {% else %}
+                                <i class="bi bi-calendar-week me-1"></i>Fin de semana 2 — 4ta, 6ta
+                                {% endif %}
+                            </span>
+                            {% endif %}
                         </div>
 
                         <div class="d-flex gap-2 flex-wrap">
-                            {% if fase_torneo == 'inscripcion' %}
+                            {% if fase_torneo == 'espera' %}
+                            <button class="btn btn-outline-primary px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    onclick="abrirModalProximoTorneo()">
+                                <i class="bi bi-gear me-2"></i>Configurar Próximo Torneo
+                            </button>
+                            <button class="btn btn-success px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    id="btnAbrirInscripciones"
+                                    {% if not proximo_torneo or not proximo_torneo.nombre or not proximo_torneo.fecha %}disabled{% endif %}
+                                    onclick="abrirInscripciones()">
+                                <i class="bi bi-door-open me-2"></i>Abrir Inscripciones
+                            </button>
+                            {% elif fase_torneo == 'inscripcion' %}
                             <button class="btn btn-success px-4 py-2 fw-bold"
                                     style="border-radius:30px;"
                                     onclick="confirmarCambioFase('torneo', '¿Activar el torneo?', 'Los grupos y el calendario serán visibles públicamente.')">
@@ -90,26 +116,21 @@
                 <div class="modal-body pt-2">
                     <div class="alert alert-warning border-0 rounded-3 mb-3" style="background:#fef9c3;">
                         <p class="mb-2 fw-semibold" style="color:#92400e;">
-                            Esta acción guardará los resultados del torneo en el historial y reseteará completamente el sistema para el próximo torneo.
+                            Esta acción guardará los resultados del torneo en el historial y el sistema quedará en espera para el próximo torneo.
                         </p>
                         <p class="mb-1 fw-bold" style="color:#92400e; font-size:0.9rem;">¿Qué pasará?</p>
                         <ul class="mb-0" style="color:#92400e; font-size:0.88rem; padding-left:1.25rem;">
                             <li>Los grupos, posiciones y cuadros se guardarán en el historial</li>
                             <li>Las inscripciones actuales <strong>NO</strong> se archivan</li>
-                            <li>Se creará un nuevo torneo en blanco (nuevo ID)</li>
-                            <li>El estado volverá a "Período de Inscripción"</li>
+                            <li>El sistema quedará en estado <strong>En Espera</strong></li>
                         </ul>
                     </div>
                     <p class="text-danger small fw-semibold mb-3">
                         <i class="bi bi-exclamation-triangle-fill me-1"></i>Esta acción no se puede deshacer.
                     </p>
-                    <div>
-                        <label class="form-label fw-bold" for="inputNombreTorneo">
-                            Nombre del torneo <span class="text-danger">*</span>
-                        </label>
-                        <input type="text" class="form-control" id="inputNombreTorneo"
-                               placeholder="Ej. Torneo Enero 2025"
-                               style="border-radius:10px;">
+                    <div class="p-3 rounded-3" style="background:#f8fafc; border:1px solid #e2e8f0;">
+                        <p class="mb-1 text-muted" style="font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em;">Se archivará como</p>
+                        <p class="mb-0 fw-bold fs-5">{{ torneo.nombre or 'Sin nombre' }}</p>
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
@@ -118,6 +139,68 @@
                     <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold"
                             id="btnConfirmarTerminar" onclick="confirmarTerminarTorneo()">
                         <i class="bi bi-trophy-fill me-1"></i>Terminar y Archivar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Configurar Próximo Torneo -->
+    <div class="modal fade" id="modalProximoTorneo" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px; border:0;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-calendar-plus text-primary me-2"></i>Configurar Próximo Torneo
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="inputProximoNombre">
+                            Nombre del torneo <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="inputProximoNombre"
+                               placeholder="Ej. Torneo Abril 2026"
+                               style="border-radius:10px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="inputProximoFecha">
+                            Fecha <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="inputProximoFecha"
+                               placeholder="Ej. 12/04/2026"
+                               style="border-radius:10px;">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">Tipo de torneo <span class="text-danger">*</span></label>
+                        <div class="torneo-cards" id="selectorTipoProximo">
+                            <button type="button" class="torneo-card active" id="btnProximoFin1"
+                                    onclick="seleccionarTipoProximo('fin1')">
+                                <span class="torneo-weekend">Fin de semana 1</span>
+                                <div class="torneo-cats">
+                                    <span class="tcat" style="--c:#e83e8c">3ra</span>
+                                    <span class="tcat" style="--c:#ffc107">5ta</span>
+                                    <span class="tcat" style="--c:#9b7fed">7ma</span>
+                                </div>
+                            </button>
+                            <button type="button" class="torneo-card" id="btnProximoFin2"
+                                    onclick="seleccionarTipoProximo('fin2')">
+                                <span class="torneo-weekend">Fin de semana 2</span>
+                                <div class="torneo-cats">
+                                    <span class="tcat" style="--c:#28a745">4ta</span>
+                                    <span class="tcat" style="--c:#17a2b8">6ta</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
+                            data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold"
+                            id="btnGuardarProximo" onclick="guardarProximoTorneo()">
+                        <i class="bi bi-check-circle me-1"></i>Guardar
                     </button>
                 </div>
             </div>
@@ -155,38 +238,27 @@
     </div>
     {% endif %}
 
-    <!-- Selector de tipo de torneo -->
+    {% if fase_torneo == 'espera' and proximo_torneo and proximo_torneo.nombre %}
+    <!-- Resumen del próximo torneo (estado espera) -->
     <div class="row justify-content-center mb-4">
         <div class="col-lg-8">
-            <p class="torneo-selector-label">
-                Seleccioná el torneo
-                {% if resultado %}
-                <span class="torneo-lock-badge"><i class="bi bi-lock-fill me-1"></i>Bloqueado</span>
-                {% endif %}
-            </p>
-            <div class="torneo-cards {% if resultado %}torneo-locked{% endif %}">
-                <button class="torneo-card {% if tipo_torneo == 'fin1' %}active{% endif %}"
-                        {% if resultado %}disabled{% endif %}
-                        onclick="cambiarTipoTorneo('fin1')">
-                    <span class="torneo-weekend">Fin de semana 1</span>
-                    <div class="torneo-cats">
-                        <span class="tcat" style="--c:#e83e8c">3ra</span>
-                        <span class="tcat" style="--c:#ffc107">5ta</span>
-                        <span class="tcat" style="--c:#9b7fed">7ma</span>
-                    </div>
-                </button>
-                <button class="torneo-card {% if tipo_torneo == 'fin2' %}active{% endif %}"
-                        {% if resultado %}disabled{% endif %}
-                        onclick="cambiarTipoTorneo('fin2')">
-                    <span class="torneo-weekend">Fin de semana 2</span>
-                    <div class="torneo-cats">
-                        <span class="tcat" style="--c:#28a745">4ta</span>
-                        <span class="tcat" style="--c:#17a2b8">6ta</span>
-                    </div>
+            <div class="p-3 rounded-3 d-flex align-items-center gap-3" style="background:#eff6ff; border:1px solid #bfdbfe;">
+                <i class="bi bi-calendar-check text-primary fs-4"></i>
+                <div>
+                    <p class="mb-0 fw-bold">{{ proximo_torneo.nombre }}</p>
+                    <p class="mb-0 text-muted" style="font-size:0.88rem;">
+                        {{ proximo_torneo.fecha }} —
+                        {% if proximo_torneo.tipo_torneo == 'fin1' %}Fin de semana 1 (3ra, 5ta, 7ma){% else %}Fin de semana 2 (4ta, 6ta){% endif %}
+                    </p>
+                </div>
+                <button class="btn btn-sm btn-outline-primary ms-auto rounded-pill"
+                        onclick="abrirModalProximoTorneo()">
+                    <i class="bi bi-pencil me-1"></i>Editar
                 </button>
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Sección de Carga de Datos -->
     <div class="row justify-content-center">
@@ -1469,18 +1541,10 @@ window.addEventListener('focus', function() {
 
 // ==================== TERMINAR TORNEO ====================
 function terminarTorneo() {
-    // Limpiar input y abrir modal
-    document.getElementById('inputNombreTorneo').value = '';
     new bootstrap.Modal(document.getElementById('modalTerminarTorneo')).show();
 }
 
 async function confirmarTerminarTorneo() {
-    const nombre = document.getElementById('inputNombreTorneo').value.trim();
-    if (!nombre) {
-        Toast.error('El nombre del torneo es obligatorio');
-        return;
-    }
-
     const btn = document.getElementById('btnConfirmarTerminar');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Archivando...';
@@ -1489,7 +1553,7 @@ async function confirmarTerminarTorneo() {
         const resp = await fetch('/api/admin/terminar-torneo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre })
+            body: JSON.stringify({})
         });
         const data = await resp.json();
         if (resp.ok && data.ok) {
@@ -1504,6 +1568,79 @@ async function confirmarTerminarTorneo() {
         Toast.error('Error de conexión');
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-trophy-fill me-1"></i>Terminar y Archivar';
+    }
+}
+
+// ==================== PRÓXIMO TORNEO (estado espera) ====================
+let _tipoProximoSeleccionado = 'fin1';
+
+function abrirModalProximoTorneo() {
+    // Pre-rellenar con valores actuales si existen
+    const proximoNombre = {{ (proximo_torneo.nombre if proximo_torneo and proximo_torneo.nombre else '')|tojson }};
+    const proximoFecha  = {{ (proximo_torneo.fecha  if proximo_torneo and proximo_torneo.fecha  else '')|tojson }};
+    const proximoTipo   = {{ (proximo_torneo.tipo_torneo if proximo_torneo and proximo_torneo.tipo_torneo else 'fin1')|tojson }};
+
+    document.getElementById('inputProximoNombre').value = proximoNombre;
+    document.getElementById('inputProximoFecha').value  = proximoFecha;
+    seleccionarTipoProximo(proximoTipo);
+    new bootstrap.Modal(document.getElementById('modalProximoTorneo')).show();
+}
+
+function seleccionarTipoProximo(tipo) {
+    _tipoProximoSeleccionado = tipo;
+    document.getElementById('btnProximoFin1').classList.toggle('active', tipo === 'fin1');
+    document.getElementById('btnProximoFin2').classList.toggle('active', tipo === 'fin2');
+}
+
+async function guardarProximoTorneo() {
+    const nombre = document.getElementById('inputProximoNombre').value.trim();
+    const fecha  = document.getElementById('inputProximoFecha').value.trim();
+
+    if (!nombre) { Toast.error('El nombre es obligatorio'); return; }
+    if (!fecha)  { Toast.error('La fecha es obligatoria'); return; }
+
+    const btn = document.getElementById('btnGuardarProximo');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+
+    try {
+        const resp = await fetch('/api/admin/proximo-torneo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, fecha, tipo_torneo: _tipoProximoSeleccionado })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('Próximo torneo configurado');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Toast.error(data.error || 'Error al guardar');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Guardar';
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Guardar';
+    }
+}
+
+async function abrirInscripciones() {
+    if (!confirm('¿Abrir el período de inscripciones para este torneo?')) return;
+    try {
+        const resp = await fetch('/api/admin/abrir-inscripciones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('¡Inscripciones abiertas!');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Toast.error(data.error || 'Error al abrir inscripciones');
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
     }
 }
 

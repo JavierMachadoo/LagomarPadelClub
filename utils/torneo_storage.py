@@ -84,14 +84,14 @@ class TorneoStorage:
         """Devuelve la estructura de un torneo nuevo."""
         now = datetime.now().isoformat()
         return {
-            'nombre': f"Torneo {datetime.now().strftime('%d/%m/%Y')}",
+            'nombre': '',
             'fecha_creacion': now,
             'fecha_modificacion': now,
             'parejas': [],
             'resultado_algoritmo': None,
             'num_canchas': 2,
             'estado': 'creando',
-            'fase': 'inscripcion',
+            'fase': 'espera',
             'tipo_torneo': 'fin1',
             'torneo_id': str(uuid.uuid4()),
         }
@@ -167,18 +167,20 @@ class TorneoStorage:
 
 
     def limpiar(self) -> None:
-        """Reinicia el torneo preservando el tipo de torneo activo.
+        """Reinicia el torneo preservando nombre y tipo configurados en estado espera.
 
-        Limpia también los campos de estado 'espera' (ultimo_torneo_id,
-        proximo_torneo) para dejar un torneo completamente nuevo.
+        El nombre y tipo_torneo ya fueron asignados al configurar el próximo torneo,
+        por lo que se preservan. Limpia datos de juego y campos del estado espera.
         """
         torneo = self.cargar()
+        nombre_actual = torneo.get('nombre', '')
         tipo_actual = torneo.get('tipo_torneo', 'fin1')
         torneo['parejas'] = []
         torneo['resultado_algoritmo'] = None
         torneo['fixtures_finales'] = {}
         torneo['estado'] = 'creando'
         torneo['fase'] = 'inscripcion'
+        torneo['nombre'] = nombre_actual
         torneo['tipo_torneo'] = tipo_actual
         torneo['torneo_id'] = str(uuid.uuid4())
         torneo.pop('ultimo_torneo_id', None)
@@ -216,7 +218,7 @@ class TorneoStorage:
     def get_fase(self) -> str:
         """Devuelve la fase actual del torneo ('inscripcion' | 'torneo' | 'espera')."""
         torneo = self.cargar()
-        return torneo.get('fase', 'inscripcion')
+        return torneo.get('fase', 'espera')
 
     def set_fase(self, nueva_fase: str) -> None:
         """Cambia la fase del torneo. Valida que sea un valor permitido."""
@@ -229,20 +231,20 @@ class TorneoStorage:
     def transicion_a_espera(self, ultimo_torneo_id: str) -> None:
         """Transiciona a estado 'espera' tras archivar un torneo.
 
-        Limpia datos del torneo (parejas, resultado, fixtures) y guarda
-        referencia al último torneo archivado para que las vistas públicas
-        puedan mostrar sus resultados.
+        Limpia datos del torneo (parejas, resultado, fixtures) y resetea nombre
+        para que el admin configure el próximo torneo desde cero.
         """
         torneo = self.cargar()
-        tipo_actual = torneo.get('tipo_torneo', 'fin1')
         torneo['parejas'] = []
         torneo['resultado_algoritmo'] = None
         torneo['fixtures_finales'] = {}
         torneo['estado'] = 'creando'
         torneo['fase'] = 'espera'
-        torneo['tipo_torneo'] = tipo_actual
+        torneo['nombre'] = ''
+        torneo['tipo_torneo'] = 'fin1'
         torneo['torneo_id'] = str(uuid.uuid4())
         torneo['ultimo_torneo_id'] = ultimo_torneo_id
+        torneo.pop('proximo_torneo', None)
         self.guardar(torneo)
 
     def get_ultimo_torneo_id(self) -> Optional[str]:
@@ -250,12 +252,21 @@ class TorneoStorage:
         torneo = self.cargar()
         return torneo.get('ultimo_torneo_id')
 
-    def set_proximo_torneo(self, fecha: str, categorias: list, descripcion: str = '') -> None:
-        """Guarda la info del próximo torneo (visible durante estado 'espera')."""
+    def set_proximo_torneo(self, fecha: str, nombre: str, tipo_torneo: str = 'fin1',
+                           categorias: list = None, descripcion: str = '') -> None:
+        """Guarda la info del próximo torneo y la aplica directamente al blob activo.
+
+        El nombre y tipo_torneo se guardan en el blob del torneo activo para que
+        sobrevivan la transición a estado inscripcion (limpiar() los preserva).
+        """
         torneo = self.cargar()
+        torneo['nombre'] = nombre
+        torneo['tipo_torneo'] = tipo_torneo
         torneo['proximo_torneo'] = {
             'fecha': fecha,
-            'categorias': categorias,
+            'nombre': nombre,
+            'tipo_torneo': tipo_torneo,
+            'categorias': categorias or [],
             'descripcion': descripcion,
         }
         self.guardar(torneo)

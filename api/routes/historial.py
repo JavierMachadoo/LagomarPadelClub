@@ -188,19 +188,19 @@ def _poblar_tablas_relacionales(sb, torneo_id: str, datos_blob: dict) -> None:
 
 @historial_bp.route('/api/admin/terminar-torneo', methods=['POST'])
 def terminar_torneo():
-    """Archiva el torneo actual con sus datos y lo resetea completamente."""
+    """Archiva el torneo actual con sus datos y lo resetea completamente.
+
+    El nombre ya fue asignado al configurar el próximo torneo en estado espera,
+    por lo que se toma del blob directamente (no se pide en el request).
+    """
     autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
     if not autenticado:
         return error
 
-    data = request.get_json(silent=True) or {}
-    nombre = (data.get('nombre') or '').strip()
-    if not nombre:
-        return jsonify({'error': 'El nombre del torneo es obligatorio'}), 400
-
     torneo = storage.cargar()
     torneo_id = storage.get_torneo_id()
     tipo = torneo.get('tipo_torneo', 'fin1')
+    nombre = torneo.get('nombre', '').strip() or f"Torneo {datetime.now().strftime('%d/%m/%Y')}"
 
     datos_blob = {
         'resultado_algoritmo': torneo.get('resultado_algoritmo'),
@@ -256,8 +256,8 @@ def terminar_torneo():
 def abrir_inscripciones():
     """Transiciona de estado 'espera' a 'inscripcion'.
 
-    Limpia completamente el torneo (parejas, resultado, etc.) y abre
-    el período de inscripción para el próximo torneo.
+    Requiere que el próximo torneo haya sido configurado (nombre y fecha).
+    El nombre y tipo_torneo ya están en el blob y se preservan en limpiar().
     """
     autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
     if not autenticado:
@@ -267,6 +267,10 @@ def abrir_inscripciones():
     if fase_actual != 'espera':
         return jsonify({'error': f'Solo se puede abrir inscripciones desde estado espera (actual: {fase_actual})'}), 400
 
+    proximo = storage.get_proximo_torneo()
+    if not proximo or not proximo.get('nombre') or not proximo.get('fecha'):
+        return jsonify({'error': 'Debes configurar el nombre y la fecha del próximo torneo antes de abrir inscripciones'}), 400
+
     storage.limpiar()
     logger.info('Inscripciones abiertas — transición espera → inscripcion')
     return jsonify({'ok': True, 'fase': 'inscripcion'})
@@ -274,7 +278,11 @@ def abrir_inscripciones():
 
 @historial_bp.route('/api/admin/proximo-torneo', methods=['POST'])
 def configurar_proximo_torneo():
-    """Guarda la info del próximo torneo (solo durante estado 'espera')."""
+    """Guarda nombre, fecha y tipo del próximo torneo (solo durante estado 'espera').
+
+    El nombre y tipo_torneo se aplican directamente al blob activo para que
+    sobrevivan la transición a inscripcion.
+    """
     autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
     if not autenticado:
         return error
@@ -284,15 +292,20 @@ def configurar_proximo_torneo():
         return jsonify({'error': 'Solo se puede configurar el próximo torneo en estado espera'}), 400
 
     data = request.get_json(silent=True) or {}
+    nombre = (data.get('nombre') or '').strip()
     fecha = (data.get('fecha') or '').strip()
-    categorias = data.get('categorias') or []
+    tipo_torneo = (data.get('tipo_torneo') or 'fin1').strip()
     descripcion = (data.get('descripcion') or '').strip()
 
+    if not nombre:
+        return jsonify({'error': 'El nombre es obligatorio'}), 400
     if not fecha:
         return jsonify({'error': 'La fecha es obligatoria'}), 400
+    if tipo_torneo not in ('fin1', 'fin2'):
+        return jsonify({'error': 'El tipo de torneo debe ser fin1 o fin2'}), 400
 
-    storage.set_proximo_torneo(fecha, categorias, descripcion)
-    logger.info('Próximo torneo configurado: %s, categorías: %s', fecha, categorias)
+    storage.set_proximo_torneo(fecha=fecha, nombre=nombre, tipo_torneo=tipo_torneo, descripcion=descripcion)
+    logger.info('Próximo torneo configurado: "%s" — %s (%s)', nombre, fecha, tipo_torneo)
     return jsonify({'ok': True, 'proximo_torneo': storage.get_proximo_torneo()})
 
 

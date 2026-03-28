@@ -233,7 +233,25 @@
     .match-wrapper {
         position: relative;
     }
-    
+
+    /* Info de cancha/hora sobre cada card del bracket */
+    .match-schedule-info {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.67rem;
+        color: rgba(0,0,0,0.42);
+        margin-bottom: 0.25rem;
+        padding-left: 0.3rem;
+    }
+    .match-schedule-cancha {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-weight: 700;
+        font-size: 0.7rem;
+        color: var(--brand-green, #2E9B0E);
+    }
+    .match-schedule-info .bi { font-size: 0.62rem; }
+
     /* ========== PARTIDO (MATCH) ESTILO ITF ========== */
     .match-card-itf {
         background: white;
@@ -783,10 +801,12 @@ const CATS_ACTIVAS = CATEGORIAS_TORNEO.map(c => CAT_MAP[c]).filter(Boolean);
 
 let currentCategoria = CATS_ACTIVAS[0] || '4ta';
 let fixtures = {};
+let calendarioIndex = {}; // { partido_id: { cancha, hora_inicio } }
 
 // Cargar fixtures al inicio
 document.addEventListener('DOMContentLoaded', function() {
     cargarFixtures();
+    cargarCalendarioIndex(); // fire-and-forget: puebla el índice para los chips de cancha/hora
     
     // Auto-actualizar cada 60 segundos (sin saturar el servidor free-tier)
     setInterval(() => {
@@ -1138,9 +1158,18 @@ function renderizarPartidoITF(partido, categoria, tieneSiguienteRonda = false, i
         : '';
     
     const cursorStyle = partido.pareja1 && partido.pareja2 && !ganador ? 'cursor: pointer;' : 'cursor: default;';
-    
+
+    const horarioInfo = calendarioIndex[partido.id]
+        ? `<div class="match-schedule-info">
+               <span class="match-schedule-cancha"><i class="bi bi-geo-alt-fill"></i> Cancha ${calendarioIndex[partido.id].cancha}</span>
+               <span>·</span>
+               <span><i class="bi bi-clock"></i> ${calendarioIndex[partido.id].hora_inicio}</span>
+           </div>`
+        : '';
+
     return `
         <div class="match-wrapper">
+            ${horarioInfo}
             <div class="match-card-itf" ${clickHandler} style="${cursorStyle}">
                 <div class="player-row-itf ${pareja1Class} ${porDefinir1}">
                     ${pareja1Text}
@@ -1422,6 +1451,7 @@ async function regenerarFixtures() {
         if (data.success) {
             showToast('Llaves regeneradas correctamente', 'success');
             await cargarFixtures();
+            cargarCalendarioIndex(); // actualizar chips de cancha/hora para el nuevo calendario
         } else {
             showToast('Error al regenerar: ' + data.message, 'danger');
         }
@@ -1429,6 +1459,28 @@ async function regenerarFixtures() {
         console.error('Error:', error);
         showToast('Error de conexión', 'danger');
     }
+}
+
+// Construir índice partido_id → { cancha, hora_inicio } para chips en el bracket
+async function cargarCalendarioIndex() {
+    try {
+        const response = await fetch('/api/finales/calendario', { credentials: 'same-origin' });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!data.success) return;
+
+        const nuevoIndex = {};
+        const canchas = [data.calendario.cancha_1 || [], data.calendario.cancha_2 || []];
+        canchas.forEach(lista => {
+            lista.forEach(p => {
+                nuevoIndex[p.partido_id] = { cancha: p.cancha, hora_inicio: p.hora_inicio };
+            });
+        });
+        calendarioIndex = nuevoIndex;
+
+        // Re-renderizar el bracket activo para que aparezcan los chips
+        if (currentCategoria) renderizarFixture(currentCategoria);
+    } catch (_) { /* silencioso: los chips son info extra, no crítica */ }
 }
 
 // Cargar calendario

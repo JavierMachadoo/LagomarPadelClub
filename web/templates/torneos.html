@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de Torneos - Pádel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .torneos-page { background: var(--brand-bg); min-height: 100vh; }
+
+    .torneos-header {
+        background: #fff;
+        border-bottom: 1px solid var(--brand-border);
+        padding: 2.5rem 0 2rem;
+        margin-bottom: 2.5rem;
+    }
+    .torneos-header-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--brand-taupe);
+        margin-bottom: 0.4rem;
+    }
+    .torneos-header h1 {
+        font-family: var(--font-slab);
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0;
+        color: var(--brand-black);
+    }
+    .torneos-header p {
+        color: #9A9694;
+        font-size: 0.9rem;
+        margin: 0.5rem 0 0;
+    }
+    .torneo-card {
+        border-radius: 4px;
+        border: 1px solid var(--brand-border);
+        background: #fff;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .torneo-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 6px 6px 9px rgba(0,0,0,0.08);
+        border-color: var(--brand-taupe);
+    }
+    .torneo-card .torneo-nombre {
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--brand-black);
+        line-height: 1.3;
+    }
+    .torneo-card .btn-ver {
+        background: var(--brand-taupe);
+        color: #fff;
+        border-radius: 9999px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        padding: 0.5rem 1.25rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: background 0.2s ease;
+    }
+    .torneo-card .btn-ver:hover { background: var(--brand-taupe-dark); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="torneos-page">
+
+    <!-- Header -->
+    <div class="torneos-header">
+        <div class="container">
+            <div class="torneos-header-label"><i class="bi bi-clock-history me-1"></i>Archivo</div>
+            <h1>Historial de Torneos</h1>
+            <p>Torneos finalizados y archivados</p>
+        </div>
+    </div>
+
+    <!-- Lista de torneos -->
+    <div class="container">
+        <div class="col-lg-10 mx-auto">
+
+            {% if torneos %}
+            <div class="row g-3">
+                {% for t in torneos %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="torneo-card h-100 p-4 d-flex flex-column gap-3">
+
+                        <!-- Tipo badge -->
+                        <div>
+                            {% if t.tipo == 'fin1' %}
+                            <span class="badge px-3 py-2"
+                                  style="background:rgba(34,197,94,0.12); color:#16a34a;
+                                         border-radius:4px; font-size:0.68rem; font-weight:700; letter-spacing:0.08em;">
+                                <i class="bi bi-calendar-week me-1"></i>Fin de semana 1
+                            </span>
+                            {% elif t.tipo == 'fin2' %}
+                            <span class="badge px-3 py-2"
+                                  style="background:rgba(99,102,241,0.12); color:#4f46e5;
+                                         border-radius:4px; font-size:0.68rem; font-weight:700; letter-spacing:0.08em;">
+                                <i class="bi bi-calendar-week me-1"></i>Fin de semana 2
+                            </span>
+                            {% else %}
+                            <span class="badge px-3 py-2"
+                                  style="background:rgba(107,114,128,0.10); color:#6b7280;
+                                         border-radius:4px; font-size:0.68rem; font-weight:700; letter-spacing:0.08em;">
+                                <i class="bi bi-calendar me-1"></i>{{ t.tipo }}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Nombre -->
+                        <div>
+                            <p class="torneo-nombre mb-1">{{ t.nombre }}</p>
+                            {% if t.created_at %}
+                            <p class="mb-0" style="font-size:0.8rem; color:#9ca3af;">
+                                <i class="bi bi-calendar3 me-1"></i>
+                                {% set fecha_str = t.created_at[:10] %}
+                                {% set partes = fecha_str.split('-') %}
+                                {% if partes|length == 3 %}
+                                    {{ partes[2] }}/{{ partes[1] }}/{{ partes[0] }}
+                                {% else %}
+                                    {{ t.created_at }}
+                                {% endif %}
+                            </p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Botón -->
+                        <div class="mt-auto">
+                            <a href="{{ url_for('historial.detalle_torneo', torneo_id=t.id) }}"
+                               class="torneo-card btn-ver w-100 justify-content-center">
+                                <i class="bi bi-eye"></i>Ver detalle
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% else %}
+            <!-- Estado vacío -->
+            <div class="text-center py-5">
+                <div style="width:80px; height:80px; background:#f3f4f6; border-radius:50%;
+                            display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem;">
+                    <i class="bi bi-trophy" style="font-size:2rem; color:#9ca3af;"></i>
+                </div>
+                <h5 class="fw-bold text-muted mb-2">No hay torneos archivados</h5>
+                <p class="text-muted" style="font-size:0.9rem; max-width:360px; margin:0 auto;">
+                    Cuando termines un torneo y lo archives, aparecerá aquí con todos sus resultados.
+                </p>
+                {% if es_admin %}
+                <a href="{{ url_for('admin_panel') }}" class="btn btn-sm mt-4"
+                   style="border-radius:30px; border:2px solid var(--brand-green); color:var(--brand-green-dark); font-weight:600; padding:0.5rem 1.5rem;">
+                    <i class="bi bi-arrow-left me-1"></i>Ir al panel de administración
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}

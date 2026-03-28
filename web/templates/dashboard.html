@@ -2024,19 +2024,22 @@ let draggedPareja = null;
 let dragTimeout = null;
 
 function dragStart(event) {
-    const esNoAsignada = event.target.dataset.esNoAsignada === 'true';
-    const categoria = event.target.dataset.categoria;
-    const slot = event.target.dataset.slot;
-    
+    // Usamos currentTarget (el div draggable con los data-attributes),
+    // NO event.target (que puede ser un elemento hijo como un <span> o <i>).
+    const el = event.currentTarget;
+    const esNoAsignada = el.dataset.esNoAsignada === 'true';
+    const categoria = el.dataset.categoria;
+    const slot = el.dataset.slot;
+
     draggedPareja = {
-        parejaId: event.target.dataset.parejaId,
-        parejaNombre: event.target.dataset.parejaNombre,
-        grupoOrigen: event.target.dataset.grupoOrigen || null,
+        parejaId: el.dataset.parejaId,
+        parejaNombre: el.dataset.parejaNombre,
+        grupoOrigen: el.dataset.grupoOrigen || null,
         slotOrigen: slot ? parseInt(slot) : null,
         esNoAsignada: esNoAsignada,
         categoria: categoria
     };
-    event.target.classList.add('dragging');
+    el.classList.add('dragging');
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', '');
 }
@@ -2190,7 +2193,9 @@ function cargarParejasNoAsignadas(categoria) {
 
 function renderizarParejasNoAsignadas(categoria, parejas) {
     const container = document.getElementById(`parejas-no-asignadas-${categoria}`);
-    
+    // El contenedor solo existe si la categoría tiene grupos renderizados.
+    if (!container) return;
+
     if (!parejas || parejas.length === 0) {
         container.innerHTML = '';
         return;

@@ -1,14 +1,15 @@
 # Web Framework
 Flask==3.1.2
-PyJWT>=2.8.0
-gunicorn>=21.2.0
+Flask-Limiter==4.1.1
+PyJWT==2.10.1
+gunicorn==25.2.0
 
 # Data Processing
-pandas>=2.2.0
+pandas==2.3.3
 
 # Utils
-python-dotenv>=1.0.0
-openpyxl>=3.1.0
+python-dotenv==1.0.1
+openpyxl==3.1.5
 
 # Base de datos (Supabase)
-supabase>=2.10.0
+supabase==2.10.0

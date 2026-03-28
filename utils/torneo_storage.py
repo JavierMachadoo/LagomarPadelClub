@@ -5,24 +5,17 @@ En producción (Render, Railway, etc.) usa Supabase para persistencia real.
 En desarrollo local, cae a JSON si no hay variables de Supabase configuradas.
 
 Variables de entorno requeridas para Supabase:
-    SUPABASE_URL       → URL del proyecto Supabase
-    SUPABASE_ANON_KEY  → clave anon/public del proyecto
-Sistema de almacenamiento persistente del torneo activo.
-
-En producción (Render, Railway, etc.) usa Supabase para persistencia real.
-En desarrollo local, cae a JSON si no hay variables de Supabase configuradas.
-
-Variables de entorno requeridas para Supabase:
-    SUPABASE_URL       → URL del proyecto Supabase
-    SUPABASE_ANON_KEY  → clave anon/public del proyecto
+    SUPABASE_URL              → URL del proyecto Supabase
+    SUPABASE_SERVICE_ROLE_KEY → clave service_role (bypasea RLS — solo para backend)
+    SUPABASE_ANON_KEY         → fallback si no hay service_role key
 """
 
 import json
 import logging
 import os
 import time
+import uuid
 from datetime import datetime
-from pathlib import Path
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -33,26 +26,12 @@ _BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ── Detectar si Supabase está disponible ──────────────────────────────────────
 _SUPABASE_URL = os.getenv('SUPABASE_URL', '').strip()
-_SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY', '').strip()
-_USE_SUPABASE = bool(_SUPABASE_URL and _SUPABASE_KEY)
-
-if _USE_SUPABASE:
-    try:
-        from supabase import create_client, Client as SupabaseClient
-    except ImportError:
-        logger.warning('supabase package no instalado. Usando almacenamiento JSON.')
-        _USE_SUPABASE = False
-
-# ─────────────────────────────────────────────────────────────────────────────
-
-logger = logging.getLogger(__name__)
-
-# Directorio base del proyecto (dos niveles arriba de este archivo)
-_BASE_DIR = Path(__file__).resolve().parent.parent
-
-# ── Detectar si Supabase está disponible ──────────────────────────────────────
-_SUPABASE_URL = os.getenv('SUPABASE_URL', '').strip()
-_SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY', '').strip()
+# El storage es código de servidor puro → usa service_role key para bypassar RLS.
+# La anon_key queda para clientes del browser que sí deben pasar por RLS.
+_SUPABASE_KEY = (
+    os.getenv('SUPABASE_SERVICE_ROLE_KEY', '').strip()
+    or os.getenv('SUPABASE_ANON_KEY', '').strip()
+)
 _USE_SUPABASE = bool(_SUPABASE_URL and _SUPABASE_KEY)
 
 if _USE_SUPABASE:
@@ -112,7 +91,9 @@ class TorneoStorage:
             'resultado_algoritmo': None,
             'num_canchas': 2,
             'estado': 'creando',
+            'fase': 'inscripcion',
             'tipo_torneo': 'fin1',
+            'torneo_id': str(uuid.uuid4()),
         }
 
     def _crear_torneo_default(self) -> None:
@@ -186,15 +167,103 @@ class TorneoStorage:
 
 
     def limpiar(self) -> None:
-        """Reinicia el torneo preservando el tipo de torneo activo."""
+        """Reinicia el torneo preservando el tipo de torneo activo.
+
+        Limpia también los campos de estado 'espera' (ultimo_torneo_id,
+        proximo_torneo) para dejar un torneo completamente nuevo.
+        """
         torneo = self.cargar()
         tipo_actual = torneo.get('tipo_torneo', 'fin1')
         torneo['parejas'] = []
         torneo['resultado_algoritmo'] = None
         torneo['fixtures_finales'] = {}
         torneo['estado'] = 'creando'
+        torneo['fase'] = 'inscripcion'
         torneo['tipo_torneo'] = tipo_actual
+        torneo['torneo_id'] = str(uuid.uuid4())
+        torneo.pop('ultimo_torneo_id', None)
+        torneo.pop('proximo_torneo', None)
         self.guardar(torneo)
+
+    def get_torneo_id(self) -> str:
+        """Devuelve el UUID del torneo activo.
+
+        Si el blob no tiene `torneo_id` (torneos anteriores a Fase 1),
+        genera uno, lo persiste y crea la fila correspondiente en la tabla `torneos`.
+        """
+        torneo = self.cargar()
+        torneo_id = torneo.get('torneo_id')
+
+        if not torneo_id:
+            torneo_id = str(uuid.uuid4())
+            torneo['torneo_id'] = torneo_id
+            self.guardar(torneo)
+
+        # Asegurar que existe la fila en la tabla torneos (idempotente)
+        if _USE_SUPABASE:
+            try:
+                self._sb.table('torneos').upsert({
+                    'id':      torneo_id,
+                    'nombre':  torneo.get('nombre', 'Torneo'),
+                    'tipo':    torneo.get('tipo_torneo', 'fin1'),
+                    'estado':  torneo.get('fase', 'inscripcion'),
+                }, on_conflict='id').execute()
+            except Exception as e:
+                logger.warning('No se pudo sincronizar torneo_id con tabla torneos: %s', e)
+
+        return torneo_id
+
+    def get_fase(self) -> str:
+        """Devuelve la fase actual del torneo ('inscripcion' | 'torneo' | 'espera')."""
+        torneo = self.cargar()
+        return torneo.get('fase', 'inscripcion')
+
+    def set_fase(self, nueva_fase: str) -> None:
+        """Cambia la fase del torneo. Valida que sea un valor permitido."""
+        if nueva_fase not in ('inscripcion', 'torneo', 'espera'):
+            raise ValueError(f"Fase inválida: {nueva_fase}")
+        torneo = self.cargar()
+        torneo['fase'] = nueva_fase
+        self.guardar(torneo)
+
+    def transicion_a_espera(self, ultimo_torneo_id: str) -> None:
+        """Transiciona a estado 'espera' tras archivar un torneo.
+
+        Limpia datos del torneo (parejas, resultado, fixtures) y guarda
+        referencia al último torneo archivado para que las vistas públicas
+        puedan mostrar sus resultados.
+        """
+        torneo = self.cargar()
+        tipo_actual = torneo.get('tipo_torneo', 'fin1')
+        torneo['parejas'] = []
+        torneo['resultado_algoritmo'] = None
+        torneo['fixtures_finales'] = {}
+        torneo['estado'] = 'creando'
+        torneo['fase'] = 'espera'
+        torneo['tipo_torneo'] = tipo_actual
+        torneo['torneo_id'] = str(uuid.uuid4())
+        torneo['ultimo_torneo_id'] = ultimo_torneo_id
+        self.guardar(torneo)
+
+    def get_ultimo_torneo_id(self) -> Optional[str]:
+        """Devuelve el ID del último torneo archivado (usado en estado 'espera')."""
+        torneo = self.cargar()
+        return torneo.get('ultimo_torneo_id')
+
+    def set_proximo_torneo(self, fecha: str, categorias: list, descripcion: str = '') -> None:
+        """Guarda la info del próximo torneo (visible durante estado 'espera')."""
+        torneo = self.cargar()
+        torneo['proximo_torneo'] = {
+            'fecha': fecha,
+            'categorias': categorias,
+            'descripcion': descripcion,
+        }
+        self.guardar(torneo)
+
+    def get_proximo_torneo(self) -> Optional[Dict]:
+        """Devuelve la info del próximo torneo, o None si no está configurado."""
+        torneo = self.cargar()
+        return torneo.get('proximo_torneo')
 
     def get_tipo_torneo(self) -> str:
         """Devuelve el tipo de torneo activo ('fin1' o 'fin2')."""
@@ -220,6 +289,5 @@ class TorneoStorage:
             return False
 
 
-# Instancia global compartida por todos los módulos
 # Instancia global compartida por todos los módulos
 storage = TorneoStorage()

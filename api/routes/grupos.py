@@ -33,15 +33,57 @@ def verificar_auth():
 
 @grupos_bp.route('/ejecutar-algoritmo', methods=['POST'])
 def ejecutar_algoritmo():
-    """Ejecuta el algoritmo de generación de grupos para el torneo."""
-    datos_actuales = obtener_datos_desde_token()
-    parejas_data = datos_actuales.get('parejas', [])
+    """Ejecuta el algoritmo de generación de grupos para el torneo.
 
-    if not parejas_data:
-        return jsonify({'error': 'No hay parejas cargadas'}), 400
+    Fusiona dos fuentes de parejas:
+    1. Inscripciones confirmadas en Supabase (con inscripcion_id para lookup "Mi Grupo")
+    2. Parejas cargadas manualmente/CSV en el blob (sin inscripcion_id)
+
+    Si no hay ninguna fuente, devuelve error.
+    """
+    from utils.api_helpers import _verificar_supabase_jwt  # noqa: F401 (evita importación circular)
+
+    datos_actuales = obtener_datos_desde_token()
+    parejas_blob = datos_actuales.get('parejas', [])
+
+    # ── 1. Leer inscripciones confirmadas de Supabase ─────────────────────────
+    parejas_de_inscripciones = []
+    try:
+        from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+        from supabase import create_client
+
+        if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+            torneo_id = storage.get_torneo_id()
+            sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+            resp = sb.table('inscripciones').select('*').eq('torneo_id', torneo_id).eq('estado', 'confirmado').execute()
+
+            for insc in (resp.data or []):
+                pareja_id = int(insc['id'].replace('-', '')[:8], 16)
+                parejas_de_inscripciones.append({
+                    'id':                 pareja_id,
+                    'nombre':             f"{insc['integrante1']} / {insc['integrante2']}",
+                    'jugador1':           insc['integrante1'],
+                    'jugador2':           insc['integrante2'],
+                    'telefono':           insc.get('telefono') or '',
+                    'categoria':          insc['categoria'],
+                    'franjas_disponibles': insc.get('franjas_disponibles') or [],
+                    'inscripcion_id':     insc['id'],
+                })
+    except Exception as e:
+        logger.warning('No se pudieron cargar inscripciones de Supabase: %s', e)
+
+    # ── 2. Parejas manuales/CSV que NO tienen inscripcion_id ya en la lista ───
+    ids_inscripciones = {p['id'] for p in parejas_de_inscripciones}
+    parejas_manuales = [p for p in parejas_blob if p.get('id') not in ids_inscripciones]
+
+    # ── 3. Fusionar y validar ─────────────────────────────────────────────────
+    todas_parejas_data = parejas_de_inscripciones + parejas_manuales
+
+    if not todas_parejas_data:
+        return jsonify({'error': 'No hay parejas ni inscripciones para generar grupos'}), 400
 
     try:
-        parejas_obj = [Pareja.from_dict(p) for p in parejas_data]
+        parejas_obj = [Pareja.from_dict(p) for p in todas_parejas_data]
 
         algoritmo = AlgoritmoGrupos(parejas=parejas_obj, num_canchas=NUM_CANCHAS_DEFAULT)
         resultado_obj = algoritmo.ejecutar()
@@ -50,16 +92,23 @@ def ejecutar_algoritmo():
 
         datos_actuales['resultado_algoritmo'] = resultado
         datos_actuales['num_canchas'] = NUM_CANCHAS_DEFAULT
+        # Actualizar parejas en blob con las de inscripciones (para edición manual posterior)
+        datos_actuales['parejas'] = todas_parejas_data
         sincronizar_con_storage_y_token(datos_actuales)
         guardar_estado_torneo()
 
+        total = len(todas_parejas_data)
+        de_inscripciones = len(parejas_de_inscripciones)
+        manuales = len(parejas_manuales)
+        mensaje = f'✅ {total} parejas procesadas ({de_inscripciones} de inscripciones, {manuales} manuales)'
+
         return crear_respuesta_con_token_actualizado({
             'success': True,
-            'mensaje': f'✅ {len(parejas_data)} parejas cargadas y grupos generados exitosamente',
+            'mensaje': mensaje,
             'resultado': resultado
         }, datos_actuales)
     except Exception as e:
-        logger.error(f"Error al ejecutar algoritmo: {str(e)}", exc_info=True)
+        logger.error('Error al ejecutar algoritmo: %s', e, exc_info=True)
         return jsonify({
             'error': 'Error al ejecutar el algoritmo. Por favor, verifica los datos e intenta nuevamente.'
         }), 500
@@ -210,6 +259,30 @@ def asignar_pareja_a_grupo():
         grupo_encontrado['parejas'].append(pareja_a_asignar)
 
     recalcular_score_grupo(grupo_encontrado)
+    
+    # Si el grupo está completo, regenerar los partidos
+    if len(grupo_encontrado['parejas']) == 3:
+        try:
+            from core import Grupo, Pareja
+            grupo_obj = Grupo(id=grupo_encontrado['id'], categoria=categoria)
+            grupo_obj.franja_horaria = grupo_encontrado.get('franja_horaria')
+            for p in grupo_encontrado['parejas']:
+                grupo_obj.parejas.append(Pareja.from_dict(p))
+            grupo_obj.generar_partidos()
+            grupo_encontrado['partidos'] = [
+                {
+                    'pareja1': p1.nombre,
+                    'pareja2': p2.nombre,
+                    'pareja1_id': p1.id,
+                    'pareja2_id': p2.id,
+                }
+                for p1, p2 in grupo_obj.partidos
+            ]
+            grupo_encontrado['resultados'] = {}
+            grupo_encontrado['resultados_completos'] = False
+        except Exception as e:
+            logger.warning('No se pudieron regenerar partidos del grupo: %s', e)
+    
     regenerar_calendario(resultado_data)
     estadisticas = recalcular_estadisticas(resultado_data)
 
@@ -441,3 +514,63 @@ def obtener_datos_categoria(categoria):
         'parejas_no_asignadas': parejas_no_asignadas,
         'partidos': partidos_categoria
     })
+
+
+# ==================== FASE DEL TORNEO ====================
+
+@grupos_bp.route('/cambiar-fase', methods=['POST'])
+def cambiar_fase():
+    """Cambia la fase del torneo (inscripcion ↔ torneo ↔ espera).
+
+    Solo el admin puede ejecutarla.
+    Esto controla la visibilidad pública de grupos, finales y calendario.
+
+    Al cambiar a 'torneo' se generan automáticamente los fixtures y el calendario
+    de finales del domingo (con "Por definir" donde no haya clasificados aún).
+    """
+    from core.models import Grupo
+    from core.fixture_finales_generator import GeneradorFixtureFinales
+    from utils.calendario_finales_builder import GeneradorCalendarioFinales
+
+    data = request.get_json(silent=True) or {}
+    nueva_fase = data.get('fase')
+
+    fases_validas = ('inscripcion', 'torneo', 'espera')
+    if nueva_fase not in fases_validas:
+        return jsonify({'error': 'Fase inválida'}), 400
+
+    torneo = storage.cargar()
+    fase_actual = torneo.get('fase', 'inscripcion')
+
+    torneo['fase'] = nueva_fase
+
+    # Al activar el torneo: generar fixtures y calendario de finales si no existen
+    if nueva_fase == 'torneo':
+        resultado = torneo.get('resultado_algoritmo')
+        if resultado and not torneo.get('fixtures_finales'):
+            try:
+                grupos_por_cat = resultado.get('grupos_por_categoria', {})
+                fixtures_nuevos = {}
+                for cat, grupos_data in grupos_por_cat.items():
+                    grupos = [Grupo.from_dict(g) for g in grupos_data]
+                    fixture = GeneradorFixtureFinales.generar_fixture(cat, grupos)
+                    if fixture:
+                        fixtures_nuevos[cat] = fixture.to_dict()
+                if fixtures_nuevos:
+                    torneo['fixtures_finales'] = fixtures_nuevos
+                    logger.info('Fixtures generados al activar torneo: %s', list(fixtures_nuevos.keys()))
+            except Exception as e:
+                logger.error('Error generando fixtures al activar torneo: %s', e)
+
+        if torneo.get('fixtures_finales') and not torneo.get('calendario_finales'):
+            try:
+                torneo['calendario_finales'] = GeneradorCalendarioFinales.generar_plantilla_calendario(
+                    torneo['fixtures_finales']
+                )
+                logger.info('Calendario de finales generado al activar torneo')
+            except Exception as e:
+                logger.error('Error generando calendario al activar torneo: %s', e)
+
+    storage.guardar(torneo)
+    logger.info('Fase del torneo cambiada: %s → %s', fase_actual, nueva_fase)
+    return jsonify({'ok': True, 'fase': nueva_fase})

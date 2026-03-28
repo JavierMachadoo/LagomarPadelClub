@@ -3,7 +3,8 @@
 - Responder siempre en **español**
 - NUNCA tomes decisiones arquitectónicas importantes sin consultarme antes, Si mi petición es muy generica, hazme las preguntas que te parezcan importantes para poder lograr un mejor resultado.
 - **Nunca aumentar el número de workers de Gunicorn** — está fijo en 1 para evitar caché stale entre procesos
-- `web/templates/resultados.html` pesa ~215KB y tiene lógica embebida — buscar el bloque exacto con Grep antes de editar, no editar a ciegas
+- `web/templates/dashboard.html` pesa ~216KB y tiene lógica embebida — buscar el bloque exacto con Grep antes de editar, no editar a ciegas
 - La autenticación usa **JWT en cookie HttpOnly** — nunca mover el token a localStorage ni al body de la respuesta
+- **Supabase RLS**: el backend usa `SUPABASE_SERVICE_ROLE_KEY` para bypassar RLS (anon_key queda bloqueada cuando RLS está activo) — aplica a `torneo_storage.py` y `auth_jugador.py`
 
 @agents.md

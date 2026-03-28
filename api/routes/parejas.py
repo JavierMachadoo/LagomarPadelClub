@@ -12,6 +12,7 @@ from utils.api_helpers import (
     verificar_autenticacion_api,
 )
 from config import NUM_CANCHAS_DEFAULT
+from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO
 from ._helpers import (
     recalcular_estadisticas,
     recalcular_score_grupo,
@@ -47,7 +48,8 @@ def cargar_csv():
             datos_token,
         )
     except Exception as e:
-        return jsonify({"error": f"Error al procesar CSV: {str(e)}"}), 500
+        logger.error("Error al procesar CSV: %s", e, exc_info=True)
+        return jsonify({"error": "Error al procesar el archivo CSV"}), 500
 
 
 @api_bp.route("/agregar-pareja", methods=["POST"])
@@ -71,6 +73,13 @@ def agregar_pareja():
             return jsonify({"error": "El nombre es obligatorio"}), 400
         if not franjas:
             return jsonify({"error": "Selecciona al menos una franja horaria"}), 400
+
+        error_len = validar_longitud({
+            'Nombre':   (nombre, MAX_NOMBRE),
+            'Teléfono': (telefono, MAX_TELEFONO),
+        })
+        if error_len:
+            return jsonify({"error": error_len}), 400
 
         datos_actuales = obtener_datos_desde_token()
         parejas = datos_actuales.get("parejas", [])
@@ -106,8 +115,8 @@ def agregar_pareja():
             response_data["estadisticas"] = estadisticas
         return crear_respuesta_con_token_actualizado(response_data, datos_actuales)
     except Exception as e:
-        logger.error(f"Error al agregar pareja: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Error al agregar pareja: {str(e)}"}), 500
+        logger.error("Error al agregar pareja: %s", e, exc_info=True)
+        return jsonify({"error": "Error al agregar la pareja"}), 500
 
 
 @api_bp.route("/eliminar-pareja", methods=["POST"])

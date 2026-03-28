@@ -60,7 +60,7 @@ COLORES_CATEGORIA = {
     "Quinta": "#ffc107",
     "Sexta": "#007bff",
     "Séptima": "#6f42c1",
-    "Tercera": "#e83e8c"
+    "Tercera": "#dc3545"
 }
 
 EMOJI_CATEGORIA = {

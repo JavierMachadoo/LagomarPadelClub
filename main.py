@@ -6,6 +6,9 @@ Genera grupos optimizados según categorías y disponibilidad horaria.
 from flask import Flask, render_template, request, redirect, url_for, flash, make_response, g, session
 import os
 import logging
+import time
+
+logger = logging.getLogger(__name__)
 
 from config import (
     SECRET_KEY, 
@@ -21,8 +24,13 @@ from config.settings import BASE_DIR, DEBUG, SUPABASE_SERVICE_ROLE_KEY
 from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
+from api.routes.inscripcion import inscripcion_bp
+from api.routes.historial import historial_bp, _cargar_archivado
 from utils.torneo_storage import storage
 from utils.jwt_handler import JWTHandler
+from core.fixture_finales_generator import GeneradorFixtureFinales
+from utils.calendario_finales_builder import GeneradorCalendarioFinales
+from core.models import Grupo
 
 
 def crear_app():
@@ -43,7 +51,12 @@ def crear_app():
     # Configuración básica
     app.secret_key = SECRET_KEY
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB — protección DoS en uploads
     
+    # Rate limiting — protección contra fuerza bruta
+    from utils.rate_limiter import limiter
+    limiter.init_app(app)
+
     # Inicializar JWT handler con expiración de 2 horas (seguridad)
     jwt_handler = JWTHandler(SECRET_KEY, expiration_hours=2)
     app.jwt_handler = jwt_handler  # Hacer accesible en toda la app
@@ -55,6 +68,8 @@ def crear_app():
     app.register_blueprint(calendario_bp)
     app.register_blueprint(finales_bp)
     app.register_blueprint(auth_jugador_bp)
+    app.register_blueprint(inscripcion_bp)
+    app.register_blueprint(historial_bp)
     
     # Helper para obtener datos del token o storage
     def obtener_datos_torneo():
@@ -68,16 +83,19 @@ def crear_app():
             'num_canchas': torneo.get('num_canchas', 2)
         }
     
-    # Context processor: inyecta es_admin y torneo_tiene_datos en todos los templates
+    # Context processor: inyecta es_admin, torneo_tiene_datos y fase_torneo en todos los templates
     @app.context_processor
     def inject_globals():
         torneo = storage.cargar()
         tiene_datos = bool(torneo.get('resultado_algoritmo'))
+        fase = torneo.get('fase', 'inscripcion')
         return dict(
             es_admin=getattr(g, 'es_admin', False),
             es_autenticado=getattr(g, 'es_autenticado', False),
             es_jugador=getattr(g, 'es_jugador', False),
-            torneo_tiene_datos=tiene_datos
+            torneo_tiene_datos=tiene_datos,
+            fase_torneo=fase,
+            proximo_torneo=torneo.get('proximo_torneo'),
         )
 
     # Middleware: Verificar autenticación
@@ -97,20 +115,10 @@ def crear_app():
                 role = data.get('role')
                 if role is None or role == 'admin':
                     g.es_admin = True
-        # Detectar jugadores autenticados via Supabase (sb_token).
-        # Verificamos la firma del JWT con Supabase antes de marcar al usuario
-        # como autenticado — confiar solo en la existencia de la cookie permitiría
-        # a cualquiera fabricar una cookie 'sb_token' con valor arbitrario.
-        if not g.es_autenticado:
-            sb_token = request.cookies.get('sb_token')
-            if sb_token:
-                from utils.api_helpers import _verificar_supabase_jwt
-                if _verificar_supabase_jwt(sb_token):
-                    g.es_autenticado = True
+                elif role == 'jugador':
                     g.es_jugador = True
-
         # Rutas públicas: no requieren autenticación
-        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/']
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/jugadores/buscar', '/api/admin/inscripciones', '/torneos']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 
@@ -128,8 +136,8 @@ def crear_app():
     def logout():
         """Cerrar sesión — limpia cookies de admin y jugador."""
         response = make_response(redirect(url_for('login')))
-        response.set_cookie('token', '', expires=0)
-        response.set_cookie('sb_token', '', expires=0)
+        response.set_cookie('token', '', expires=0, secure=not app.debug)
+        response.set_cookie('sb_token', '', expires=0, secure=not app.debug)
         return response
     
     # Landing pública
@@ -258,18 +266,95 @@ def crear_app():
         
         return response
     
+    def _build_calendario_index(calendario: dict) -> dict:
+        """Devuelve {partido_id: {cancha, hora_inicio}} a partir del calendario persistido."""
+        if not calendario:
+            return {}
+        index = {}
+        for lista in [calendario.get('cancha_1', []), calendario.get('cancha_2', [])]:
+            for p in lista:
+                index[p['partido_id']] = {'cancha': p['cancha'], 'hora_inicio': p['hora_inicio']}
+        return index
+
+    def _build_franjas_finales(calendario: dict) -> list:
+        """Convierte el calendario persistido en lista de (hora, partido_c1, partido_c2)
+        para renderizar el panel de finales en Jinja2 con la misma estética que grupos."""
+        if not calendario:
+            return []
+        por_hora = {}
+        for p in calendario.get('cancha_1', []):
+            por_hora.setdefault(p['hora_inicio'], [None, None])[0] = p
+        for p in calendario.get('cancha_2', []):
+            por_hora.setdefault(p['hora_inicio'], [None, None])[1] = p
+        return [(h, slots[0], slots[1]) for h, slots in sorted(por_hora.items())]
+
     # Rutas públicas (sin login)
     @app.route('/grupos')
     def grupos_publico():
-        """Vista pública de grupos — sin teléfonos ni franjas de disponibilidad."""
+        """Vista pública de grupos — sin teléfonos ni franjas de disponibilidad.
+
+        Solo muestra datos cuando fase='torneo'. En fase 'inscripcion' u 'organizando'
+        muestra pantalla de "torneo en organización".
+        """
+        torneo = storage.cargar()
+        fase = torneo.get('fase', 'inscripcion')
+
+        # Estado espera: mostrar datos del último torneo archivado
+        if fase == 'espera':
+            ultimo_id = torneo.get('ultimo_torneo_id')
+            if ultimo_id:
+                archivado = _cargar_archivado(ultimo_id)
+                if archivado:
+                    datos_blob = archivado.get('datos_blob') or {}
+                    resultado = datos_blob.get('resultado_algoritmo')
+                    fixtures = datos_blob.get('fixtures_finales', {})
+                    cal_arch = datos_blob.get('calendario_finales', {})
+                    tipo_torneo = datos_blob.get('tipo_torneo', 'fin1')
+                    categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+                    return make_response(render_template('grupos_publico.html',
+                                         resultado=resultado,
+                                         fixtures=fixtures,
+                                         calendario_index=_build_calendario_index(cal_arch),
+                                         categorias=categorias_torneo,
+                                         colores=COLORES_CATEGORIA,
+                                         emojis=EMOJI_CATEGORIA,
+                                         torneo=torneo,
+                                         tipo_torneo=tipo_torneo,
+                                         es_ultimo_torneo=True,
+                                         nombre_ultimo_torneo=archivado.get('nombre', '')))
+            return make_response(render_template('organizando.html', torneo=torneo))
+
+        if fase != 'torneo':
+            return make_response(render_template('organizando.html', torneo=torneo))
+
         datos = obtener_datos_torneo()
         resultado = datos.get('resultado_algoritmo')
-        torneo = storage.cargar()
+        fixtures = torneo.get('fixtures_finales', {})
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
 
+        # Auto-generar fixtures para categorías que tengan grupos pero no tengan fixture
+        if resultado:
+            grupos_por_cat = resultado.get('grupos_por_categoria', {})
+            guardado = False
+            for cat in categorias_torneo:
+                if cat not in fixtures and cat in grupos_por_cat:
+                    grupos_data = grupos_por_cat[cat]
+                    grupos = [Grupo.from_dict(g) for g in grupos_data]
+                    fixture = GeneradorFixtureFinales.generar_fixture(cat, grupos)
+                    if fixture:
+                        fixtures[cat] = fixture.to_dict()
+                        guardado = True
+            if guardado:
+                torneo['fixtures_finales'] = fixtures
+                torneo['calendario_finales'] = GeneradorCalendarioFinales.asignar_horarios(fixtures)
+                storage.guardar(torneo)
+
+        calendario_finales = torneo.get('calendario_finales', {})
         return make_response(render_template('grupos_publico.html',
                              resultado=resultado,
+                             fixtures=fixtures,
+                             calendario_index=_build_calendario_index(calendario_finales),
                              categorias=categorias_torneo,
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
@@ -278,11 +363,43 @@ def crear_app():
 
     @app.route('/calendario')
     def calendario_publico():
-        """Vista pública del calendario de partidos — sin controles de admin."""
+        """Vista pública del calendario de partidos — sin controles de admin.
+
+        Visible cuando fase='torneo' o fase='espera' (muestra último torneo).
+        """
         torneo = storage.cargar()
+        fase = torneo.get('fase', 'inscripcion')
+
+        # Estado espera: mostrar calendario del último torneo archivado
+        if fase == 'espera':
+            ultimo_id = torneo.get('ultimo_torneo_id')
+            if ultimo_id:
+                archivado = _cargar_archivado(ultimo_id)
+                if archivado:
+                    datos_blob = archivado.get('datos_blob') or {}
+                    resultado = datos_blob.get('resultado_algoritmo')
+                    tipo_torneo = datos_blob.get('tipo_torneo', 'fin1')
+                    categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+                    cal_arch = datos_blob.get('calendario_finales', {})
+                    return make_response(render_template('calendario_publico.html',
+                                         resultado=resultado,
+                                         categorias=categorias_torneo,
+                                         colores=COLORES_CATEGORIA,
+                                         emojis=EMOJI_CATEGORIA,
+                                         torneo=torneo,
+                                         tipo_torneo=tipo_torneo,
+                                         franjas_finales=_build_franjas_finales(cal_arch),
+                                         es_ultimo_torneo=True,
+                                         nombre_ultimo_torneo=archivado.get('nombre', '')))
+            return make_response(render_template('organizando.html', torneo=torneo))
+
+        if fase != 'torneo':
+            return make_response(render_template('organizando.html', torneo=torneo))
+
         resultado = torneo.get('resultado_algoritmo')
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
+        calendario_finales = torneo.get('calendario_finales', {})
 
         return make_response(render_template('calendario_publico.html',
                              resultado=resultado,
@@ -290,26 +407,13 @@ def crear_app():
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,
-                             tipo_torneo=tipo_torneo))
+                             tipo_torneo=tipo_torneo,
+                             franjas_finales=_build_franjas_finales(calendario_finales)))
 
     @app.route('/cuadro')
     def cuadro_publico():
-        """Vista pública del bracket de finales — sin controles de admin."""
-        datos = obtener_datos_torneo()
-        resultado = datos.get('resultado_algoritmo')
-        torneo = storage.cargar()
-        fixtures = torneo.get('fixtures_finales', {})
-        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
-        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
-
-        return make_response(render_template('finales_publico.html',
-                             fixtures=fixtures,
-                             categorias=categorias_torneo,
-                             colores=COLORES_CATEGORIA,
-                             emojis=EMOJI_CATEGORIA,
-                             resultado=resultado,
-                             torneo=torneo,
-                             tipo_torneo=tipo_torneo))
+        """Redirect legacy /cuadro → /grupos (bracket ahora integrado en grupos)."""
+        return redirect(url_for('grupos_publico'), code=301)
 
     @app.route('/registro')
     def registro():
@@ -357,7 +461,7 @@ def crear_app():
 
             sb_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-            perfil = sb_admin.table('jugadores').select('id').eq('id', user.id).execute()
+            perfil = sb_admin.table('jugadores').select('id,nombre,apellido').eq('id', user.id).execute()
             if not perfil.data:
                 meta = user.user_metadata or {}
                 nombre   = meta.get('given_name') or meta.get('name', 'Jugador').split()[0]
@@ -368,9 +472,23 @@ def crear_app():
                     'apellido': apellido,
                 }).execute()
                 logger.info("Perfil creado para jugador OAuth: %s", user.id)
+            else:
+                nombre   = perfil.data[0].get('nombre', '')
+                apellido = perfil.data[0].get('apellido', '')
 
+            jwt_handler = app.jwt_handler
+            token_data = {
+                'authenticated': True,
+                'role': 'jugador',
+                'user_id': str(user.id),
+                'nombre': nombre,
+                'apellido': apellido,
+                'telefono': '',
+                'timestamp': int(time.time()),
+            }
+            token = jwt_handler.generar_token(token_data)
             response = make_response(redirect(url_for('grupos_publico')))
-            response.set_cookie('sb_token', jwt_token, httponly=True, samesite='Lax', max_age=expires)
+            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not app.debug)
             return response
 
         except Exception as e:
@@ -387,8 +505,15 @@ def _registrar_extras(app):
     @app.route('/_health')
     def health_check():
         """Endpoint para keep-alive (UptimeRobot, Freshping, etc).
-        No requiere autenticación."""
+        No requiere autenticación.
+        Hace una query real a Supabase para evitar que el proyecto free tier se pause."""
         from flask import jsonify
+        try:
+            storage = app.torneo_storage
+            if storage._sb:
+                storage._sb.table('torneo_actual').select('id').limit(1).execute()
+        except Exception:
+            pass  # No romper el health check si Supabase está lento o caído
         return jsonify({'status': 'ok'})
 
     @app.errorhandler(404)
@@ -402,6 +527,7 @@ def _registrar_extras(app):
     @app.errorhandler(500)
     def server_error(e):
         from flask import request, jsonify
+        logger.error('Error 500 en %s %s: %s', request.method, request.path, e, exc_info=True)
         if request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Error interno del servidor'}), 500
         return render_template('base.html'), 500

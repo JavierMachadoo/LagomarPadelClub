@@ -208,6 +208,12 @@ def guardar_resultado_partido():
                         datos['fixtures_finales'] = {}
                     datos['fixtures_finales'][categoria] = fixture.to_dict()
                     logger.info(f"Fixtures de finales regenerados automáticamente para {categoria}")
+                    # Sincronizar calendario con los nuevos clasificados
+                    if datos.get('calendario_finales'):
+                        from utils.calendario_finales_builder import GeneradorCalendarioFinales
+                        datos['calendario_finales'] = GeneradorCalendarioFinales.sincronizar_parejas(
+                            datos['calendario_finales'], datos['fixtures_finales']
+                        )
             except Exception as e:
                 logger.error(f"Error al regenerar fixtures: {str(e)}")
 

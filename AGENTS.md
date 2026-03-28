@@ -81,7 +81,7 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 | Storage | `utils/torneo_storage.py` | Supabase (JSONB) / local JSON fallback |
 | API Blueprints | `api/routes/` | Flask, JWT auth |
 | Frontend | `web/templates/`, `web/static/` | Bootstrap 5, vanilla JS |
-| ⚠️ Template grande | `web/templates/resultados.html` | ~215KB con lógica embebida — usar Grep antes de editar |
+| ⚠️ Template grande | `web/templates/dashboard.html` | ~216KB con lógica embebida — usar Grep antes de editar |
 | Configuration | `config/` | `.env`, categories, time slots |
 
 ---
@@ -91,7 +91,7 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 ### Request Flow
 1. All routes require JWT auth (checked in middleware in `main.py`)
 2. JWT token stored in HttpOnly cookie, 2-hour expiry
-3. Routes: `/` (home/upload), `/resultados` (groups/standings), `/finales` (bracket), `/api/*` (REST)
+3. Routes: `/` (home/upload), `/admin` (panel admin), `/dashboard` (jugador), `/grupos` (grupos públicos), `/calendario` (calendario público), `/finales` (bracket), `/api/*` (REST)
 
 ### Storage (`utils/torneo_storage.py`)
 - Single-tournament model — one `torneo_actual` per instance
@@ -119,17 +119,27 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 2. `utils/csv_processor.py` parses it into `Pareja` objects
 3. `AlgoritmoGrupos` groups them into triplets
 4. Result stored via `TorneoStorage`
-5. `/resultados` renders groups with standings; `/finales` renders bracket
+5. `/grupos` renders grupos públicos con standings; `/finales` renders bracket; `/dashboard` renders vista del jugador
 
 ### API Blueprints (`api/routes/`)
 - `parejas.py` — CRUD for couples/pairs
 - `finales.py` — finals fixture management
+- `grupos.py` — group generation from confirmed inscriptions
+- `inscripcion.py` — player registration; busca inscripción por `jugador1_id` **y** `jugador2_id` para que Player B vea su pareja tras aceptar invitación
+- `auth_jugador.py` — Supabase Auth (email/password + Google OAuth)
+- `historial.py` — tournament archiving and historical views
+- `calendario.py` — public calendar view blueprint
+
+### Utils de seguridad (`utils/`)
+- `utils/input_validation.py` — validación de longitud de inputs (nombre, teléfono, email, categoría)
+- `utils/rate_limiter.py` — rate limiting con flask-limiter (login: 5/min, registro: 3/min)
 
 ### Frontend
 - Bootstrap 5, vanilla JS, mobile-first CSS
 - `web/static/js/jwt-helper.js` — handles token refresh and attaches auth headers
 - `web/static/js/toast.js` — notification system
-- Templates are large (`resultados.html` ~215KB) — they embed significant logic
+- Templates son grandes: `dashboard.html` (~216KB), `homePanel.html` (~64KB), `finales.html` (~59KB) — embed significant logic
+- `web/static/js/app.js` — lógica JS principal de la aplicación
 
 ---
 
@@ -162,8 +172,17 @@ pytest --cov=core --cov=utils --cov-report=term-missing
 Copy `.env` and set:
 - `SECRET_KEY` — JWT signing key
 - `ADMIN_USERNAME` / `ADMIN_PASSWORD` — login credentials
-- `SUPABASE_URL` / `SUPABASE_ANON_KEY` — if using Supabase (omit for local JSON storage)
+- `SUPABASE_URL` / `SUPABASE_ANON_KEY` — Supabase project URL and anon key
+- `SUPABASE_SERVICE_ROLE_KEY` — requerida para **todo acceso backend a Supabase** (torneo_storage + auth); la anon_key queda bloqueada por RLS; present in Render env vars
 - `DEBUG` — True/False
+
+**Dev/Prod setup:**
+- Local `.env` → apunta a `LagomarPadelDB-Dev` (`slwzrxsjxfboojpkozey`)
+- Render env vars → apuntan a `LagomarPadelDB` prod (`mxftowqqjyktxricdemd`) — no tocar
+
+**Keep-alive:**
+- Render + Supabase prod: UptimeRobot pinga `/_health` cada 5 min (endpoint hace query real)
+- Supabase dev: `pg_cron` interno corre cada 5 días (`keep_alive_dev`)
 
 ---
 
@@ -192,4 +211,4 @@ Before creating a PR:
 
 ## Roadmap
 
-El plan de evolución arquitectónica (vistas públicas, registro de jugadores, inscripciones, ranking, historial) está documentado en `NewFEATURES.md`.
+El plan de evolución arquitectónica (vistas públicas, registro de jugadores, inscripciones, ranking, historial) está documentado en `roadMap.md`.

@@ -187,16 +187,16 @@
         align-self: center;
     }
 
-    /* Octavos (primera columna, 2 partidos): alinear con cuartos 2 y 3 para 5 grupos.
-       :first-child distingue octavos de semis (también 2 partidos, pero no primera columna). */
-    .round-column:first-child:has(.match-wrapper:nth-child(2):last-child) .matches-column {
+    /* Octavos (5 grupos): alinear con cuartos 2 y 3.
+       Usamos .octavos-col para evitar afectar la columna de cuartos en 3 grupos (también 2 partidos). */
+    .round-column.octavos-col .matches-column {
         grid-template-rows: repeat(4, minmax(100px, 1fr));
     }
-    .round-column:first-child:has(.match-wrapper:nth-child(2):last-child) .match-wrapper:nth-child(1) {
+    .round-column.octavos-col .match-wrapper:nth-child(1) {
         grid-row: 2;
         align-self: center;
     }
-    .round-column:first-child:has(.match-wrapper:nth-child(2):last-child) .match-wrapper:nth-child(2) {
+    .round-column.octavos-col .match-wrapper:nth-child(2) {
         grid-row: 3;
         align-self: center;
     }
@@ -929,7 +929,7 @@ function renderizarFixture(categoria) {
     // Octavos (si hay más de 4 grupos)
     if (fixture.octavos && fixture.octavos.length > 0) {
         hasAnyRound = true;
-        columns.push(renderizarColumnaITF('Octavos de Final', fixture.octavos, categoria, true));
+        columns.push(renderizarColumnaITF('Octavos de Final', fixture.octavos, categoria, true, true));
     }
     
     // Cuartos (siempre mostrar como mínimo)
@@ -1044,8 +1044,9 @@ function renderizarPartidoVacioITF() {
 
 // Renderizar una ronda completa
 // Renderizar columna ITF (una ronda con sus partidos)
-function renderizarColumnaITF(titulo, partidos, categoria, tieneSiguienteRonda = false) {
+function renderizarColumnaITF(titulo, partidos, categoria, tieneSiguienteRonda = false, isOctavos = false) {
     const hasNextClass = tieneSiguienteRonda ? 'has-next' : '';
+    const octavosClass = isOctavos ? 'octavos-col' : '';
     
     // Agregar badges de posición para diferentes fases
     let headerExtra = '';
@@ -1076,7 +1077,7 @@ function renderizarColumnaITF(titulo, partidos, categoria, tieneSiguienteRonda =
     }
     
     let html = `
-        <div class="round-column ${hasNextClass}">
+        <div class="round-column ${hasNextClass} ${octavosClass}">
             <div class="round-header-itf">
                 ${titulo}
                 ${headerExtra}
@@ -1243,11 +1244,18 @@ function dibujarLineasConectoras() {
             //   3 grupos: 2 cuartos → 2 semis (nextMatches.length == currentMatches.length)
             //     cuarto[0]→semi[0], cuarto[1]→semi[1]       (mismo índice)
             const offset = nextMatches.length > currentMatches.length ? 1 : 0;
-            for (let j = 0; j < currentMatches.length; j++) {
+            const totalLines = currentMatches.length;
+            for (let j = 0; j < totalLines; j++) {
                 const match = currentMatches[j];
                 const nextMatch = nextMatches[j + offset];
                 if (match && nextMatch) {
-                    dibujarConexionDirecta(svg, match, nextMatch, drawGrid);
+                    // Escalonar el punto de giro (turnRatio) entre líneas para evitar que los
+                    // segmentos verticales se superpongan visualmente (efecto "las líneas se juntan").
+                    // Con 2 líneas: ratio 0.3 y 0.7 — con 1 línea: ratio 0.5 (centrado normal).
+                    const turnRatio = totalLines > 1
+                        ? 0.3 + (j / (totalLines - 1)) * 0.4
+                        : 0.5;
+                    dibujarConexionDirecta(svg, match, nextMatch, drawGrid, turnRatio);
                 }
             }
         } else {
@@ -1311,7 +1319,7 @@ function dibujarConexionBracket(svg, match1, match2, nextMatch, container) {
     svg.appendChild(path);
 }
 
-function dibujarConexionDirecta(svg, match, nextMatch, container) {
+function dibujarConexionDirecta(svg, match, nextMatch, container, turnRatio = 0.5) {
     const svgNS = "http://www.w3.org/2000/svg";
 
     const containerRect = container.getBoundingClientRect();
@@ -1322,7 +1330,9 @@ function dibujarConexionDirecta(svg, match, nextMatch, container) {
     const y1 = rect.top + rect.height / 2 - containerRect.top;
     const xNext = rectNext.left - containerRect.left;
     const yNext = rectNext.top + rectNext.height / 2 - containerRect.top;
-    const xMid = x1 + (xNext - x1) / 2;
+    // turnRatio controla dónde se produce el giro vertical en el espacio entre columnas.
+    // Diferenciarlo por línea evita que segmentos verticales de distintas conexiones se superpongan.
+    const xMid = x1 + (xNext - x1) * turnRatio;
 
     // H → V → H (sin converger con otro partido)
     const pathData = `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${yNext} L ${xNext} ${yNext}`;

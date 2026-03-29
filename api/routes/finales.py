@@ -24,30 +24,53 @@ def verificar_auth():
         return error_response
 
 
+def _fixture_es_consistente(fixture_dict: dict, num_grupos: int) -> bool:
+    """Verifica si el fixture almacenado es estructuralmente consistente con el número de grupos actual."""
+    num_cuartos = len(fixture_dict.get('cuartos', []))
+    num_octavos = len(fixture_dict.get('octavos', []))
+    if num_grupos == 3:
+        return num_cuartos == 2 and num_octavos == 0
+    elif num_grupos == 4:
+        return num_cuartos == 4 and num_octavos == 0
+    elif num_grupos == 5:
+        return num_cuartos == 4 and num_octavos == 2
+    return True  # número desconocido: no invalidar
+
+
 @finales_bp.route('/fixtures', methods=['GET'])
 def obtener_fixtures():
     """Obtiene los fixtures de finales para todas las categorías"""
     try:
         torneo = storage.cargar()
         resultado = torneo.get('resultado_algoritmo')
-        
+
         if not resultado:
             return jsonify({
                 'success': False,
                 'message': 'No hay resultado del algoritmo disponible'
             }), 404
-        
+
+        grupos_por_categoria = resultado.get('grupos_por_categoria', {})
+
         # Obtener fixtures guardados o generarlos
         fixtures_guardados = torneo.get('fixtures_finales', {})
-        
+
         if fixtures_guardados:
-            return jsonify({
-                'success': True,
-                'fixtures': fixtures_guardados
-            })
-        
-        # Generar fixtures por primera vez
-        grupos_por_categoria = resultado.get('grupos_por_categoria', {})
+            # Validar que la estructura del fixture sea consistente con los grupos actuales.
+            # Si los grupos cambiaron (distinto num_grupos), regenerar para evitar fixtures stale.
+            hay_inconsistencia = any(
+                cat in fixtures_guardados
+                and not _fixture_es_consistente(fixtures_guardados[cat], len(grupos_data))
+                for cat, grupos_data in grupos_por_categoria.items()
+            )
+            if not hay_inconsistencia:
+                return jsonify({
+                    'success': True,
+                    'fixtures': fixtures_guardados
+                })
+            logger.info("Fixture stale detectado (num_grupos cambió). Regenerando fixtures.")
+
+        # Generar fixtures (primera vez o porque el número de grupos cambió)
         fixtures_nuevos = {}
         
         for categoria, grupos_data in grupos_por_categoria.items():

@@ -278,6 +278,48 @@ def crear_app():
                 index[p['partido_id']] = {'cancha': p['cancha'], 'hora_inicio': p['hora_inicio']}
         return index
 
+    def _enriquecer_calendario_con_resultados(resultado):
+        """Inyecta resultados de partidos de grupo en el calendario para mostrar scores."""
+        if not resultado or 'calendario' not in resultado or 'grupos_por_categoria' not in resultado:
+            return
+
+        # Mapear (grupo_id, pareja1_name, pareja2_name) → resultado_dict
+        lookup = {}
+        for _cat, grupos in resultado.get('grupos_por_categoria', {}).items():
+            for grupo in grupos:
+                gid = grupo['id']
+                for partido in grupo.get('partidos', []):
+                    p1_id = partido.get('pareja1_id')
+                    p2_id = partido.get('pareja2_id')
+                    if p1_id is not None and p2_id is not None:
+                        ids = sorted([p1_id, p2_id])
+                        key = f"{ids[0]}-{ids[1]}"
+                        res = grupo.get('resultados', {}).get(key)
+                        if res:
+                            lookup[(gid, partido['pareja1'], partido['pareja2'])] = res
+
+        # Inyectar en cada partido del calendario
+        for dia, horas in resultado.get('calendario', {}).items():
+            if dia == 'Domingo':
+                continue
+            for hora, canchas in horas.items():
+                for partido in canchas:
+                    if not partido:
+                        continue
+                    gid = partido.get('grupo_id')
+                    p1 = partido.get('pareja1')
+                    p2 = partido.get('pareja2')
+                    # Buscar en ambas direcciones por si el orden difiere
+                    res = lookup.get((gid, p1, p2))
+                    if res:
+                        partido['resultado'] = res
+                    else:
+                        res = lookup.get((gid, p2, p1))
+                        if res:
+                            # Invertir: pareja1 del resultado es pareja2 del calendario
+                            partido['resultado'] = res
+                            partido['resultado_invertido'] = True
+
     def _build_franjas_finales(calendario: dict) -> list:
         """Convierte el calendario persistido en lista de (hora, partido_c1, partido_c2)
         para renderizar el panel de finales en Jinja2 con la misma estética que grupos."""
@@ -383,6 +425,7 @@ def crear_app():
                     tipo_torneo = datos_blob.get('tipo_torneo', 'fin1')
                     categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
                     cal_arch = datos_blob.get('calendario_finales', {})
+                    _enriquecer_calendario_con_resultados(resultado)
                     return make_response(render_template('calendario_publico.html',
                                          resultado=resultado,
                                          categorias=categorias_torneo,
@@ -403,6 +446,7 @@ def crear_app():
         categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
         calendario_finales = torneo.get('calendario_finales', {})
 
+        _enriquecer_calendario_con_resultados(resultado)
         return make_response(render_template('calendario_publico.html',
                              resultado=resultado,
                              categorias=categorias_torneo,

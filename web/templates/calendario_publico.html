@@ -480,6 +480,16 @@
         {# ── FASES FINALES ── #}
         <div class="tab-pane fade {% if not dias_fase_grupos %}show active{% endif %}"
              id="panel-finales" role="tabpanel">
+            <div class="dia-sticky">
+                <div class="dia-sticky-top-row">
+                    <div class="dia-sticky-label">Domingo</div>
+                    <div class="dia-sticky-line"></div>
+                </div>
+                <div class="dia-sticky-canchas-row">
+                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 1</span></div>
+                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 2</span></div>
+                </div>
+            </div>
             <div class="cal-scroll-wrapper">
             <div class="cal-scroll-inner">
             <div class="canchas-header">
@@ -508,20 +518,25 @@
 
                         {# Cancha 1 #}
                         <div class="match-slot">
-                            <div class="hora-box">{{ hora }}</div>
                             {% if c1 %}
                                 {% set color = colores.get(c1.categoria, '#6b7280') %}
                                 {% set emoji = emojis.get(c1.categoria, '🎾') %}
                                 {% set es_tbd = not c1.pareja1 or not c1.pareja2 %}
                                 <div class="partido-card {{ 'partido-tbd' if es_tbd else '' }}" data-cat="{{ c1.categoria }}">
-                                    <div class="partido-meta">
-                                        <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c1.categoria }}</span>
-                                        <span class="badge-fase">{{ fase_abrev.get(c1.fase, c1.fase) }}</span>
-                                    </div>
-                                    <div class="vs-row">
-                                        <div class="equipo equipo-izq {{ 'equipo-tbd' if not c1.pareja1 else '' }}">{{ c1.pareja1 or 'Por definir' }}</div>
-                                        <div class="vs-sep">VS</div>
-                                        <div class="equipo equipo-der {{ 'equipo-tbd' if not c1.pareja2 else '' }}">{{ c1.pareja2 or 'Por definir' }}</div>
+                                    <div class="hora-strip"><span>{{ hora }}</span></div>
+                                    <div class="partido-body">
+                                        <div class="partido-meta">
+                                            <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c1.categoria }}</span>
+                                            <span class="badge-fase">{{ fase_abrev.get(c1.fase, c1.fase) }}</span>
+                                        </div>
+                                        <div class="match-rows">
+                                            <div class="match-row">
+                                                <span class="equipo {{ 'equipo-tbd' if not c1.pareja1 else '' }}">{{ c1.pareja1 or 'Por definir' }}</span>
+                                            </div>
+                                            <div class="match-row">
+                                                <span class="equipo {{ 'equipo-tbd' if not c1.pareja2 else '' }}">{{ c1.pareja2 or 'Por definir' }}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             {% else %}
@@ -531,20 +546,25 @@
 
                         {# Cancha 2 #}
                         <div class="match-slot">
-                            <div class="hora-box">{{ hora }}</div>
                             {% if c2 %}
                                 {% set color = colores.get(c2.categoria, '#6b7280') %}
                                 {% set emoji = emojis.get(c2.categoria, '🎾') %}
                                 {% set es_tbd = not c2.pareja1 or not c2.pareja2 %}
                                 <div class="partido-card {{ 'partido-tbd' if es_tbd else '' }}" data-cat="{{ c2.categoria }}">
-                                    <div class="partido-meta">
-                                        <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c2.categoria }}</span>
-                                        <span class="badge-fase">{{ fase_abrev.get(c2.fase, c2.fase) }}</span>
-                                    </div>
-                                    <div class="vs-row">
-                                        <div class="equipo equipo-izq {{ 'equipo-tbd' if not c2.pareja1 else '' }}">{{ c2.pareja1 or 'Por definir' }}</div>
-                                        <div class="vs-sep">VS</div>
-                                        <div class="equipo equipo-der {{ 'equipo-tbd' if not c2.pareja2 else '' }}">{{ c2.pareja2 or 'Por definir' }}</div>
+                                    <div class="hora-strip"><span>{{ hora }}</span></div>
+                                    <div class="partido-body">
+                                        <div class="partido-meta">
+                                            <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c2.categoria }}</span>
+                                            <span class="badge-fase">{{ fase_abrev.get(c2.fase, c2.fase) }}</span>
+                                        </div>
+                                        <div class="match-rows">
+                                            <div class="match-row">
+                                                <span class="equipo {{ 'equipo-tbd' if not c2.pareja1 else '' }}">{{ c2.pareja1 or 'Por definir' }}</span>
+                                            </div>
+                                            <div class="match-row">
+                                                <span class="equipo {{ 'equipo-tbd' if not c2.pareja2 else '' }}">{{ c2.pareja2 or 'Por definir' }}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             {% else %}
@@ -620,7 +640,7 @@ function mostrarPredefinidoFinales() {
     const horasManana = ['10:00','11:00','12:00','13:00','14:00','15:00'];
     for (let i = 0; i < numSlotsManana && i < horasManana.length; i++) {
         const h = horasManana[i];
-        const slotTbd = `<div class="match-slot">${horaBox(h)}<div class="partido-card partido-tbd"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">CF / S</span></div><div class="vs-row"><div class="equipo equipo-izq equipo-tbd">Por definir</div><div class="vs-sep">VS</div><div class="equipo equipo-der equipo-tbd">Por definir</div></div></div></div>`;
+        const slotTbd = `<div class="match-slot"><div class="partido-card partido-tbd"><div class="hora-strip"><span>${h}</span></div><div class="partido-body"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">CF / S</span></div><div class="match-rows"><div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div><div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div></div></div></div></div>`;
         html += `<div class="franja-block">
             <div class="franja-sep"></div>
             <div class="canchas-grid">
@@ -655,19 +675,21 @@ function mostrarPredefinidoFinales() {
                     const color = coloresCat[cat] || '#6b7280';
                     const emoji = emojisMap[cat] || '🎾';
                     return `<div class="partido-card partido-tbd" data-cat="${cat}">
-                        <div class="partido-meta">
-                            <span class="badge-cat" style="background:${color};">${emoji} ${cat}</span>
-                            <span class="badge-fase">F</span>
-                        </div>
-                        <div class="vs-row">
-                            <div class="equipo equipo-izq equipo-tbd">Por definir</div>
-                            <div class="vs-sep">VS</div>
-                            <div class="equipo equipo-der equipo-tbd">Por definir</div>
+                        <div class="hora-strip"><span>${hora}</span></div>
+                        <div class="partido-body">
+                            <div class="partido-meta">
+                                <span class="badge-cat" style="background:${color};">${emoji} ${cat}</span>
+                                <span class="badge-fase">F</span>
+                            </div>
+                            <div class="match-rows">
+                                <div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div>
+                                <div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div>
+                            </div>
                         </div>
                     </div>`;
                 })()
                 : '<div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>';
-            return `<div class="match-slot">${horaBox(hora)}${card}</div>`;
+            return `<div class="match-slot">${card}</div>`;
         };
         html += `<div class="franja-block">
             <div class="franja-sep"></div>
@@ -683,8 +705,8 @@ function mostrarPredefinidoFinales() {
         html += `<div class="franja-block">
             <div class="franja-sep"></div>
             <div class="canchas-grid">
-                <div class="match-slot">${horaBox('20:00')}<div class="partido-card partido-tbd"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">F</span></div><div class="vs-row"><div class="equipo equipo-izq equipo-tbd">Por definir</div><div class="vs-sep">VS</div><div class="equipo equipo-der equipo-tbd">Por definir</div></div></div></div>
-                <div class="match-slot">${horaBox('20:00')}<div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div></div>
+                <div class="match-slot"><div class="partido-card partido-tbd"><div class="hora-strip"><span>20:00</span></div><div class="partido-body"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">F</span></div><div class="match-rows"><div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div><div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div></div></div></div></div>
+                <div class="match-slot"><div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div></div>
             </div>
         </div>`;
     }
@@ -707,12 +729,6 @@ function getFaseLabel(fase, num) {
     return m[fase] || fase;
 }
 
-function fmtNombre(nombre, clsExtra) {
-    const parts = nombre.split(' / ');
-    const inner = parts.length === 2 ? `${parts[0]} /<br>${parts[1]}` : nombre;
-    return `<div class="equipo ${clsExtra}">${inner}</div>`;
-}
-
 function horaBox(hora) {
     if (!hora) return '';
     return `<div class="hora-box">${hora}</div>`;
@@ -727,21 +743,25 @@ function htmlSlotCard(slot, hora) {
             const p1 = slot.pareja1 || 'Por definir';
             const p2 = slot.pareja2 || 'Por definir';
             const esTbd = !slot.pareja1 || slot.pareja1 === 'Por definir';
+            const cls1 = esTbd ? ' equipo-tbd' : '';
+            const cls2 = (!slot.pareja2 || slot.pareja2 === 'Por definir') ? ' equipo-tbd' : '';
             return `<div class="partido-card${esTbd ? ' partido-tbd' : ''}" data-cat="${slot.categoria}"
                  data-pareja1="${p1}" data-pareja2="${p2}">
-                <div class="partido-meta">
-                    <span class="badge-cat" style="background:${color};">${emoji} ${slot.categoria}</span>
-                    <span class="badge-fase">${faseLabel}</span>
-                </div>
-                <div class="vs-row">
-                    ${fmtNombre(p1, `equipo-izq${esTbd ? ' equipo-tbd' : ''}`)}
-                    <div class="vs-sep">VS</div>
-                    ${fmtNombre(p2, `equipo-der${esTbd ? ' equipo-tbd' : ''}`)}
+                <div class="hora-strip"><span>${hora || ''}</span></div>
+                <div class="partido-body">
+                    <div class="partido-meta">
+                        <span class="badge-cat" style="background:${color};">${emoji} ${slot.categoria}</span>
+                        <span class="badge-fase">${faseLabel}</span>
+                    </div>
+                    <div class="match-rows">
+                        <div class="match-row"><span class="equipo${cls1}">${p1}</span></div>
+                        <div class="match-row"><span class="equipo${cls2}">${p2}</span></div>
+                    </div>
                 </div>
             </div>`;
         })()
         : '<div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div>';
-    return `<div class="match-slot">${horaBox(hora)}${card}</div>`;
+    return `<div class="match-slot">${card}</div>`;
 }
 
 function renderFinalesCalendar(data) {

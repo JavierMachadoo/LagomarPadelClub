@@ -74,11 +74,14 @@ class GeneradorCalendarioFinales:
     """
 
     # Horario del domingo
-    HORA_INICIO = 9   # primera franja: 09:00
-    HORA_FINALES = 20 # hora reservada para las finales
+    HORA_INICIO = 10  # primera franja: 10:00
+    HORA_FIN = 22     # hasta 22:00 máximo
 
-    # Orden de categorías para el calendario (Séptima juega antes que Tercera)
+    # Orden de categorías: la peor categoría juega primero
     ORDEN_CATEGORIAS = ["Séptima", "Sexta", "Quinta", "Cuarta", "Tercera"]
+
+    # Orden de fases en que se programan los partidos
+    ORDEN_FASES_PROGRAMACION = ["octavos", "cuartos", "semifinales", "final"]
 
     # Nombres display de las fases (coinciden con FaseFinal.value)
     FASE_DISPLAY = {
@@ -97,60 +100,67 @@ class GeneradorCalendarioFinales:
     }
 
     @staticmethod
-    def _extraer_fases(fixture: dict) -> List[Tuple[str, List[dict]]]:
+    def _extraer_fases(fixture: dict) -> dict:
         """
-        Extrae las fases de un fixture como lista ordenada de (fase_key, [partidos]).
-        Filtra partidos 'Vacío' que no tienen pareja real asignada.
-        """
-        fases = []
+        Extrae los partidos de un fixture agrupados por fase_key.
+        Incluye partidos sin parejas (para mostrar 'Por definir').
+        Excluye solo partidos placeholder vacíos (slot1_info == 'Vacío').
 
-        octavos = [p for p in fixture.get('octavos', [])
-                   if p and p.get('id') and p.get('pareja1') and p.get('pareja2')]
+        Returns: {'octavos': [...], 'cuartos': [...], 'semifinales': [...], 'final': [...]}
+        """
+        def _es_valido(p):
+            if not p or not p.get('id'):
+                return False
+            # Excluir placeholders vacíos del bracket viejo
+            if p.get('slot1_info') == 'Vacío' and not p.get('pareja1') and not p.get('pareja2'):
+                return False
+            return True
+
+        result = {}
+
+        octavos = [p for p in fixture.get('octavos', []) if _es_valido(p)]
         if octavos:
-            fases.append(('octavos', octavos))
+            result['octavos'] = octavos
 
-        cuartos = [p for p in fixture.get('cuartos', [])
-                   if p and p.get('id') and p.get('pareja1') and p.get('pareja2')]
+        cuartos = [p for p in fixture.get('cuartos', []) if _es_valido(p)]
         if cuartos:
-            fases.append(('cuartos', cuartos))
+            result['cuartos'] = cuartos
 
-        semis = [p for p in fixture.get('semifinales', []) if p and p.get('id')]
+        semis = [p for p in fixture.get('semifinales', []) if _es_valido(p)]
         if semis:
-            fases.append(('semifinales', semis))
+            result['semifinales'] = semis
 
-        if fixture.get('final') and fixture['final'].get('id'):
-            fases.append(('final', [fixture['final']]))
+        if _es_valido(fixture.get('final')):
+            result['final'] = [fixture['final']]
 
-        return fases
+        return result
 
     @staticmethod
     def generar_plantilla_calendario(fixtures: Dict[str, dict]) -> Dict:
         """
         Genera el calendario del domingo para todos los partidos de finales.
 
-        Funciona con fixtures sin clasificados aún (parejas='Por definir') o con
-        clasificados parciales/completos. Los nombres de parejas se toman del fixture
-        en el momento de la generación.
+        Algoritmo forward desde las 10:00:
+          - Fases en orden: octavos → cuartos → semifinales → final
+          - Dentro de cada fase, categorías de peor a mejor (Séptima primero)
+          - Cada partido ocupa el primer slot libre (hora más temprana, cancha 1 primero)
+
+        Funciona con fixtures sin clasificados aún (pareja = None → 'Por definir').
 
         Args:
             fixtures: {categoria: fixture_dict} — fixtures_finales del torneo
 
         Returns:
-            {
-                'cancha_1': [{partido_id, categoria, fase, numero_partido,
-                              pareja1, pareja2, hora_inicio, hora_fin, cancha}, ...],
-                'cancha_2': [...],
-                'sin_asignar': []
-            }
+            {'cancha_1': [...], 'cancha_2': [...], 'sin_asignar': []}
         """
         if not fixtures:
             return {'cancha_1': [], 'cancha_2': [], 'sin_asignar': []}
 
         HORA_INICIO = GeneradorCalendarioFinales.HORA_INICIO
-        HORA_FIN = GeneradorCalendarioFinales.HORA_FINALES + 1  # slot 20:00-21:00 incluido
+        HORA_FIN = GeneradorCalendarioFinales.HORA_FIN
 
         # 1. Extraer fases por categoría
-        cat_fases = {}
+        cat_fases: Dict[str, dict] = {}
         for cat, fixture in fixtures.items():
             fases = GeneradorCalendarioFinales._extraer_fases(fixture)
             if fases:
@@ -159,125 +169,69 @@ class GeneradorCalendarioFinales:
         if not cat_fases:
             return {'cancha_1': [], 'cancha_2': [], 'sin_asignar': []}
 
-        # 2. Ordenar categorías: más fases primero → comienzan antes
-        orden_base = GeneradorCalendarioFinales.ORDEN_CATEGORIAS
-        cats_sorted = sorted(
-            cat_fases.keys(),
-            key=lambda c: (
-                -len(cat_fases[c]),
-                orden_base.index(c) if c in orden_base else 99
-            )
-        )
-
-        # 3. Inicializar grilla de horarios: hora → cancha → entrada
+        # 2. Inicializar grilla: hora (int) → cancha (1|2) → entrada | None
         grid = {h: {1: None, 2: None} for h in range(HORA_INICIO, HORA_FIN)}
 
-        # 4. Asignar finales empezando en 20:00 hacia atrás (2 por hora con 2 canchas)
-        hora_finales_actual = GeneradorCalendarioFinales.HORA_FINALES
-        cat_final_hora = {}
+        def _siguiente_slot(desde_hora: int) -> Optional[Tuple[int, int]]:
+            """Devuelve (hora, cancha) del primer slot libre desde desde_hora."""
+            for h in range(desde_hora, HORA_FIN):
+                for c in [1, 2]:
+                    if grid[h][c] is None:
+                        return (h, c)
+            return None
 
-        for i, cat in enumerate(cats_sorted):
-            fases = cat_fases[cat]
-            if not fases or fases[-1][0] != 'final':
-                continue
+        orden_cats = GeneradorCalendarioFinales.ORDEN_CATEGORIAS
+        orden_fases = GeneradorCalendarioFinales.ORDEN_FASES_PROGRAMACION
 
-            court = (i % 2) + 1
-            # Cada 2 categorías bajar una hora (ya que hay 2 canchas por hora)
-            if i > 0 and i % 2 == 0:
-                hora_finales_actual -= 1
+        # 3. Programar fase a fase, de peor a mejor categoría dentro de cada fase
+        hora_cursor = HORA_INICIO
 
-            # Buscar slot disponible en la hora objetivo
-            hora_asignada = hora_finales_actual
-            while hora_asignada >= HORA_INICIO:
-                if grid[hora_asignada][court] is None:
-                    break
-                hora_asignada -= 1
+        for fase_key in orden_fases:
+            # Categorías presentes en esta fase, ordenadas peor→mejor
+            cats_en_fase = [
+                c for c in orden_cats
+                if c in cat_fases and fase_key in cat_fases[c]
+            ]
 
-            if hora_asignada < HORA_INICIO:
-                logger.warning(f"Sin slot para final de {cat}")
-                continue
-
-            partido = fases[-1][1][0]
-            grid[hora_asignada][court] = {
-                'partido_id': partido.get('id'),
-                'categoria': cat,
-                'fase': GeneradorCalendarioFinales.FASE_DISPLAY['final'],
-                'numero_partido': partido.get('numero_partido', 1),
-                'pareja1': _get_nombre(partido.get('pareja1')),
-                'pareja2': _get_nombre(partido.get('pareja2')),
-                'hora_inicio': f"{hora_asignada:02d}:00",
-                'hora_fin': f"{hora_asignada + 1:02d}:00",
-                'cancha': court
-            }
-            cat_final_hora[cat] = hora_asignada
-            logger.debug(f"Final {cat} → {hora_asignada:02d}:00 Cancha {court}")
-
-        # 5. Para cada categoría, asignar fases anteriores hacia atrás desde su final
-        for cat in cats_sorted:
-            if cat not in cat_final_hora:
-                continue
-
-            fases = cat_fases[cat]
-            max_hora = cat_final_hora[cat] - 1  # debe ser ANTES de la final
-
-            # Procesar fases en orden inverso: semis → cuartos → octavos
-            for fase_key, partidos in reversed(fases[:-1]):
-                hora_actual = max_hora
-                min_hora_usada = max_hora + 1  # track earliest hour used in this phase
-
+            for cat in cats_en_fase:
+                partidos = cat_fases[cat][fase_key]
                 for partido in partidos:
-                    # Buscar siguiente slot disponible
-                    while hora_actual >= HORA_INICIO:
-                        court = None
-                        for c in [1, 2]:
-                            if grid[hora_actual][c] is None:
-                                court = c
-                                break
-                        if court is not None:
-                            break
-                        hora_actual -= 1
-
-                    if hora_actual < HORA_INICIO:
+                    slot = _siguiente_slot(hora_cursor)
+                    if slot is None:
                         logger.warning(
-                            f"Sin slot para {cat} {fase_key} partido {partido.get('id')}"
+                            f"Sin slot para {cat} {fase_key} {partido.get('id')}"
                         )
-                        break
+                        continue
 
-                    grid[hora_actual][court] = {
+                    hora, cancha = slot
+                    grid[hora][cancha] = {
                         'partido_id': partido.get('id'),
                         'categoria': cat,
-                        'fase': GeneradorCalendarioFinales.FASE_DISPLAY[fase_key],
+                        'fase': GeneradorCalendarioFinales.FASE_DISPLAY.get(fase_key, fase_key),
                         'numero_partido': partido.get('numero_partido', 1),
                         'pareja1': _get_nombre(partido.get('pareja1')),
                         'pareja2': _get_nombre(partido.get('pareja2')),
-                        'hora_inicio': f"{hora_actual:02d}:00",
-                        'hora_fin': f"{hora_actual + 1:02d}:00",
-                        'cancha': court
+                        'hora_inicio': f"{hora:02d}:00",
+                        'hora_fin': f"{hora + 1:02d}:00",
+                        'cancha': cancha,
                     }
-                    min_hora_usada = min(min_hora_usada, hora_actual)
-                    logger.debug(
-                        f"{cat} {fase_key} {partido.get('id')} → {hora_actual:02d}:00 C{court}"
-                    )
+                    logger.debug(f"{cat} {fase_key} {partido.get('id')} → {hora:02d}:00 C{cancha}")
 
-                    # Si la otra cancha también está ocupada en esta hora, avanzar
-                    other_court = 2 if court == 1 else 1
-                    if grid[hora_actual][other_court] is not None:
-                        hora_actual -= 1
+                    # Si la otra cancha de esa hora también está ocupada, avanzar el cursor
+                    otra = 2 if cancha == 1 else 1
+                    if grid[hora][otra] is not None:
+                        hora_cursor = hora + 1
+                    else:
+                        hora_cursor = hora  # puede haber otro partido en la misma hora
 
-                # La próxima fase debe terminar ANTES de la hora más temprana de esta fase
-                max_hora = min_hora_usada - 1
-
-        # 6. Convertir grilla a formato de calendario
-        calendario = {'cancha_1': [], 'cancha_2': [], 'sin_asignar': []}
+        # 4. Convertir grilla a formato de salida
+        calendario: Dict[str, list] = {'cancha_1': [], 'cancha_2': [], 'sin_asignar': []}
 
         for h in range(HORA_INICIO, HORA_FIN):
             for court in [1, 2]:
                 if grid[h][court] is not None:
-                    entry = grid[h][court]
-                    if court == 1:
-                        calendario['cancha_1'].append(entry)
-                    else:
-                        calendario['cancha_2'].append(entry)
+                    key = 'cancha_1' if court == 1 else 'cancha_2'
+                    calendario[key].append(grid[h][court])
 
         logger.info(
             f"Calendario generado: Cancha 1: {len(calendario['cancha_1'])} partidos, "

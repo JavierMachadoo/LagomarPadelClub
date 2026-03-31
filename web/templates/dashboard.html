@@ -2354,6 +2354,26 @@ function intercambiarParejaEnSlot(parejaId, grupoOrigen, grupoDestino, slotDesti
     });
 }
 
+// Interceptor global: muestra un toast claro cuando el backend devuelve 409 (conflicto
+// de versión de optimistic locking). Evita tener que manejar el 409 en cada fetch individual.
+(function () {
+    const _fetch = window.fetch;
+    window.fetch = function (url, opts) {
+        return _fetch.call(this, url, opts).then(function (resp) {
+            if (resp.status === 409) {
+                resp.clone().json()
+                    .then(function (d) {
+                        Toast.error(d.error || d.message || 'Otro administrador modificó los datos. Recargá la página para continuar.');
+                    })
+                    .catch(function () {
+                        Toast.error('Otro administrador modificó los datos. Recargá la página para continuar.');
+                    });
+            }
+            return resp;
+        });
+    };
+})();
+
 // Función para cargar franjas horarias en el modal
 document.addEventListener('DOMContentLoaded', function() {
     const franjasContainer = document.getElementById('franjasModalContainer');

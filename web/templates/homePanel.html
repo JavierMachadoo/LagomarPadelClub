@@ -266,9 +266,11 @@
             <!-- Tabs de Carga -->
             <ul class="nav nav-pills nav-fill mb-4 custom-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="csv-tab" data-bs-toggle="pill"
-                            data-bs-target="#csv" type="button">
-                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>Cargar CSV
+                    <button class="nav-link active" id="inscripciones-tab" data-bs-toggle="pill"
+                            data-bs-target="#inscripciones" type="button"
+                            onclick="cargarInscripciones()">
+                        <i class="bi bi-person-check me-2"></i>Inscripciones
+                        <span id="badgeInscripciones" class="badge bg-success ms-1" style="display:none;"></span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -278,11 +280,9 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="inscripciones-tab" data-bs-toggle="pill"
-                            data-bs-target="#inscripciones" type="button"
-                            onclick="cargarInscripciones()">
-                        <i class="bi bi-person-check me-2"></i>Inscripciones
-                        <span id="badgeInscripciones" class="badge bg-success ms-1" style="display:none;"></span>
+                    <button class="nav-link" id="csv-tab" data-bs-toggle="pill"
+                            data-bs-target="#csv" type="button">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>Cargar CSV
                     </button>
                 </li>
             </ul>
@@ -290,7 +290,7 @@
             <!-- Contenido de Tabs -->
             <div class="tab-content">
                 <!-- Tab CSV -->
-                <div class="tab-pane fade show active" id="csv" role="tabpanel">
+                <div class="tab-pane fade" id="csv" role="tabpanel">
                     <div class="upload-card">
                         <div class="upload-icon mb-3">
                             <i class="bi bi-cloud-arrow-up"></i>
@@ -393,7 +393,7 @@
                 </div>
 
                 <!-- Tab Inscripciones -->
-                <div class="tab-pane fade" id="inscripciones" role="tabpanel">
+                <div class="tab-pane fade show active" id="inscripciones" role="tabpanel">
                     <div class="manual-card">
                         <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                             <h3 class="mb-0">Inscripciones recibidas</h3>

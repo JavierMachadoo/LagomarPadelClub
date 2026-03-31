@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 import logging
 
 from core import Pareja, AlgoritmoGrupos
-from utils.torneo_storage import storage
+from utils.torneo_storage import storage, ConflictError
 from utils.api_helpers import (
     obtener_datos_desde_token,
     crear_respuesta_con_token_actualizado,
@@ -586,6 +586,9 @@ def cambiar_fase():
             except Exception as e:
                 logger.error('Error generando calendario al activar torneo: %s', e)
 
-    storage.guardar(torneo)
+    try:
+        storage.guardar_con_version(torneo)
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
     logger.info('Fase del torneo cambiada: %s → %s', fase_actual, nueva_fase)
     return jsonify({'ok': True, 'fase': nueva_fase})

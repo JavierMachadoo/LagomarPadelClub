@@ -21,6 +21,12 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+
+class ConflictError(Exception):
+    """Otro proceso escribió el torneo entre el cargar() y el guardar().
+    El caller debe devolver HTTP 409 y pedirle al admin que recargue."""
+
+
 # Directorio base del proyecto (dos niveles arriba de este archivo)
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -94,6 +100,7 @@ class TorneoStorage:
             'fase': 'espera',
             'tipo_torneo': 'fin1',
             'torneo_id': str(uuid.uuid4()),
+            'version': 0,
         }
 
     def _crear_torneo_default(self) -> None:
@@ -102,7 +109,12 @@ class TorneoStorage:
     # ── API pública ───────────────────────────────────────────────────────────
 
     def guardar(self, datos: Dict) -> None:
-        """Persiste el diccionario completo del torneo e invalida el caché."""
+        """Persiste el diccionario completo del torneo e invalida el caché.
+
+        Escritura incondicional — no verifica versión. Usar solo para operaciones
+        internas de inicialización o migraciones. Para escrituras de admin usar
+        guardar_con_version().
+        """
         datos['fecha_modificacion'] = datetime.now().isoformat()
 
         if _USE_SUPABASE:
@@ -114,6 +126,48 @@ class TorneoStorage:
                 json.dump(datos, f, indent=2, ensure_ascii=False)
 
         # Actualizar caché con los datos recién guardados
+        self._cache = datos
+        self._cache_ts = time.monotonic()
+
+    def guardar_con_version(self, datos: Dict) -> None:
+        """Persiste el torneo solo si la versión no cambió desde el último cargar().
+
+        Implementa optimistic locking: lee la versión actual del dict, intenta
+        escribir condicionalmente en Supabase vía RPC. Si otro proceso se adelantó,
+        la RPC devuelve False y se lanza ConflictError.
+
+        El caller debe capturar ConflictError y devolver HTTP 409.
+        """
+        expected_version = datos.get('version', 0)
+        datos['version'] = expected_version + 1
+        datos['fecha_modificacion'] = datetime.now().isoformat()
+
+        if _USE_SUPABASE:
+            resp = self._sb.rpc('guardar_torneo_con_version', {
+                'p_datos': datos,
+                'p_expected_version': expected_version,
+            }).execute()
+            if not resp.data:
+                # Revertir el incremento de versión para no dejar el dict en estado sucio
+                datos['version'] = expected_version
+                raise ConflictError(
+                    'Otro administrador modificó los datos. Recargá la página para continuar.'
+                )
+        else:
+            # Fallback JSON: verificar versión directamente desde el archivo
+            try:
+                with open(self._TORNEO_FILE, encoding='utf-8') as f:
+                    current = json.load(f)
+                if current.get('version', 0) != expected_version:
+                    datos['version'] = expected_version
+                    raise ConflictError(
+                        'Conflicto de versión en almacenamiento local.'
+                    )
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass  # Archivo no existe o corrupto — escribir de todas formas
+            with open(self._TORNEO_FILE, 'w', encoding='utf-8') as f:
+                json.dump(datos, f, indent=2, ensure_ascii=False)
+
         self._cache = datos
         self._cache_ts = time.monotonic()
 
@@ -226,7 +280,7 @@ class TorneoStorage:
             raise ValueError(f"Fase inválida: {nueva_fase}")
         torneo = self.cargar()
         torneo['fase'] = nueva_fase
-        self.guardar(torneo)
+        self.guardar_con_version(torneo)
 
     def transicion_a_espera(self, ultimo_torneo_id: str) -> None:
         """Transiciona a estado 'espera' tras archivar un torneo.
@@ -269,7 +323,7 @@ class TorneoStorage:
             'categorias': categorias or [],
             'descripcion': descripcion,
         }
-        self.guardar(torneo)
+        self.guardar_con_version(torneo)
 
     def get_proximo_torneo(self) -> Optional[Dict]:
         """Devuelve la info del próximo torneo, o None si no está configurado."""
@@ -285,7 +339,7 @@ class TorneoStorage:
         """Cambia el tipo de torneo activo."""
         torneo = self.cargar()
         torneo['tipo_torneo'] = tipo
-        self.guardar(torneo)
+        self.guardar_con_version(torneo)
 
 
     def actualizar_nombre(self, nuevo_nombre: str) -> bool:
@@ -293,7 +347,7 @@ class TorneoStorage:
         try:
             torneo = self.cargar()
             torneo['nombre'] = nuevo_nombre
-            self.guardar(torneo)
+            self.guardar_con_version(torneo)
             return True
         except Exception as e:
             logger.error('Error al actualizar nombre: %s', e)

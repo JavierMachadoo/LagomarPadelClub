@@ -4,7 +4,7 @@ import logging
 
 from core import Pareja
 from utils import CSVProcessor
-from utils.torneo_storage import storage
+from utils.torneo_storage import storage, ConflictError
 from utils.api_helpers import (
     obtener_datos_desde_token,
     crear_respuesta_con_token_actualizado,
@@ -348,7 +348,10 @@ def obtener_franjas_disponibles():
 
 @api_bp.route("/limpiar-datos", methods=["POST"])
 def limpiar_datos():
-    storage.limpiar()
+    try:
+        storage.limpiar()
+    except ConflictError as e:
+        return jsonify({"error": str(e)}), 409
     datos_limpios = {"parejas": [], "resultado_algoritmo": None, "num_canchas": NUM_CANCHAS_DEFAULT}
     return crear_respuesta_con_token_actualizado({"success": True, "mensaje": "Datos limpiados"}, datos_limpios)
 
@@ -359,7 +362,10 @@ def cambiar_tipo_torneo():
     tipo = data.get("tipo_torneo", "fin1")
     if tipo not in ("fin1", "fin2"):
         return jsonify({"error": "Tipo de torneo invalido"}), 400
-    storage.set_tipo_torneo(tipo)
+    try:
+        storage.set_tipo_torneo(tipo)
+    except ConflictError as e:
+        return jsonify({"error": str(e)}), 409
     return jsonify({"success": True, "tipo_torneo": tipo})
 
 

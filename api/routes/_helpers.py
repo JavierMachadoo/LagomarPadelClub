@@ -15,7 +15,7 @@ import logging
 from core import Pareja, AlgoritmoGrupos, ResultadoAlgoritmo, Grupo
 from core.fixture_finales_generator import GeneradorFixtureFinales
 from utils import CalendarioBuilder
-from utils.torneo_storage import storage
+from utils.torneo_storage import storage, ConflictError
 from utils.api_helpers import obtener_datos_desde_token, sincronizar_con_storage_y_token
 from config import NUM_CANCHAS_DEFAULT
 
@@ -285,9 +285,11 @@ def regenerar_fixtures_categoria(categoria, resultado_data):
             torneo['fixtures_finales'] = {}
 
         torneo['fixtures_finales'][categoria] = fixture.to_dict() if fixture else None
-        storage.guardar(torneo)
+        storage.guardar_con_version(torneo)
         logger.info(f"Fixtures regenerados exitosamente para categoría {categoria}")
 
+    except ConflictError:
+        raise  # propagar al route handler para que devuelva 409
     except Exception as e:
         logger.error(f"Error al regenerar fixtures para {categoria}: {e}")
         import traceback

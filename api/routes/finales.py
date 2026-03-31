@@ -7,7 +7,7 @@ import logging
 from core.fixture_finales_generator import GeneradorFixtureFinales
 from core.models import Grupo, FixtureFinales
 from utils.calendario_finales_builder import GeneradorCalendarioFinales
-from utils.torneo_storage import storage
+from utils.torneo_storage import storage, ConflictError
 from utils.api_helpers import verificar_autenticacion_api
 
 logger = logging.getLogger(__name__)
@@ -89,13 +89,15 @@ def obtener_fixtures():
         # Guardar fixtures y calendario (se fija una sola vez, no cambia con los resultados)
         torneo['fixtures_finales'] = fixtures_nuevos
         torneo['calendario_finales'] = GeneradorCalendarioFinales.asignar_horarios(fixtures_nuevos)
-        storage.guardar(torneo)
+        storage.guardar_con_version(torneo)
 
         return jsonify({
             'success': True,
             'fixtures': fixtures_nuevos
         })
 
+    except ConflictError as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
     except Exception as e:
         logger.error(f"Error al obtener fixtures: {str(e)}", exc_info=True)
         return jsonify({
@@ -143,18 +145,20 @@ def obtener_fixture_categoria(categoria):
             if 'fixtures_finales' not in torneo:
                 torneo['fixtures_finales'] = {}
             torneo['fixtures_finales'][categoria] = fixture.to_dict()
-            storage.guardar(torneo)
-            
+            storage.guardar_con_version(torneo)
+
             return jsonify({
                 'success': True,
                 'fixture': fixture.to_dict()
             })
-        
+
         return jsonify({
             'success': True,
             'fixture': fixtures[categoria]
         })
-        
+
+    except ConflictError as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
     except Exception as e:
         logger.error(f"Error al obtener fixture de {categoria}: {str(e)}", exc_info=True)
         return jsonify({
@@ -192,14 +196,16 @@ def regenerar_fixtures():
         # Guardar fixtures y recalcular calendario (el admin eligió regenerar explícitamente)
         torneo['fixtures_finales'] = fixtures_nuevos
         torneo['calendario_finales'] = GeneradorCalendarioFinales.asignar_horarios(fixtures_nuevos)
-        storage.guardar(torneo)
-        
+        storage.guardar_con_version(torneo)
+
         return jsonify({
             'success': True,
             'message': 'Fixtures regenerados exitosamente',
             'fixtures': fixtures_nuevos
         })
-        
+
+    except ConflictError as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
     except Exception as e:
         logger.error(f"Error al regenerar fixtures: {str(e)}", exc_info=True)
         return jsonify({
@@ -280,14 +286,16 @@ def actualizar_ganador_partido(partido_id):
                 torneo['calendario_finales'], fixtures_dict
             )
 
-        storage.guardar(torneo)
+        storage.guardar_con_version(torneo)
 
         return jsonify({
             'success': True,
             'message': 'Ganador actualizado exitosamente',
             'fixture': fixture.to_dict()
         })
-        
+
+    except ConflictError as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
     except Exception as e:
         logger.error(f"Error al actualizar ganador: {str(e)}", exc_info=True)
         return jsonify({
@@ -432,14 +440,16 @@ def guardar_resultado_partido(partido_id):
                 torneo['calendario_finales'], fixtures_dict
             )
 
-        storage.guardar(torneo)
+        storage.guardar_con_version(torneo)
 
         return jsonify({
             'success': True,
             'message': 'Resultado guardado exitosamente',
             'ganador_id': ganador_id
         })
-        
+
+    except ConflictError as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
     except Exception as e:
         logger.error(f"Error al guardar resultado: {str(e)}", exc_info=True)
         return jsonify({

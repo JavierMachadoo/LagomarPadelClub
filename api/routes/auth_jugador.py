@@ -205,7 +205,7 @@ def _auto_aceptar_invitacion_post_registro(sb, token: str, jugador_id: str, nomb
     sb.table('invitacion_tokens').update({'usado': True}).eq('token', token).execute()
 
 
-def _login_admin_fallback(usuario, password):
+def _login_admin_fallback(usuario, password, cookie_max_age=None, token_exp_hours=2):
     """
     Fallback: verifica las credenciales hardcodeadas del admin en .env.
     Se usa cuando Supabase no tiene al admin como usuario, o como contingencia.
@@ -221,9 +221,9 @@ def _login_admin_fallback(usuario, password):
         'session_id': 'admin_session',
         'timestamp': int(time.time()),
     }
-    token = jwt_handler.generar_token(token_data)
+    token = jwt_handler.generar_token(token_data, expiration_hours=token_exp_hours)
     response = make_response(jsonify({"message": "Login exitoso", "redirect": "/"}), 200)
-    response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
+    response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=cookie_max_age, secure=not current_app.debug)
     logger.info("Admin autenticado via fallback .env")
     return response
 
@@ -244,10 +244,14 @@ def login():
          (permite al admin seguir entrando aunque no esté en Supabase Auth)
     """
     data = request.get_json(silent=True) or {}
-    email    = data.get("email", "").strip()
-    password = data.get("password", "")
+    email       = data.get("email", "").strip()
+    password    = data.get("password", "")
+    remember_me = bool(data.get("remember_me", False))
     # next_url: destino de redirección post-login (ej: /inscripcion/invitar?token=XXX)
     next_url = data.get("next", "").strip() or request.args.get("next", "").strip() or ""
+
+    cookie_max_age  = 60 * 60 * 24 * 30 if remember_me else None  # 30d ó session cookie
+    token_exp_hours = 24 * 30            if remember_me else 2    # 30d ó 2h
 
     if not email or not password:
         return jsonify({"error": "Usuario/email y contraseña son obligatorios"}), 400
@@ -281,9 +285,9 @@ def login():
                     'session_id': str(user.id),
                     'timestamp': int(time.time()),
                 }
-                token = jwt_handler.generar_token(token_data)
+                token = jwt_handler.generar_token(token_data, expiration_hours=token_exp_hours)
                 response = make_response(jsonify({"message": "Login exitoso", "redirect": "/admin"}), 200)
-                response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
+                response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=cookie_max_age, secure=not current_app.debug)
                 logger.info("Admin autenticado via Supabase: %s", user.id)
                 return response
 
@@ -308,14 +312,14 @@ def login():
                 'telefono': telefono,
                 'timestamp': int(time.time()),
             }
-            token = jwt_handler.generar_token(token_data)
+            token = jwt_handler.generar_token(token_data, expiration_hours=token_exp_hours)
             redirect_to = next_url if _es_redirect_seguro(next_url) else '/grupos'
             response = make_response(jsonify({
                 "message":  "Login exitoso",
                 "nombre":   f"{nombre} {apellido}".strip(),
                 "redirect": redirect_to,
             }), 200)
-            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
+            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=cookie_max_age, secure=not current_app.debug)
             logger.info("Jugador autenticado: %s", user.id)
             return response
 
@@ -323,7 +327,7 @@ def login():
         logger.debug("Supabase login falló (%s), intentando fallback admin", e)
 
     # ── 2. Fallback: credenciales admin del .env ──────────────────────────────
-    fallback = _login_admin_fallback(email, password)
+    fallback = _login_admin_fallback(email, password, cookie_max_age=cookie_max_age, token_exp_hours=token_exp_hours)
     if fallback:
         return fallback
 

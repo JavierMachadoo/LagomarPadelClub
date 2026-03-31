@@ -18,7 +18,7 @@ from flask import Blueprint, jsonify, render_template, request
 from api.routes._helpers import deserializar_resultado
 from core.clasificacion import CalculadorClasificacion
 from utils.api_helpers import verificar_autenticacion_api
-from utils.torneo_storage import storage
+from utils.torneo_storage import storage, ConflictError
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +247,10 @@ def terminar_torneo():
         with open(_HISTORIAL_FILE, 'w', encoding='utf-8') as f:
             json.dump(torneos, f, indent=2, ensure_ascii=False)
 
-    storage.transicion_a_espera(torneo_id)
+    try:
+        storage.transicion_a_espera(torneo_id)
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
     logger.info('Torneo "%s" (%s) archivado → estado espera', nombre, torneo_id)
     return jsonify({'ok': True})
 
@@ -271,7 +274,10 @@ def abrir_inscripciones():
     if not proximo or not proximo.get('nombre') or not proximo.get('fecha'):
         return jsonify({'error': 'Debes configurar el nombre y la fecha del próximo torneo antes de abrir inscripciones'}), 400
 
-    storage.limpiar()
+    try:
+        storage.limpiar()
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
     logger.info('Inscripciones abiertas — transición espera → inscripcion')
     return jsonify({'ok': True, 'fase': 'inscripcion'})
 
@@ -304,7 +310,10 @@ def configurar_proximo_torneo():
     if tipo_torneo not in ('fin1', 'fin2'):
         return jsonify({'error': 'El tipo de torneo debe ser fin1 o fin2'}), 400
 
-    storage.set_proximo_torneo(fecha=fecha, nombre=nombre, tipo_torneo=tipo_torneo, descripcion=descripcion)
+    try:
+        storage.set_proximo_torneo(fecha=fecha, nombre=nombre, tipo_torneo=tipo_torneo, descripcion=descripcion)
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
     logger.info('Próximo torneo configurado: "%s" — %s (%s)', nombre, fecha, tipo_torneo)
     return jsonify({'ok': True, 'proximo_torneo': storage.get_proximo_torneo()})
 

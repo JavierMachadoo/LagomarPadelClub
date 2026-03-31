@@ -194,6 +194,29 @@
             margin: 1.25rem 0;
         }
 
+        /* ── Remember me ── */
+        .remember-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .remember-wrap input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+            accent-color: var(--brand-green);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .remember-wrap label {
+            color: rgba(255,255,255,0.55);
+            font-size: 0.875rem;
+            cursor: pointer;
+            user-select: none;
+            margin: 0;
+        }
+        .remember-wrap label:hover { color: rgba(255,255,255,0.8); }
+
         .btn-google {
             display: flex;
             align-items: center;
@@ -268,6 +291,11 @@
                     </div>
                 </div>
 
+                <div class="remember-wrap">
+                    <input type="checkbox" id="remember-me">
+                    <label for="remember-me">Recordame</label>
+                </div>
+
                 <button type="submit" class="btn btn-login" id="btn-login-submit">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Ingresar
                 </button>
@@ -315,9 +343,10 @@
                     method:  'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        email:    document.getElementById('login-email').value.trim(),
-                        password: document.getElementById('login-password').value,
-                        next:     new URLSearchParams(window.location.search).get('next') || '',
+                        email:       document.getElementById('login-email').value.trim(),
+                        password:    document.getElementById('login-password').value,
+                        remember_me: document.getElementById('remember-me').checked,
+                        next:        new URLSearchParams(window.location.search).get('next') || '',
                     }),
                 });
                 const json = await res.json();

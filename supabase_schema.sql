@@ -96,6 +96,11 @@ CREATE INDEX IF NOT EXISTS idx_pf_categoria_fase   ON partidos_finales(categoria
 ALTER TABLE inscripciones ADD COLUMN IF NOT EXISTS jugador2_id UUID REFERENCES jugadores(id);
 
 -- Un jugador no puede ser invitado por 2 personas distintas en el mismo torneo
+-- Búsqueda de inscripción por Player A (jugador que crea la inscripción)
+CREATE INDEX IF NOT EXISTS idx_inscripciones_jugador_torneo
+  ON inscripciones(torneo_id, jugador_id);
+
+-- Un jugador no puede ser invitado por 2 personas distintas en el mismo torneo
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_jugador2_torneo
   ON inscripciones(torneo_id, jugador2_id)
   WHERE jugador2_id IS NOT NULL;
@@ -111,6 +116,23 @@ CREATE TABLE IF NOT EXISTS invitacion_tokens (
 );
 
 CREATE INDEX IF NOT EXISTS idx_invitacion_token ON invitacion_tokens(token);
+
+-- Escritura condicional del torneo (optimistic locking).
+-- Actualiza el blob solo si la versión en BD coincide con p_expected_version.
+-- Devuelve TRUE si escribió, FALSE si hubo conflicto (otro proceso se adelantó).
+CREATE OR REPLACE FUNCTION guardar_torneo_con_version(p_datos JSONB, p_expected_version INT)
+RETURNS BOOLEAN AS $$
+DECLARE
+    rows_updated INT;
+BEGIN
+    UPDATE torneo_actual
+    SET datos = p_datos
+    WHERE id = 1
+      AND COALESCE((datos->>'version')::INT, 0) = p_expected_version;
+    GET DIAGNOSTICS rows_updated = ROW_COUNT;
+    RETURN rows_updated > 0;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Función para expirar invitaciones vencidas (verificación lazy)
 CREATE OR REPLACE FUNCTION expirar_invitaciones(p_torneo_id UUID)

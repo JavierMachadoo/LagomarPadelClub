@@ -163,7 +163,7 @@ def intercambiar_pareja():
                 if grupo['id'] == grupo_destino_id:
                     grupo_destino_obj = grupo
 
-        if not pareja_movida or not grupo_destino_obj:
+        if not pareja_movida or not grupo_origen_obj or not grupo_destino_obj:
             return jsonify({'error': 'No se encontró la pareja o el grupo'}), 400
 
         pareja_en_slot = None
@@ -215,7 +215,8 @@ def asignar_pareja_a_grupo():
     if not all([pareja_id, grupo_id, categoria]):
         return jsonify({'error': 'Faltan parámetros requeridos'}), 400
 
-    resultado_data = obtener_datos_desde_token().get('resultado_algoritmo')
+    datos_actuales = obtener_datos_desde_token()
+    resultado_data = datos_actuales.get('resultado_algoritmo')
     if not resultado_data:
         return jsonify({'error': 'No hay resultados del algoritmo'}), 404
 
@@ -292,7 +293,6 @@ def asignar_pareja_a_grupo():
     regenerar_calendario(resultado_data)
     estadisticas = recalcular_estadisticas(resultado_data)
 
-    datos_actuales = obtener_datos_desde_token()
     datos_actuales['resultado_algoritmo'] = resultado_data
     sincronizar_con_storage_y_token(datos_actuales)
 
@@ -317,7 +317,8 @@ def crear_grupo_manual():
     if not all([categoria, franja_horaria, cancha]):
         return jsonify({'error': 'Faltan parámetros requeridos'}), 400
 
-    resultado_data = obtener_datos_desde_token().get('resultado_algoritmo')
+    datos_actuales = obtener_datos_desde_token()
+    resultado_data = datos_actuales.get('resultado_algoritmo')
     if not resultado_data:
         return jsonify({'error': 'No hay resultados del algoritmo'}), 404
 
@@ -367,7 +368,6 @@ def crear_grupo_manual():
     grupos_dict[categoria].append(nuevo_grupo)
     regenerar_calendario(resultado_data)
 
-    datos_actuales = obtener_datos_desde_token()
     datos_actuales['resultado_algoritmo'] = resultado_data
     sincronizar_con_storage_y_token(datos_actuales)
 
@@ -393,7 +393,8 @@ def editar_grupo():
     if not all([grupo_id, categoria, franja_horaria, cancha]):
         return jsonify({'error': 'Faltan parámetros requeridos'}), 400
 
-    resultado_data = obtener_datos_desde_token().get('resultado_algoritmo')
+    datos_actuales = obtener_datos_desde_token()
+    resultado_data = datos_actuales.get('resultado_algoritmo')
     if not resultado_data:
         return jsonify({'error': 'No hay resultados del algoritmo'}), 404
 
@@ -423,7 +424,6 @@ def editar_grupo():
     recalcular_score_grupo(grupo_encontrado)
     regenerar_calendario(resultado_data)
 
-    datos_actuales = obtener_datos_desde_token()
     datos_actuales['resultado_algoritmo'] = resultado_data
     sincronizar_con_storage_y_token(datos_actuales)
 

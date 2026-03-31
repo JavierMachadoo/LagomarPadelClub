@@ -15,6 +15,23 @@ logger = logging.getLogger(__name__)
 finales_bp = Blueprint('finales', __name__, url_prefix='/api/finales')
 
 
+def _buscar_partido_en_fixtures(fixtures_dict, partido_id):
+    """Busca un partido en el fixture por ID.
+
+    Returns:
+        (categoria, partido_dict, (fase_key, fase_idx)) si se encuentra
+        (None, None, None) si no se encuentra
+    """
+    for categoria, fixture_dict in fixtures_dict.items():
+        for fase in ['octavos', 'cuartos', 'semifinales']:
+            for idx, partido in enumerate(fixture_dict.get(fase, [])):
+                if partido and partido.get('id') == partido_id:
+                    return categoria, partido, (fase, idx)
+        if fixture_dict.get('final', {}).get('id') == partido_id:
+            return categoria, fixture_dict['final'], ('final', None)
+    return None, None, None
+
+
 # Middleware para verificar autenticación en todas las rutas de finales
 @finales_bp.before_request
 def verificar_auth():
@@ -237,24 +254,8 @@ def actualizar_ganador_partido(partido_id):
                 'message': 'No hay fixtures disponibles'
             }), 404
         
-        # Buscar en qué categoría está el partido
-        categoria_encontrada = None
-        for categoria, fixture_dict in fixtures_dict.items():
-            # Buscar en todas las fases
-            for fase in ['octavos', 'cuartos', 'semifinales']:
-                if fase in fixture_dict:
-                    for partido in fixture_dict[fase]:
-                        if partido and partido.get('id') == partido_id:
-                            categoria_encontrada = categoria
-                            break
-                if categoria_encontrada:
-                    break
-            
-            # Buscar en final
-            if not categoria_encontrada and fixture_dict.get('final'):
-                if fixture_dict['final'].get('id') == partido_id:
-                    categoria_encontrada = categoria
-        
+        categoria_encontrada, _, _ = _buscar_partido_en_fixtures(fixtures_dict, partido_id)
+
         if not categoria_encontrada:
             return jsonify({
                 'success': False,
@@ -327,31 +328,9 @@ def guardar_resultado_partido(partido_id):
                 'message': 'No hay fixtures disponibles'
             }), 404
         
-        # Buscar en qué categoría está el partido
-        categoria_encontrada = None
-        partido_encontrado = None
-        fase_encontrada = None
-        
-        for categoria, fixture_dict in fixtures_dict.items():
-            # Buscar en todas las fases
-            for fase in ['octavos', 'cuartos', 'semifinales']:
-                if fase in fixture_dict:
-                    for idx, partido in enumerate(fixture_dict[fase]):
-                        if partido and partido.get('id') == partido_id:
-                            categoria_encontrada = categoria
-                            partido_encontrado = partido
-                            fase_encontrada = (fase, idx)
-                            break
-                if categoria_encontrada:
-                    break
-            
-            # Buscar en final
-            if not categoria_encontrada and fixture_dict.get('final'):
-                if fixture_dict['final'].get('id') == partido_id:
-                    categoria_encontrada = categoria
-                    partido_encontrado = fixture_dict['final']
-                    fase_encontrada = ('final', None)
-        
+        categoria_encontrada, partido_encontrado, fase_encontrada = \
+            _buscar_partido_en_fixtures(fixtures_dict, partido_id)
+
         if not categoria_encontrada or not partido_encontrado:
             return jsonify({
                 'success': False,

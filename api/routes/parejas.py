@@ -298,11 +298,12 @@ def editar_pareja():
 @api_bp.route("/franjas-disponibles", methods=["GET"])
 def obtener_franjas_disponibles():
     from config.settings import FRANJAS_HORARIAS
-    resultado_data = obtener_datos_desde_token().get("resultado_algoritmo")
+    datos_actuales = obtener_datos_desde_token()
+    resultado_data = datos_actuales.get("resultado_algoritmo")
     if not resultado_data:
         return jsonify({"error": "No hay resultados del algoritmo"}), 404
     grupos_dict = resultado_data["grupos_por_categoria"]
-    num_canchas = obtener_datos_desde_token().get("num_canchas", 2)
+    num_canchas = datos_actuales.get("num_canchas", 2)
     franjas_ocupadas = {}
     for cat, grupos in grupos_dict.items():
         for grupo in grupos:

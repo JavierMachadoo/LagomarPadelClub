@@ -273,8 +273,7 @@ def regenerar_fixtures_categoria(categoria, resultado_data):
             logger.warning(f"No se pudieron reconstruir grupos para {categoria}")
             return
 
-        generador = GeneradorFixtureFinales()
-        fixture = generador.generar_fixture(grupos, NUM_CANCHAS_DEFAULT)
+        fixture = GeneradorFixtureFinales.generar_fixture(categoria, grupos)
 
         torneo = storage.cargar()
         if not torneo:

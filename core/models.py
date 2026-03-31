@@ -50,11 +50,12 @@ class ResultadoPartido:
         
         # Si hay empate 1-1, el ganador se define por el tie-break
         if self.sets_pareja1 == 1 and self.sets_pareja2 == 1:
+            if self.tiebreak_pareja1 == self.tiebreak_pareja2:
+                raise ValueError("Tiebreak no puede terminar en empate")
             if self.tiebreak_pareja1 > self.tiebreak_pareja2:
                 return self.pareja1_id
-            elif self.tiebreak_pareja2 > self.tiebreak_pareja1:
-                return self.pareja2_id
-        
+            return self.pareja2_id
+
         return None
     
     def total_games_pareja(self, pareja_id: int) -> int:

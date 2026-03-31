@@ -555,7 +555,7 @@ def _registrar_extras(app):
         Hace una query real a Supabase para evitar que el proyecto free tier se pause."""
         from flask import jsonify
         try:
-            storage = app.torneo_storage
+            from utils.torneo_storage import storage
             if storage._sb:
                 storage._sb.table('torneo_actual').select('id').limit(1).execute()
         except Exception:

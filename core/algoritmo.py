@@ -192,7 +192,7 @@ class AlgoritmoGrupos:
         franjas_comunes_todas = franjas_p1 & franjas_p2 & franjas_p3
         
         if franjas_comunes_todas:
-            return 3.0, list(franjas_comunes_todas)[0]
+            return 3.0, sorted(franjas_comunes_todas)[0]
         
         # Buscar la mejor franja evaluando todas las posibilidades
         mejor_franja = None

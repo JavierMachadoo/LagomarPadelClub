@@ -4158,8 +4158,7 @@ function renderizarCalendario(calendario) {
 
 // Función para actualizar todas las categorías (más rápido que reload completo)
 function actualizarTodasCategorias() {
-    const categorias = ['Cuarta', 'Quinta', 'Sexta', 'Séptima'];
-    return Promise.all(categorias.map(cat => actualizarCategoria(cat)));
+    return Promise.all(CATEGORIAS_TORNEO_FINALES.map(cat => actualizarCategoria(cat)));
 }
 
 // Función para actualizar solo un grupo específico

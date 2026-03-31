@@ -342,7 +342,7 @@ def limpiar_datos():
         torneo['parejas'] = parejas_a_mantener
         torneo['resultado_algoritmo'] = None
         torneo['fixtures_finales'] = {}
-        storage.guardar(torneo)
+        storage.guardar_con_version(torneo)
     except ConflictError as e:
         return jsonify({"error": str(e)}), 409
     datos_limpios = {"parejas": parejas_a_mantener, "resultado_algoritmo": None, "num_canchas": NUM_CANCHAS_DEFAULT}

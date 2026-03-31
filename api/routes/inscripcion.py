@@ -166,7 +166,7 @@ def _auto_asignar_en_grupos(inscripcion: dict) -> None:
             logger.error('Error al regenerar calendario post-inscripción: %s', e, exc_info=True)
     
     torneo['resultado_algoritmo'] = resultado
-    storage.guardar(torneo)
+    storage.guardar_con_version(torneo)
     logger.info('Inscripción completada y torneo guardado con resultado actualizado')
 
 

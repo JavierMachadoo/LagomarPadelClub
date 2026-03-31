@@ -286,7 +286,8 @@ class PartidoFinal:
     numero_partido: int = 1  # Número del partido dentro de la fase
     slot1_info: Optional[str] = None  # Ej: "1° Grupo A"
     slot2_info: Optional[str] = None  # Ej: "2° Grupo B"
-    
+    sets: List[Dict] = field(default_factory=list)
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -297,25 +298,24 @@ class PartidoFinal:
             'numero_partido': self.numero_partido,
             'slot1_info': self.slot1_info,
             'slot2_info': self.slot2_info,
+            'sets': self.sets,
             'esta_completo': self.pareja1 is not None and self.pareja2 is not None,
             'tiene_ganador': self.ganador is not None
         }
-    
+
     @staticmethod
-    def from_dict(data: dict, grupos: List['Grupo']) -> 'PartidoFinal':
-        """Reconstruye un PartidoFinal desde un diccionario"""
-        # Crear un mapa de parejas por ID para búsqueda rápida
-        parejas_map = {}
-        for grupo in grupos:
-            for pareja in grupo.parejas:
-                parejas_map[pareja.id] = pareja
-        
+    def from_dict(data: dict, parejas_map: Dict) -> 'PartidoFinal':
+        """Reconstruye un PartidoFinal desde un diccionario.
+
+        Args:
+            data: dict serializado del partido
+            parejas_map: {pareja.id: Pareja} — construido una vez en FixtureFinales.from_dict()
+        """
         def encontrar_pareja(pareja_dict):
             if not pareja_dict:
                 return None
-            pareja_id = pareja_dict.get('id')
-            return parejas_map.get(pareja_id)
-        
+            return parejas_map.get(pareja_dict.get('id'))
+
         return PartidoFinal(
             id=data['id'],
             fase=FaseFinal(data['fase']),
@@ -324,7 +324,8 @@ class PartidoFinal:
             ganador=encontrar_pareja(data.get('ganador')),
             numero_partido=data.get('numero_partido', 1),
             slot1_info=data.get('slot1_info'),
-            slot2_info=data.get('slot2_info')
+            slot2_info=data.get('slot2_info'),
+            sets=data.get('sets', []),
         )
 
 
@@ -350,20 +351,26 @@ class FixtureFinales:
     def from_dict(data: dict, grupos: List['Grupo']) -> 'FixtureFinales':
         """Reconstruye un FixtureFinales desde un diccionario"""
         fixture = FixtureFinales(categoria=data['categoria'])
-        
-        # Reconstruir cada lista de partidos
+
+        # Construir el mapa una sola vez para todos los partidos (B7)
+        parejas_map = {
+            pareja.id: pareja
+            for grupo in grupos
+            for pareja in grupo.parejas
+        }
+
         fixture.octavos = [
-            PartidoFinal.from_dict(p, grupos) for p in data.get('octavos', [])
+            PartidoFinal.from_dict(p, parejas_map) for p in data.get('octavos', [])
         ]
         fixture.cuartos = [
-            PartidoFinal.from_dict(p, grupos) for p in data.get('cuartos', [])
+            PartidoFinal.from_dict(p, parejas_map) for p in data.get('cuartos', [])
         ]
         fixture.semifinales = [
-            PartidoFinal.from_dict(p, grupos) for p in data.get('semifinales', [])
+            PartidoFinal.from_dict(p, parejas_map) for p in data.get('semifinales', [])
         ]
-        
+
         if data.get('final'):
-            fixture.final = PartidoFinal.from_dict(data['final'], grupos)
-        
+            fixture.final = PartidoFinal.from_dict(data['final'], parejas_map)
+
         return fixture
 

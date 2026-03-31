@@ -172,7 +172,7 @@ def sincronizar_con_storage_y_token(datos):
     # Cargar torneo completo y fusionar — así se preservan tipo_torneo y metadata
     torneo_actual = storage.cargar()
     torneo_actual.update(datos)
-    storage.guardar(torneo_actual)
+    storage.guardar_con_version(torneo_actual)
 
     # Los datos del token se actualizarán en la respuesta
     logger.info("Datos sincronizados con storage")

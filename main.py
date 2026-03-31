@@ -392,7 +392,7 @@ def crear_app():
             if guardado:
                 torneo['fixtures_finales'] = fixtures
                 torneo['calendario_finales'] = GeneradorCalendarioFinales.asignar_horarios(fixtures)
-                storage.guardar(torneo)
+                storage._guardar_sin_version(torneo)
 
         calendario_finales = torneo.get('calendario_finales', {})
         return make_response(render_template('grupos_publico.html',

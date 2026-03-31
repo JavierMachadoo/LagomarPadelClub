@@ -92,6 +92,7 @@ def agregar_pareja():
             "jugador1": jugador1 or nombre,
             "jugador2": jugador2,
             "telefono": telefono or "Sin telefono",
+            "origen": "manual",
         }
         parejas.append(nueva_pareja)
         datos_actuales["parejas"] = parejas
@@ -349,11 +350,17 @@ def obtener_franjas_disponibles():
 @api_bp.route("/limpiar-datos", methods=["POST"])
 def limpiar_datos():
     try:
-        storage.limpiar()
+        torneo = storage.cargar()
+        parejas_actuales = torneo.get('parejas', [])
+        parejas_a_mantener = [p for p in parejas_actuales if p.get('inscripcion_id')]
+        torneo['parejas'] = parejas_a_mantener
+        torneo['resultado_algoritmo'] = None
+        torneo['fixtures_finales'] = {}
+        storage.guardar(torneo)
     except ConflictError as e:
         return jsonify({"error": str(e)}), 409
-    datos_limpios = {"parejas": [], "resultado_algoritmo": None, "num_canchas": NUM_CANCHAS_DEFAULT}
-    return crear_respuesta_con_token_actualizado({"success": True, "mensaje": "Datos limpiados"}, datos_limpios)
+    datos_limpios = {"parejas": parejas_a_mantener, "resultado_algoritmo": None, "num_canchas": NUM_CANCHAS_DEFAULT}
+    return crear_respuesta_con_token_actualizado({"success": True, "mensaje": "Datos CSV limpiados"}, datos_limpios)
 
 
 @api_bp.route("/cambiar-tipo-torneo", methods=["POST"])

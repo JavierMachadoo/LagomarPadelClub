@@ -112,17 +112,53 @@ def register():
         return jsonify({"error": error_len}), 400
 
     try:
-        # 1. Crear usuario en Supabase Auth usando ANON_KEY
-        sb_auth = _get_supabase_anon()
-        auth_response = sb_auth.auth.sign_up({"email": email, "password": password})
-
-        if not auth_response.user:
-            return jsonify({"error": "No se pudo crear el usuario"}), 400
-
-        user_id = str(auth_response.user.id)
-
-        # 2. Insertar perfil en tabla jugadores usando SERVICE_ROLE_KEY
+        # 1. Crear usuario en Supabase Auth usando Admin API (SERVICE_ROLE_KEY).
+        # sign_up() con anon_key puede devolver un user ID ficticio cuando el email
+        # ya existe (Supabase lo hace para no revelar si el email está registrado),
+        # lo que causa FK violation al insertar en jugadores. La Admin API es
+        # síncrona y lanza excepción explícita si el email ya existe.
         sb_admin = _get_supabase_admin()
+        user_id = None
+        try:
+            auth_response = sb_admin.auth.admin.create_user({
+                "email":          email,
+                "password":       password,
+                "email_confirm":  False,  # False = requiere confirmación de email (no auto-confirmar)
+            })
+            if not auth_response.user:
+                return jsonify({"error": "No se pudo crear el usuario"}), 400
+            user_id = str(auth_response.user.id)
+
+            # admin.create_user NO dispara el email de confirmación automáticamente.
+            # Hay que pedirlo explícitamente vía resend() con el cliente anon.
+            try:
+                sb_anon = _get_supabase_anon()
+                sb_anon.auth.resend({"type": "signup", "email": email})
+            except Exception as resend_err:
+                logger.warning("No se pudo enviar email de confirmación a %s: %s", email, resend_err)
+
+        except Exception as create_err:
+            err_str = str(create_err)
+            if "already registered" not in err_str and "already been registered" not in err_str:
+                raise
+
+            # Registro parcial: el usuario existe en auth.users pero sin perfil.
+            # Buscamos su ID para completar el perfil en jugadores.
+            all_users = sb_admin.auth.admin.list_users()
+            existing = next((u for u in all_users if u.email == email), None)
+            if not existing:
+                return jsonify({"error": "Este email ya está registrado"}), 409
+
+            existing_profile = sb_admin.table("jugadores").select("id").eq("id", str(existing.id)).execute()
+            if existing_profile.data:
+                # Tiene perfil completo — email genuinamente duplicado
+                return jsonify({"error": "Este email ya está registrado"}), 409
+
+            # Sin perfil → completar registro parcial
+            user_id = str(existing.id)
+            logger.warning("Completando registro parcial para %s (%s)", email, user_id)
+
+        # 2. Insertar perfil en tabla jugadores
         sb_admin.table("jugadores").insert({
             "id":       user_id,
             "nombre":   nombre,

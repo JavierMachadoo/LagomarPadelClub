@@ -7,7 +7,6 @@ Contiene funciones internas (no rutas) que son usadas por más de un blueprint:
 - recalcular_estadisticas / recalcular_score_grupo
 - regenerar_fixtures_categoria
 - verificar_posiciones_completas
-- guardar_estado_torneo (legacy stub)
 """
 
 import logging
@@ -307,22 +306,3 @@ def verificar_posiciones_completas(grupos: list) -> bool:
     return True
 
 
-def guardar_estado_torneo():
-    """DEPRECATED: Con JWT los datos se sincronizan automáticamente."""
-    pass
-
-
-def guardar_estado_torneo_legacy():
-    """Versión legacy — guarda el estado actual del torneo en el almacenamiento JSON."""
-    torneo = storage.cargar()
-    datos = obtener_datos_desde_token()
-    torneo['parejas'] = datos.get('parejas', [])
-    torneo['resultado_algoritmo'] = datos.get('resultado_algoritmo')
-    torneo['num_canchas'] = datos.get('num_canchas', NUM_CANCHAS_DEFAULT)
-
-    if torneo['resultado_algoritmo']:
-        torneo['estado'] = 'grupos_generados'
-    else:
-        torneo['estado'] = 'creando'
-
-    storage.guardar(torneo)

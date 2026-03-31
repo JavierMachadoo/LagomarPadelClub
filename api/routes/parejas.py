@@ -11,13 +11,12 @@ from utils.api_helpers import (
     sincronizar_con_storage_y_token,
     verificar_autenticacion_api,
 )
-from config import NUM_CANCHAS_DEFAULT
+from config import NUM_CANCHAS_DEFAULT, FRANJAS_A_HORAS_MAP
 from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO
 from ._helpers import (
     recalcular_estadisticas,
     recalcular_score_grupo,
     regenerar_calendario,
-    guardar_estado_torneo,
 )
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -141,7 +140,6 @@ def eliminar_pareja():
         resultado_data["estadisticas"] = recalcular_estadisticas(resultado_data)
         datos_actuales["resultado_algoritmo"] = resultado_data
     sincronizar_con_storage_y_token(datos_actuales)
-    guardar_estado_torneo()
     return crear_respuesta_con_token_actualizado(
         {"success": True, "mensaje": "Pareja eliminada correctamente"}, datos_actuales
     )
@@ -181,7 +179,6 @@ def remover_pareja_de_grupo():
     estadisticas = recalcular_estadisticas(resultado_data)
     datos_actuales["resultado_algoritmo"] = resultado_data
     sincronizar_con_storage_y_token(datos_actuales)
-    guardar_estado_torneo()
     return crear_respuesta_con_token_actualizado(
         {"success": True, "mensaje": "Pareja removida del grupo", "estadisticas": estadisticas}
     )
@@ -292,7 +289,6 @@ def editar_pareja():
     regenerar_calendario(resultado_data)
     datos_actuales["resultado_algoritmo"] = resultado_data
     sincronizar_con_storage_y_token(datos_actuales)
-    guardar_estado_torneo()
     mensaje = "Pareja actualizada"
     if cambio_categoria:
         mensaje += " (movida a no asignadas por cambio de categoria)"
@@ -307,16 +303,6 @@ def obtener_franjas_disponibles():
         return jsonify({"error": "No hay resultados del algoritmo"}), 404
     grupos_dict = resultado_data["grupos_por_categoria"]
     num_canchas = obtener_datos_desde_token().get("num_canchas", 2)
-    franjas_a_horas_mapa = {
-        "Jueves 18:00": ["Jueves 18:00", "Jueves 19:00", "Jueves 20:00"],
-        "Jueves 20:00": ["Jueves 20:00", "Jueves 21:00", "Jueves 22:00"],
-        "Viernes 18:00": ["Viernes 18:00", "Viernes 19:00", "Viernes 20:00"],
-        "Viernes 21:00": ["Viernes 21:00", "Viernes 22:00", "Viernes 23:00"],
-        "Sábado 09:00": ["Sábado 09:00", "Sábado 10:00", "Sábado 11:00"],
-        "Sábado 12:00": ["Sábado 12:00", "Sábado 13:00", "Sábado 14:00"],
-        "Sábado 16:00": ["Sábado 16:00", "Sábado 17:00", "Sábado 18:00"],
-        "Sábado 19:00": ["Sábado 19:00", "Sábado 20:00", "Sábado 21:00"],
-    }
     franjas_ocupadas = {}
     for cat, grupos in grupos_dict.items():
         for grupo in grupos:
@@ -331,10 +317,10 @@ def obtener_franjas_disponibles():
             cs = str(cn)
             ocupada = franja in franjas_ocupadas and cs in franjas_ocupadas[franja]
             solapamiento = None
-            horas_f = franjas_a_horas_mapa.get(franja, [])
+            horas_f = FRANJAS_A_HORAS_MAP.get(franja, [])
             for otra, cat_cn in franjas_ocupadas.items():
                 if otra != franja and cs in cat_cn:
-                    horas_o = franjas_a_horas_mapa.get(otra, [])
+                    horas_o = FRANJAS_A_HORAS_MAP.get(otra, [])
                     horas_c = set(horas_f) & set(horas_o)
                     if horas_c:
                         solapamiento = {"franja": otra, "categoria": cat_cn[cs], "horas_conflicto": sorted(horas_c)}

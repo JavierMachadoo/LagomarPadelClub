@@ -19,9 +19,8 @@ def _verificar_supabase_jwt(sb_token: str):
     el access_token del jugador directamente sin necesitar service_role.
     """
     try:
-        from config.settings import SUPABASE_URL, SUPABASE_ANON_KEY
-        from supabase import create_client
-        sb = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        from utils.supabase_client import get_supabase_anon
+        sb = get_supabase_anon()
         response = sb.auth.get_user(sb_token)
         return response.user if response and response.user else None
     except Exception as e:

@@ -9,13 +9,12 @@ from utils.api_helpers import (
     sincronizar_con_storage_y_token,
     verificar_autenticacion_api
 )
-from config import NUM_CANCHAS_DEFAULT
+from config import NUM_CANCHAS_DEFAULT, FRANJAS_A_HORAS_MAP
 from ._helpers import (
     serializar_resultado,
     recalcular_estadisticas,
     recalcular_score_grupo,
     regenerar_calendario,
-    guardar_estado_torneo,
 )
 
 grupos_bp = Blueprint('grupos', __name__, url_prefix='/api')
@@ -53,11 +52,11 @@ def ejecutar_algoritmo():
     parejas_de_inscripciones = []
     try:
         from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-        from supabase import create_client
+        from utils.supabase_client import get_supabase_admin
 
         if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
             torneo_id = storage.get_torneo_id()
-            sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+            sb = get_supabase_admin()
             resp = sb.table('inscripciones').select('*').eq('torneo_id', torneo_id).eq('estado', 'confirmado').execute()
 
             for insc in (resp.data or []):
@@ -98,8 +97,7 @@ def ejecutar_algoritmo():
         # Actualizar parejas en blob con las de inscripciones (para edición manual posterior)
         datos_actuales['parejas'] = todas_parejas_data
         sincronizar_con_storage_y_token(datos_actuales)
-        guardar_estado_torneo()
-
+    
         total = len(todas_parejas_data)
         de_inscripciones = len(parejas_de_inscripciones)
         manuales = len(parejas_manuales)
@@ -190,8 +188,7 @@ def intercambiar_pareja():
 
         datos_actuales['resultado_algoritmo'] = resultado
         sincronizar_con_storage_y_token(datos_actuales)
-        guardar_estado_torneo()
-
+    
         return crear_respuesta_con_token_actualizado({
             'success': True,
             'mensaje': mensaje,
@@ -298,7 +295,6 @@ def asignar_pareja_a_grupo():
     datos_actuales = obtener_datos_desde_token()
     datos_actuales['resultado_algoritmo'] = resultado_data
     sincronizar_con_storage_y_token(datos_actuales)
-    guardar_estado_torneo()
 
     return crear_respuesta_con_token_actualizado({
         'success': True,
@@ -327,17 +323,6 @@ def crear_grupo_manual():
 
     grupos_dict = resultado_data['grupos_por_categoria']
 
-    franjas_a_horas_mapa = {
-        'Jueves 18:00': ['Jueves 18:00', 'Jueves 19:00', 'Jueves 20:00'],
-        'Jueves 20:00': ['Jueves 20:00', 'Jueves 21:00', 'Jueves 22:00'],
-        'Viernes 18:00': ['Viernes 18:00', 'Viernes 19:00', 'Viernes 20:00'],
-        'Viernes 21:00': ['Viernes 21:00', 'Viernes 22:00', 'Viernes 23:00'],
-        'Sábado 09:00': ['Sábado 09:00', 'Sábado 10:00', 'Sábado 11:00'],
-        'Sábado 12:00': ['Sábado 12:00', 'Sábado 13:00', 'Sábado 14:00'],
-        'Sábado 16:00': ['Sábado 16:00', 'Sábado 17:00', 'Sábado 18:00'],
-        'Sábado 19:00': ['Sábado 19:00', 'Sábado 20:00', 'Sábado 21:00'],
-    }
-
     for cat, grupos in grupos_dict.items():
         for grupo in grupos:
             if grupo.get('franja_horaria') == franja_horaria and str(grupo.get('cancha')) == str(cancha):
@@ -345,12 +330,12 @@ def crear_grupo_manual():
                     'error': f'La Cancha {cancha} ya está ocupada en {franja_horaria} por un grupo de {cat}'
                 }), 400
 
-    horas_nueva_franja = franjas_a_horas_mapa.get(franja_horaria, [])
+    horas_nueva_franja = FRANJAS_A_HORAS_MAP.get(franja_horaria, [])
     for cat, grupos in grupos_dict.items():
         for grupo in grupos:
             if str(grupo.get('cancha')) == str(cancha):
                 franja_existente = grupo.get('franja_horaria')
-                horas_existente = franjas_a_horas_mapa.get(franja_existente, [])
+                horas_existente = FRANJAS_A_HORAS_MAP.get(franja_existente, [])
                 horas_conflicto = set(horas_nueva_franja) & set(horas_existente)
 
                 if horas_conflicto:
@@ -385,7 +370,6 @@ def crear_grupo_manual():
     datos_actuales = obtener_datos_desde_token()
     datos_actuales['resultado_algoritmo'] = resultado_data
     sincronizar_con_storage_y_token(datos_actuales)
-    guardar_estado_torneo()
 
     return crear_respuesta_con_token_actualizado({
         'success': True,
@@ -442,7 +426,6 @@ def editar_grupo():
     datos_actuales = obtener_datos_desde_token()
     datos_actuales['resultado_algoritmo'] = resultado_data
     sincronizar_con_storage_y_token(datos_actuales)
-    guardar_estado_torneo()
 
     return crear_respuesta_con_token_actualizado({
         'success': True,

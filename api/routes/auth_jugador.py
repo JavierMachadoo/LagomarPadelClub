@@ -47,31 +47,15 @@ def _es_redirect_seguro(url: str) -> bool:
 
 
 def _get_supabase_admin():
-    """
-    Devuelve un cliente Supabase con SERVICE_ROLE_KEY.
-    Se usa solo server-side para operaciones de admin (insertar jugadores, etc.)
-    """
-    from supabase import create_client
-
-    if not SUPABASE_SERVICE_ROLE_KEY:
-        # Error claro si falta la SERVICE_ROLE_KEY en la configuración
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY no está configurada en el servidor")
-
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    """Devuelve un cliente Supabase con SERVICE_ROLE_KEY. Solo operaciones server-side."""
+    from utils.supabase_client import get_supabase_admin
+    return get_supabase_admin()
 
 
 def _get_supabase_anon():
-    """
-    Devuelve un cliente Supabase con ANON_KEY.
-    Se usa para operaciones públicas de autenticación (sign_up / sign_in).
-    """
-    from supabase import create_client
-
-    if not SUPABASE_ANON_KEY:
-        # Error claro si falta la ANON_KEY en la configuración
-        raise RuntimeError("SUPABASE_ANON_KEY no está configurada en el servidor")
-
-    return create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    """Devuelve un cliente Supabase con ANON_KEY. Para sign_up / sign_in."""
+    from utils.supabase_client import get_supabase_anon
+    return get_supabase_anon()
 
 
 @auth_jugador_bp.route("/register", methods=["POST"])

@@ -34,9 +34,8 @@ def _use_supabase() -> bool:
 
 
 def _sb_admin():
-    from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-    from supabase import create_client
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    from utils.supabase_client import get_supabase_admin
+    return get_supabase_admin()
 
 
 def _listar_archivados():

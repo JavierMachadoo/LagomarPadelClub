@@ -8,7 +8,6 @@ from utils.api_helpers import (
     obtener_datos_desde_token,
     verificar_autenticacion_api
 )
-from ._helpers import guardar_estado_torneo
 
 calendario_bp = Blueprint('calendario', __name__, url_prefix='/api')
 logger = logging.getLogger(__name__)
@@ -64,7 +63,6 @@ def generar_fixture(categoria):
             torneo['fixtures'] = {}
         torneo['fixtures'][categoria] = fixture.to_dict()
         storage.guardar_con_version(torneo)
-        guardar_estado_torneo()
 
         return jsonify({
             'success': True,

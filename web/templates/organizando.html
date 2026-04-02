@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if fase_torneo == 'espera' %}Esperando el siguiente torneo{% else %}Torneo en Organización{% endif %} — Lagomar Pádel
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .org-page {
+        min-height: 60vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 1rem;
+    }
+    .org-card {
+        background: #fff;
+        border-radius: 24px;
+        padding: 3rem 2.5rem;
+        text-align: center;
+        max-width: 520px;
+        width: 100%;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    }
+    .org-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        display: block;
+    }
+    .org-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #111;
+        margin-bottom: 0.75rem;
+    }
+    .org-subtitle {
+        color: #64748b;
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+    }
+    .org-torneo-nombre {
+        display: inline-block;
+        background: #f1f5f9;
+        border-radius: 30px;
+        padding: 0.4rem 1.2rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 2rem;
+    }
+    .pulse-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background: #22c55e;
+        border-radius: 50%;
+        margin-right: 6px;
+        animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+    .org-divider {
+        border: none;
+        border-top: 1px solid #e2e8f0;
+        margin: 1.75rem 0;
+    }
+    .org-historial-text {
+        color: #64748b;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+    .org-fecha-badge {
+        display: inline-block;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border-radius: 30px;
+        padding: 0.35rem 1rem;
+        font-size: 0.88rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="org-page">
+    <div class="org-card">
+
+        {% if fase_torneo == 'espera' %}
+        {# ── Vista de espera: el torneo terminó, el próximo ya está anunciado ── #}
+        <i class="bi bi-hourglass-split org-icon" style="color:#3b82f6;"></i>
+
+        <h1 class="org-title">Esperando el siguiente torneo</h1>
+
+        {% if proximo_torneo and proximo_torneo.fecha %}
+        <span class="org-fecha-badge">
+            <i class="bi bi-calendar-event me-1"></i>{{ proximo_torneo.fecha }}
+        </span>
+        {% endif %}
+
+        {% set nombre_proximo = (proximo_torneo.nombre if proximo_torneo and proximo_torneo.nombre else torneo.nombre if torneo else '') %}
+        {% if nombre_proximo %}
+        <span class="org-torneo-nombre">{{ nombre_proximo }}</span>
+        {% endif %}
+
+        <hr class="org-divider">
+
+        <p class="org-historial-text">
+            Puedes consultar los resultados de los torneos anteriores.
+        </p>
+        <a href="{{ url_for('historial.lista_torneos') }}"
+           class="btn btn-outline-primary rounded-pill px-4 py-2 fw-bold">
+            <i class="bi bi-clock-history me-2"></i>Ver historial de torneos
+        </a>
+
+        {% else %}
+        {# ── Vista de organización: torneo en inscripcion, armando grupos, etc. ── #}
+        <i class="bi bi-gear-wide-connected org-icon" style="color:#22c55e;"></i>
+
+        <h1 class="org-title">Torneo en organización</h1>
+
+        <p class="org-subtitle">
+            Estamos armando los grupos y el calendario.<br>
+            Pronto tendrás toda la información disponible.
+        </p>
+
+        {% if torneo and torneo.nombre %}
+        <span class="org-torneo-nombre">
+            <span class="pulse-dot"></span>{{ torneo.nombre }}
+        </span>
+        {% endif %}
+
+        {% if es_jugador and fase_torneo == 'inscripcion' %}
+        <div class="mt-2">
+            <a href="{{ url_for('inscripcion.pagina_inscripcion') }}" class="btn btn-success rounded-pill px-4 py-2 fw-bold">
+                <i class="bi bi-pencil-square me-2"></i>Inscribirme al torneo
+            </a>
+        </div>
+        {% elif not es_autenticado %}
+        <div class="mt-2">
+            <a href="{{ url_for('login') }}"
+               class="btn btn-outline-secondary rounded-pill px-4 py-2"
+               style="font-size:0.9rem;">
+                <i class="bi bi-person me-1"></i>Iniciar sesión
+            </a>
+        </div>
+        {% endif %}
+
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

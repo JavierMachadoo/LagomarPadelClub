@@ -220,12 +220,10 @@
     padding: 0.5rem 1rem;
 }
 
-/* Footer */
+/* Footer — estilos base (overrideados por .lpc-footer en base.html) */
 footer {
     margin-top: 3rem;
     padding: 1.5rem 0;
-    background-color: #f8f9fa;
-    border-top: 2px solid #dee2e6;
 }
 
 /* Responsivo */

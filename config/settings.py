@@ -28,6 +28,9 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'torneopadel2026')
 # En desarrollo local, si no están definidas, se usa almacenamiento JSON
 SUPABASE_URL = os.getenv('SUPABASE_URL', '')
 SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY', '')
+# SERVICE_ROLE_KEY: solo para operaciones server-side (bypasea RLS)
+# NUNCA exponer al cliente — mantener solo en variables de entorno del servidor
+SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '')
 
 UPLOAD_FOLDER = BASE_DIR / 'data' / 'uploads'
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -46,6 +49,16 @@ FRANJAS_HORARIAS = [
 
 CATEGORIAS = ["Tercera", "Cuarta", "Quinta", "Sexta", "Séptima"]
 
+# Mapa de franjas a horas que ocupan (para detección de conflictos de cancha)
+FRANJAS_A_HORAS_MAP = {
+    "Viernes 18:00": ["Viernes 18:00", "Viernes 19:00", "Viernes 20:00"],
+    "Viernes 21:00": ["Viernes 21:00", "Viernes 22:00", "Viernes 23:00"],
+    "Sábado 09:00":  ["Sábado 09:00",  "Sábado 10:00",  "Sábado 11:00"],
+    "Sábado 12:00":  ["Sábado 12:00",  "Sábado 13:00",  "Sábado 14:00"],
+    "Sábado 16:00":  ["Sábado 16:00",  "Sábado 17:00",  "Sábado 18:00"],
+    "Sábado 19:00":  ["Sábado 19:00",  "Sábado 20:00",  "Sábado 21:00"],
+}
+
 # Tipos de torneo: define qué categorías se juegan cada fin de semana
 TIPOS_TORNEO = {
     "fin1": ["Tercera", "Quinta", "Séptima"],   # 1er fin de semana
@@ -57,7 +70,7 @@ COLORES_CATEGORIA = {
     "Quinta": "#ffc107",
     "Sexta": "#007bff",
     "Séptima": "#6f42c1",
-    "Tercera": "#e83e8c"
+    "Tercera": "#dc3545"
 }
 
 EMOJI_CATEGORIA = {

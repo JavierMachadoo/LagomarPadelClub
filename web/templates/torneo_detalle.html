@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}{{ torneo.nombre }} - Historial{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Botón volver -->
+    <div class="row justify-content-center mb-3">
+        <div class="col-lg-10">
+            <a href="{{ url_for('historial.lista_torneos') }}"
+               class="btn btn-sm fw-semibold"
+               style="border-radius:30px; border:2px solid #e5e7eb; color:#374151; background:white; padding:0.45rem 1.25rem;">
+                <i class="bi bi-arrow-left me-1"></i>Volver al historial
+            </a>
+        </div>
+    </div>
+
+    <!-- Header del torneo -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-10">
+            <div class="card border-0"
+                 style="border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-start flex-wrap gap-3">
+                        <div style="width:52px; height:52px; background:var(--brand-taupe); border-radius:50%;
+                                    display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="bi bi-trophy-fill text-white fs-5"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                <h3 class="mb-0" style="font-family:var(--font-slab); font-size:clamp(1.6rem,3.5vw,2.4rem); font-weight:700; line-height:1.2; color:var(--brand-black);">{{ torneo.nombre }}</h3>
+                                {% set tipo = torneo.tipo if torneo.tipo is defined else '' %}
+                                {% if tipo == 'fin1' %}
+                                <span class="badge px-3 py-2"
+                                      style="background:rgba(34,197,94,0.12); color:var(--brand-green-dark);
+                                             border-radius:30px; font-size:0.78rem; font-weight:700;">
+                                    Fin de semana 1
+                                </span>
+                                {% elif tipo == 'fin2' %}
+                                <span class="badge px-3 py-2"
+                                      style="background:rgba(99,102,241,0.12); color:#4f46e5;
+                                             border-radius:30px; font-size:0.78rem; font-weight:700;">
+                                    Fin de semana 2
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% set fecha_raw = torneo.created_at if torneo.created_at is defined else '' %}
+                            {% if fecha_raw %}
+                            <p class="text-muted mb-0" style="font-size:0.85rem;">
+                                <i class="bi bi-calendar3 me-1"></i>
+                                {% set fecha_str = fecha_raw[:10] %}
+                                {% set partes = fecha_str.split('-') %}
+                                {% if partes|length == 3 %}
+                                    {{ partes[2] }}/{{ partes[1] }}/{{ partes[0] }}
+                                {% else %}
+                                    {{ fecha_raw }}
+                                {% endif %}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido principal -->
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            {% if not grupos_por_categoria %}
+            <!-- Sin datos -->
+            <div class="text-center py-5">
+                <div style="width:70px; height:70px; background:#f3f4f6; border-radius:50%;
+                            display:flex; align-items:center; justify-content:center; margin:0 auto 1.25rem;">
+                    <i class="bi bi-inbox" style="font-size:1.75rem; color:#9ca3af;"></i>
+                </div>
+                <h6 class="fw-bold text-muted">No hay datos disponibles para este torneo</h6>
+            </div>
+
+            {% else %}
+
+            <!-- Tabs de categoría -->
+            <ul class="nav nav-pills mb-4 flex-wrap gap-2" id="tabsCategorias" role="tablist"
+                style="background:white; border-radius:50px; padding:0.5rem;
+                       box-shadow:0 2px 8px rgba(0,0,0,0.08); display:inline-flex !important;">
+                {% for cat in grupos_por_categoria.keys() %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold {% if loop.first %}active{% endif %}"
+                            id="tab-cat-{{ loop.index }}"
+                            data-bs-toggle="pill"
+                            data-bs-target="#panel-cat-{{ loop.index }}"
+                            type="button" role="tab"
+                            style="border-radius:50px; padding:0.6rem 1.4rem;">
+                        {{ cat }}
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <div class="tab-content" id="tabsCategoriaContent">
+                {% for cat, grupos in grupos_por_categoria.items() %}
+                <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+                     id="panel-cat-{{ loop.index }}"
+                     role="tabpanel">
+
+                    <!-- Sub-tabs por categoría: Grupos y Cuadros -->
+                    <ul class="nav nav-pills mb-3 gap-2" id="subTabs-{{ loop.index }}" role="tablist"
+                        style="background:#f8fafc; border-radius:30px; padding:0.35rem;
+                               display:inline-flex !important;">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-semibold"
+                                    id="sub-grupos-{{ loop.index }}-tab"
+                                    data-bs-toggle="pill"
+                                    data-bs-target="#sub-grupos-{{ loop.index }}"
+                                    type="button"
+                                    style="border-radius:30px; padding:0.5rem 1.2rem; font-size:0.9rem;">
+                                <i class="bi bi-grid-3x3-gap me-1"></i>Grupos y Posiciones
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-semibold"
+                                    id="sub-cuadros-{{ loop.index }}-tab"
+                                    data-bs-toggle="pill"
+                                    data-bs-target="#sub-cuadros-{{ loop.index }}"
+                                    type="button"
+                                    style="border-radius:30px; padding:0.5rem 1.2rem; font-size:0.9rem;">
+                                <i class="bi bi-trophy me-1"></i>Cuadros
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+
+                        <!-- Sub-tab: Grupos y Posiciones -->
+                        <div class="tab-pane fade show active" id="sub-grupos-{{ loop.index }}" role="tabpanel">
+                            {% for grupo in grupos %}
+                            {% set grupo_id = grupo['id'] %}
+                            <div class="card border-0 mb-3"
+                                 style="border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,0.07);">
+                                <div class="card-header border-0 px-4 py-3"
+                                     style="background:var(--brand-black); border-radius:14px 14px 0 0;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-people-fill text-white"></i>
+                                        <span class="text-white fw-bold">Grupo {{ loop.index }}</span>
+                                        {% if grupo.franja_horaria %}
+                                        <span class="badge ms-2"
+                                              style="background:rgba(34,197,94,0.2); color:var(--brand-green);
+                                                     font-size:0.78rem; border-radius:20px;">
+                                            <i class="bi bi-clock me-1"></i>{{ grupo.franja_horaria }}
+                                        </span>
+                                        {% endif %}
+                                        {% if grupo.cancha %}
+                                        <span class="badge"
+                                              style="background:rgba(255,255,255,0.15); color:white;
+                                                     font-size:0.78rem; border-radius:20px;">
+                                            <i class="bi bi-geo-alt me-1"></i>Cancha {{ grupo.cancha }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover mb-0 align-middle">
+                                            <thead style="background:#f8fafc;">
+                                                <tr>
+                                                    <th class="ps-4" style="font-size:0.8rem; font-weight:700; color:#6b7280;">Pos</th>
+                                                    <th style="font-size:0.8rem; font-weight:700; color:#6b7280;">Pareja</th>
+                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">PJ</th>
+                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">PG</th>
+                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">PP</th>
+                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">SG</th>
+                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">SP</th>
+                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">+/- Sets</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if standings_por_categoria[cat] is defined and grupo_id in standings_por_categoria[cat] %}
+                                                    {% for stat in standings_por_categoria[cat][grupo_id] %}
+                                                    <tr {% if loop.index0 == 0 %}style="background:rgba(34,197,94,0.05);"{% endif %}>
+                                                        <td class="ps-4">
+                                                            {% if loop.index0 == 0 %}
+                                                            <span class="badge rounded-circle"
+                                                                  style="width:26px; height:26px; background:var(--brand-green);
+                                                                         color:white; font-size:0.8rem; display:inline-flex;
+                                                                         align-items:center; justify-content:center;">1</span>
+                                                            {% elif loop.index0 == 1 %}
+                                                            <span class="badge rounded-circle"
+                                                                  style="width:26px; height:26px; background:#9ca3af;
+                                                                         color:white; font-size:0.8rem; display:inline-flex;
+                                                                         align-items:center; justify-content:center;">2</span>
+                                                            {% else %}
+                                                            <span class="badge rounded-circle"
+                                                                  style="width:26px; height:26px; background:#e5e7eb;
+                                                                         color:#374151; font-size:0.8rem; display:inline-flex;
+                                                                         align-items:center; justify-content:center;">3</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td class="fw-semibold">{{ stat.pareja_nombre }}</td>
+                                                        <td class="text-center">{{ stat.partidos_jugados }}</td>
+                                                        <td class="text-center fw-bold" style="color:var(--brand-green-dark);">{{ stat.partidos_ganados }}</td>
+                                                        <td class="text-center text-muted">{{ stat.partidos_perdidos }}</td>
+                                                        <td class="text-center">{{ stat.sets_ganados }}</td>
+                                                        <td class="text-center text-muted">{{ stat.sets_perdidos }}</td>
+                                                        <td class="text-center fw-semibold
+                                                            {% if stat.diferencia_sets > 0 %}text-success
+                                                            {% elif stat.diferencia_sets < 0 %}text-danger
+                                                            {% else %}text-muted{% endif %}">
+                                                            {% if stat.diferencia_sets > 0 %}+{% endif %}{{ stat.diferencia_sets }}
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    {% for pareja_dict in grupo.parejas %}
+                                                    <tr>
+                                                        <td class="ps-4 text-muted">—</td>
+                                                        <td>{{ pareja_dict.nombre }}</td>
+                                                        <td class="text-center text-muted">0</td>
+                                                        <td class="text-center text-muted">0</td>
+                                                        <td class="text-center text-muted">0</td>
+                                                        <td class="text-center text-muted">0</td>
+                                                        <td class="text-center text-muted">0</td>
+                                                        <td class="text-center text-muted">0</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% endif %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Sub-tab: Cuadros -->
+                        <div class="tab-pane fade" id="sub-cuadros-{{ loop.index }}" role="tabpanel">
+                            {% if fixtures_finales and cat in fixtures_finales and fixtures_finales[cat] %}
+                            {% set fixture_cat = fixtures_finales[cat] %}
+
+                            {% set rondas = [
+                                ('octavos',    'Octavos de Final',    'bi-8-circle'),
+                                ('cuartos',    'Cuartos de Final',    'bi-4-circle'),
+                                ('semifinales','Semifinales',         'bi-2-circle'),
+                                ('final',      'Final',               'bi-trophy-fill')
+                            ] %}
+
+                            {% for ronda_key, ronda_nombre, ronda_icon in rondas %}
+                            {% if fixture_cat[ronda_key] is defined and fixture_cat[ronda_key] %}
+                            <div class="mb-4">
+                                <h6 class="fw-bold mb-3 d-flex align-items-center gap-2"
+                                    style="color:var(--brand-black);">
+                                    <i class="bi {{ ronda_icon }}" style="color:var(--brand-green);"></i>
+                                    {{ ronda_nombre }}
+                                </h6>
+                                <div class="row g-2">
+                                    {% for partido in fixture_cat[ronda_key] %}
+                                    <div class="col-md-6">
+                                        <div class="card border-0"
+                                             style="border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                                            <div class="card-body p-3">
+                                                <!-- Slot info -->
+                                                {% if partido.slot1_info or partido.slot2_info %}
+                                                <p class="text-muted mb-2" style="font-size:0.78rem;">
+                                                    <i class="bi bi-clock me-1"></i>
+                                                    {{ partido.slot1_info or partido.slot2_info }}
+                                                </p>
+                                                {% endif %}
+
+                                                <!-- Pareja 1 -->
+                                                {% set es_ganador_p1 = partido.ganador and partido.pareja1 and partido.ganador == partido.pareja1.nombre %}
+                                                <div class="d-flex align-items-center justify-content-between p-2 rounded mb-1
+                                                    {% if es_ganador_p1 %}
+                                                    {% endif %}"
+                                                    style="background: {% if es_ganador_p1 %}rgba(34,197,94,0.1){% else %}#f8fafc{% endif %};">
+                                                    <span class="fw-semibold" style="font-size:0.9rem;
+                                                        {% if es_ganador_p1 %}color:var(--brand-green-dark);{% endif %}">
+                                                        {% if partido.pareja1 %}{{ partido.pareja1.nombre }}{% else %}<span class="text-muted">Por definir</span>{% endif %}
+                                                    </span>
+                                                    {% if es_ganador_p1 %}
+                                                    <i class="bi bi-trophy-fill" style="color:var(--brand-green); font-size:0.85rem;"></i>
+                                                    {% endif %}
+                                                </div>
+
+                                                <div class="text-center text-muted" style="font-size:0.75rem; line-height:1.2; padding:0.1rem 0;">vs</div>
+
+                                                <!-- Pareja 2 -->
+                                                {% set es_ganador_p2 = partido.ganador and partido.pareja2 and partido.ganador == partido.pareja2.nombre %}
+                                                <div class="d-flex align-items-center justify-content-between p-2 rounded
+                                                    {% if es_ganador_p2 %}
+                                                    {% endif %}"
+                                                    style="background: {% if es_ganador_p2 %}rgba(34,197,94,0.1){% else %}#f8fafc{% endif %};">
+                                                    <span class="fw-semibold" style="font-size:0.9rem;
+                                                        {% if es_ganador_p2 %}color:var(--brand-green-dark);{% endif %}">
+                                                        {% if partido.pareja2 %}{{ partido.pareja2.nombre }}{% else %}<span class="text-muted">Por definir</span>{% endif %}
+                                                    </span>
+                                                    {% if es_ganador_p2 %}
+                                                    <i class="bi bi-trophy-fill" style="color:var(--brand-green); font-size:0.85rem;"></i>
+                                                    {% endif %}
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+
+                            {% else %}
+                            <div class="text-center py-5 text-muted">
+                                <i class="bi bi-slash-circle fs-3 mb-2 d-block"></i>
+                                <p class="mb-0" style="font-size:0.9rem;">No hay datos de finales para esta categoría</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                    </div><!-- /tab-content sub -->
+                </div><!-- /panel-cat -->
+                {% endfor %}
+            </div><!-- /tab-content categorias -->
+
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Activa correctamente los nav-pills de Bootstrap en tabs anidados
+// (Bootstrap 5 los maneja de forma nativa con data-bs-toggle="pill")
+// Este bloque está vacío intencionalmente; Bootstrap lo maneja solo.
+</script>
+{% endblock %}

@@ -1,0 +1,1768 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - Torneo de Pádel{% endblock %}
+
+{% block content %}
+<div class="container inicio-page">
+
+    <!-- ── Estado del Torneo ─────────────────────────────────────────────────── -->
+    <div class="row justify-content-center mt-4 mb-2">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm"
+                 style="border-radius: 16px; overflow: hidden;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div>
+                            <p class="text-muted mb-1" style="font-size:0.82rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase;">
+                                Estado del torneo
+                            </p>
+                            {% if fase_torneo == 'espera' %}
+                            <span class="badge fs-6 px-3 py-2" style="background:#e0f2fe; color:#075985; border-radius:30px;">
+                                <i class="bi bi-hourglass-split me-1"></i>En Espera
+                            </span>
+                            {% elif fase_torneo == 'inscripcion' %}
+                            <span class="badge fs-6 px-3 py-2" style="background:#fef9c3; color:#92400e; border-radius:30px;">
+                                <i class="bi bi-pencil-square me-1"></i>Período de Inscripción
+                            </span>
+                            {% else %}
+                            <span class="badge fs-6 px-3 py-2" style="background:#dcfce7; color:#166534; border-radius:30px;">
+                                <i class="bi bi-play-circle-fill me-1"></i>Torneo Activo
+                            </span>
+                            {% endif %}
+                            {% if fase_torneo in ('inscripcion', 'torneo') %}
+                            <span class="badge px-3 py-2 ms-2" style="background:#f1f5f9; color:#475569; border-radius:30px; font-size:0.8rem;">
+                                {% if tipo_torneo == 'fin1' %}
+                                <i class="bi bi-calendar-week me-1"></i>Fin de semana 1 — 3ra, 5ta, 7ma
+                                {% else %}
+                                <i class="bi bi-calendar-week me-1"></i>Fin de semana 2 — 4ta, 6ta
+                                {% endif %}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            {% if fase_torneo == 'espera' %}
+                            <button class="btn btn-outline-primary px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    onclick="abrirModalProximoTorneo()">
+                                <i class="bi bi-gear me-2"></i>Configurar Próximo Torneo
+                            </button>
+                            <button class="btn btn-success px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    id="btnAbrirInscripciones"
+                                    {% if not proximo_torneo or not proximo_torneo.nombre or not proximo_torneo.fecha %}disabled{% endif %}
+                                    onclick="abrirInscripciones()">
+                                <i class="bi bi-door-open me-2"></i>Abrir Inscripciones
+                            </button>
+                            {% elif fase_torneo == 'inscripcion' %}
+                            <button class="btn btn-success px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    onclick="confirmarCambioFase('torneo', '¿Activar el torneo?', 'Los grupos y el calendario serán visibles públicamente.')">
+                                <i class="bi bi-play-circle me-2"></i>Activar Torneo
+                            </button>
+                            {% else %}
+                            <button class="btn btn-outline-warning px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    onclick="confirmarCambioFase('inscripcion', '¿Volver a Inscripción?', 'Los grupos y el calendario dejarán de ser visibles públicamente.')">
+                                <i class="bi bi-arrow-counterclockwise me-2"></i>Volver a Inscripción
+                            </button>
+                            <button class="btn btn-danger px-4 py-2 fw-bold"
+                                    style="border-radius:30px;"
+                                    onclick="terminarTorneo()">
+                                <i class="bi bi-trophy-fill me-2"></i>Terminar Torneo
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ── Fin Estado del Torneo ─────────────────────────────────────────────── -->
+
+    <!-- Modal de confirmación de cambio de fase -->
+    <div class="modal fade" id="modalCambioFase" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px; border:0;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="modalFaseTitulo"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <p class="text-muted" id="modalFaseDescripcion"></p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
+                            data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success rounded-pill px-4 fw-bold"
+                            id="btnConfirmarFase" onclick="ejecutarCambioFase()">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Terminar Torneo -->
+    <div class="modal fade" id="modalTerminarTorneo" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px; border:0;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-trophy-fill text-danger me-2"></i>Terminar Torneo
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <div class="alert alert-warning border-0 rounded-3 mb-3" style="background:#fef9c3;">
+                        <p class="mb-2 fw-semibold" style="color:#92400e;">
+                            Esta acción guardará los resultados del torneo en el historial y el sistema quedará en espera para el próximo torneo.
+                        </p>
+                        <p class="mb-1 fw-bold" style="color:#92400e; font-size:0.9rem;">¿Qué pasará?</p>
+                        <ul class="mb-0" style="color:#92400e; font-size:0.88rem; padding-left:1.25rem;">
+                            <li>Los grupos, posiciones y cuadros se guardarán en el historial</li>
+                            <li>Las inscripciones actuales <strong>NO</strong> se archivan</li>
+                            <li>El sistema quedará en estado <strong>En Espera</strong></li>
+                        </ul>
+                    </div>
+                    <p class="text-danger small fw-semibold mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Esta acción no se puede deshacer.
+                    </p>
+                    <div class="p-3 rounded-3" style="background:#f8fafc; border:1px solid #e2e8f0;">
+                        <p class="mb-1 text-muted" style="font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em;">Se archivará como</p>
+                        <p class="mb-0 fw-bold fs-5">{{ torneo.nombre or 'Sin nombre' }}</p>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
+                            data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold"
+                            id="btnConfirmarTerminar" onclick="confirmarTerminarTorneo()">
+                        <i class="bi bi-trophy-fill me-1"></i>Terminar y Archivar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Configurar Próximo Torneo -->
+    <div class="modal fade" id="modalProximoTorneo" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px; border:0;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-calendar-plus text-primary me-2"></i>Configurar Próximo Torneo
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="inputProximoNombre">
+                            Nombre del torneo <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="inputProximoNombre"
+                               placeholder="Ej. Torneo Abril 2026"
+                               style="border-radius:10px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="inputProximoFecha">
+                            Fecha <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="inputProximoFecha"
+                               placeholder="Ej. 12/04/2026"
+                               style="border-radius:10px;">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">Tipo de torneo <span class="text-danger">*</span></label>
+                        <div class="torneo-cards" id="selectorTipoProximo">
+                            <button type="button" class="torneo-card active" id="btnProximoFin1"
+                                    onclick="seleccionarTipoProximo('fin1')">
+                                <span class="torneo-weekend">Fin de semana 1</span>
+                                <div class="torneo-cats">
+                                    <span class="tcat" style="--c:#e83e8c">3ra</span>
+                                    <span class="tcat" style="--c:#ffc107">5ta</span>
+                                    <span class="tcat" style="--c:#9b7fed">7ma</span>
+                                </div>
+                            </button>
+                            <button type="button" class="torneo-card" id="btnProximoFin2"
+                                    onclick="seleccionarTipoProximo('fin2')">
+                                <span class="torneo-weekend">Fin de semana 2</span>
+                                <div class="torneo-cats">
+                                    <span class="tcat" style="--c:#28a745">4ta</span>
+                                    <span class="tcat" style="--c:#17a2b8">6ta</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
+                            data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold"
+                            id="btnGuardarProximo" onclick="guardarProximoTorneo()">
+                        <i class="bi bi-check-circle me-1"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Principal - Simple y Elegante -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8 text-center mb-5 mt-4">
+            <div class="app-logo mb-4">
+                <img src="{{ url_for('static', filename='img/logo_conFondo.png') }}"
+                     alt="Lagomar Padel Club"
+                     style="width: 320px; height: auto;">
+            </div>
+            <h1 class="app-title mb-2">Gestión del Torneo</h1>
+            <p class="app-subtitle">Lagomar Pádel Club</p>
+        </div>
+    </div>
+
+    <!-- Botón de Acción Principal -->
+    {% if parejas %}
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-8">
+            <div class="action-bar">
+                {% if resultado %}
+                <a href="{{ url_for('dashboard') }}" class="btn-ver-resultados">
+                    <i class="bi bi-trophy me-2"></i>Ver Grupos Generados
+                </a>
+                {% endif %}
+                <button class="btn-limpiar" onclick="limpiarDatos()">
+                    <i class="bi bi-trash me-2"></i>Limpiar Datos
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if fase_torneo == 'espera' and proximo_torneo and proximo_torneo.nombre %}
+    <!-- Resumen del próximo torneo (estado espera) -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-8">
+            <div class="p-3 rounded-3 d-flex align-items-center gap-3" style="background:#eff6ff; border:1px solid #bfdbfe;">
+                <i class="bi bi-calendar-check text-primary fs-4"></i>
+                <div>
+                    <p class="mb-0 fw-bold">{{ proximo_torneo.nombre }}</p>
+                    <p class="mb-0 text-muted" style="font-size:0.88rem;">
+                        {{ proximo_torneo.fecha }} —
+                        {% if proximo_torneo.tipo_torneo == 'fin1' %}Fin de semana 1 (3ra, 5ta, 7ma){% else %}Fin de semana 2 (4ta, 6ta){% endif %}
+                    </p>
+                </div>
+                <button class="btn btn-sm btn-outline-primary ms-auto rounded-pill"
+                        onclick="abrirModalProximoTorneo()">
+                    <i class="bi bi-pencil me-1"></i>Editar
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sección de Carga de Datos -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Tabs de Carga -->
+            <ul class="nav nav-pills nav-fill mb-4 custom-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="inscripciones-tab" data-bs-toggle="pill"
+                            data-bs-target="#inscripciones" type="button"
+                            onclick="cargarInscripciones()">
+                        <i class="bi bi-person-check me-2"></i>Inscripciones
+                        <span id="badgeInscripciones" class="badge bg-success ms-1" style="display:none;"></span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="manual-tab" data-bs-toggle="pill"
+                            data-bs-target="#manual" type="button">
+                        <i class="bi bi-pencil-square me-2"></i>Entrada Manual
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="csv-tab" data-bs-toggle="pill"
+                            data-bs-target="#csv" type="button">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>Cargar CSV
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Contenido de Tabs -->
+            <div class="tab-content">
+                <!-- Tab CSV -->
+                <div class="tab-pane fade" id="csv" role="tabpanel">
+                    <div class="upload-card">
+                        <div class="upload-icon mb-3">
+                            <i class="bi bi-cloud-arrow-up"></i>
+                        </div>
+                        <h3 class="mb-3">Cargar archivo CSV</h3>
+                        <p class="text-muted mb-4">
+                            Arrastra tu archivo aquí o haz clic para seleccionar
+                        </p>
+                        
+                        <form id="formCargarCSV" enctype="multipart/form-data">
+                            <div class="file-input-wrapper">
+                                <input type="file" class="file-input" id="archivoCSV" 
+                                       name="archivo" accept=".csv" required>
+                                <label for="archivoCSV" class="file-label">
+                                    <i class="bi bi-folder2-open me-2"></i>Seleccionar Archivo
+                                </label>
+                            </div>
+                            <div id="fileName" class="file-name mt-3"></div>
+                            <button type="submit" class="btn-upload mt-3" id="btnUpload" disabled>
+                                <i class="bi bi-upload me-2"></i>Cargar Datos
+                            </button>
+                        </form>
+
+                        <div class="alert alert-info mt-4 text-start">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>
+                                <strong>Formato requerido:</strong> El CSV debe incluir columnas para 
+                                Nombre, Teléfono, Categoría y franjas horarias disponibles.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Manual -->
+                <div class="tab-pane fade" id="manual" role="tabpanel">
+                    <div class="manual-card">
+                        <h3 class="mb-4">Agregar pareja manualmente</h3>
+                        
+                        <form id="formAgregarPareja">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        Jugador 1 <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="form-control" name="jugador1" 
+                                           placeholder="Ej: Juan Pérez" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        Jugador 2 <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="form-control" name="jugador2" 
+                                           placeholder="Ej: María López" required>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Teléfono</label>
+                                    <input type="text" class="form-control" name="telefono" 
+                                           placeholder="Ej: 099123456">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        Categoría <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" name="categoria" required>
+                                        {% for cat in categorias %}
+                                        <option value="{{ cat }}">{{ cat }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold mb-3">
+                                    Franjas horarias disponibles <span class="text-danger">*</span>
+                                </label>
+                                <div class="row g-2">
+                                    {% for franja in franjas %}
+                                    <div class="col-md-6">
+                                        <div class="franja-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   name="franjas[]" value="{{ franja }}" 
+                                                   id="franja{{ loop.index }}">
+                                            <label class="form-check-label" for="franja{{ loop.index }}">
+                                                {{ franja }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn-submit">
+                                <i class="bi bi-plus-circle me-2"></i>Agregar Pareja
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tab Inscripciones -->
+                <div class="tab-pane fade show active" id="inscripciones" role="tabpanel">
+                    <div class="manual-card">
+                        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                            <h3 class="mb-0">Inscripciones recibidas</h3>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill"
+                                    onclick="cargarInscripciones()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+                            </button>
+                        </div>
+
+                        <div id="inscripcionesContainer">
+                            <div class="text-center text-muted py-4">
+                                <div class="spinner-border spinner-border-sm me-2"></div>
+                                Cargando inscripciones…
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Parejas Cargadas -->
+    {% if parejas %}
+    <!-- Leyenda de Estados -->
+    {% if resultado %}
+    {% set sin_asignar_count = namespace(value=0) %}
+    {% set fuera_horario_count = namespace(value=0) %}
+    {% for p in parejas %}
+        {% if not p.esta_asignada %}
+            {% set sin_asignar_count.value = sin_asignar_count.value + 1 %}
+        {% endif %}
+        {% if p.fuera_de_horario %}
+            {% set fuera_horario_count.value = fuera_horario_count.value + 1 %}
+        {% endif %}
+    {% endfor %}
+    <div class="row justify-content-center mt-5" {% if sin_asignar_count.value == 0 and fuera_horario_count.value == 0 %}style="display:none;"{% endif %}>
+        <div class="col-lg-10">
+            <div class="alert alert-light border d-flex align-items-center justify-content-center" role="alert">
+                <div class="d-flex gap-4 flex-wrap">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                        <span><strong>Rojo:</strong> Sin grupo asignado</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-circle-fill text-warning me-2"></i>
+                        <span><strong>Amarillo:</strong> Fuera de horario preferido</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="row justify-content-center mt-3">
+        <div class="col-lg-10">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-gradient-primary">
+                    <h5 class="mb-0 text-white" id="headerTablaParejas">
+                        <i class="bi bi-people-fill me-2"></i>Parejas Cargadas ({{ parejas|length }})
+                        {% if resultado %}
+                        {% set sin_asignar = namespace(count=0) %}
+                        {% set fuera_horario = namespace(count=0) %}
+                        {% for p in parejas %}
+                            {% if not p.esta_asignada %}
+                                {% set sin_asignar.count = sin_asignar.count + 1 %}
+                            {% endif %}
+                            {% if p.fuera_de_horario %}
+                                {% set fuera_horario.count = fuera_horario.count + 1 %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if sin_asignar.count > 0 %}
+                        <span class="badge bg-danger ms-2">{{ sin_asignar.count }} sin grupo</span>
+                        {% endif %}
+                        {% if fuera_horario.count > 0 %}
+                        <span class="badge bg-warning text-dark ms-2">{{ fuera_horario.count }} fuera de horario</span>
+                        {% endif %}
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <!-- Vista Móvil: Cards -->
+                    <div class="parejas-mobile-list d-none">
+                        <div id="parejasCardsContainer">
+                            {% for pareja in parejas %}
+                            <div class="pareja-card-mobile" data-id="{{ pareja.id }}" data-categoria="{{ pareja.categoria }}">
+                                <div class="pareja-card-header">
+                                    <div class="pareja-numero">#{{ loop.index }}</div>
+                                    <span class="badge bg-{{ pareja.categoria|lower }}">{{ pareja.categoria }}</span>
+                                </div>
+                                
+                                <div class="pareja-card-body">
+                                    {% if resultado and not pareja.esta_asignada %}
+                                    <div class="pareja-alert alert-danger">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> Sin grupo asignado
+                                    </div>
+                                    {% elif resultado and pareja.fuera_de_horario %}
+                                    <div class="pareja-alert alert-warning">
+                                        <i class="bi bi-exclamation-circle-fill"></i> Fuera de horario preferido
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="pareja-nombre">
+                                        <i class="bi bi-people-fill"></i>
+                                        <strong>{{ pareja.nombre }}</strong>
+                                    </div>
+                                    
+                                    <div class="pareja-info-row">
+                                        <div class="pareja-info-item">
+                                            <i class="bi bi-telephone-fill"></i>
+                                            <span>{{ pareja.telefono }}</span>
+                                        </div>
+                                        <div class="pareja-info-item">
+                                            <i class="bi bi-clock-fill"></i>
+                                            <span>{{ pareja.franjas_disponibles|length }} franjas</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="pareja-card-footer">
+                                    <button class="btn btn-danger btn-sm w-100" onclick="eliminarPareja({{ pareja.id }})">
+                                        <i class="bi bi-trash me-1"></i>Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Vista Desktop: Tabla -->
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Nombre</th>
+                                    <th>Teléfono</th>
+                                    <th>Categoría</th>
+                                    <th>Franjas</th>
+                                    <th width="80">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaParejas">
+                                {% for pareja in parejas %}
+                                {% set clase_estado = '' %}
+                                {% set icono_estado = '' %}
+                                {% if resultado and not pareja.esta_asignada %}
+                                    {% set clase_estado = 'pareja-sin-asignar' %}
+                                    {% set icono_estado = '<i class="bi bi-exclamation-triangle-fill text-danger me-2" title="Sin grupo asignado"></i>' %}
+                                {% elif resultado and pareja.fuera_de_horario %}
+                                    {% set clase_estado = 'pareja-fuera-horario' %}
+                                    {% set icono_estado = '<i class="bi bi-exclamation-circle-fill text-warning me-2" title="Fuera de horario preferido"></i>' %}
+                                {% endif %}
+                                <tr class="{{ clase_estado }}" data-id="{{ pareja.id }}" data-categoria="{{ pareja.categoria }}">
+                                    <td>{{ loop.index }}</td>
+                                    <td><strong>{{ icono_estado|safe }}{{ pareja.nombre }}</strong></td>
+                                    <td>{{ pareja.telefono }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ pareja.categoria|lower }}">
+                                            {{ pareja.categoria }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ pareja.franjas_disponibles|length }} disponibles
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" 
+                                                onclick="eliminarPareja({{ pareja.id }})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modales de Confirmación -->
+<!-- Modal: Confirmar Limpiar Datos -->
+<div class="modal fade" id="modalConfirmarLimpiar" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                    Confirmar acción
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">¿Estás seguro de limpiar los datos?</p>
+                <p class="text-muted small mb-0">Esta acción eliminará las parejas CSV y manuales, y los grupos generados. Las inscripciones automáticas se conservan.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmarLimpiarDatos()">
+                    <i class="bi bi-trash me-1"></i>Sí, limpiar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Confirmar Eliminar Pareja -->
+<div class="modal fade" id="modalConfirmarEliminar" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-trash text-danger me-2"></i>
+                    Eliminar pareja
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">¿Deseas eliminar esta pareja?</p>
+                <p class="text-muted small mb-0">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmarEliminarPareja()">
+                    <i class="bi bi-trash me-1"></i>Sí, eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Loading -->
+<div class="modal fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-success mb-3" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <h5>Generando grupos...</h5>
+                <p class="text-muted mb-0">Por favor espera</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Estilos para modales */
+.modal-content {
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    padding: 1.5rem 1.5rem 1rem;
+}
+
+.modal-body {
+    padding: 1rem 1.5rem;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem 1.5rem;
+}
+
+.modal-title {
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+
+/* Página de Inicio - Diseño Moderno y Minimalista */
+.inicio-page {
+    min-height: 90vh;
+    padding: 1rem 0 3rem;
+}
+
+/* Header de la App */
+.app-logo i {
+    font-size: 4rem;
+    color: var(--brand-green);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.app-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #111111;
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+
+.app-subtitle {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #22c55e;
+}
+
+/* Barra de Acciones */
+.action-bar {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Botón Generar Grupos - Verde y Grande */
+.btn-generar-grupos {
+    flex: 1;
+    min-width: 250px;
+    background: var(--brand-green);
+    color: var(--brand-black);
+    border: none;
+    padding: 1.25rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-generar-grupos:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(34, 197, 94, 0.45);
+    background: var(--brand-green-dark);
+    color: var(--brand-white);
+}
+
+.btn-generar-grupos:active {
+    transform: translateY(-1px);
+}
+
+/* Botón Ver Resultados */
+.btn-ver-resultados {
+    background: var(--brand-green);
+    color: var(--brand-black);
+    border: none;
+    padding: 0.875rem 1.75rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(34, 197, 94, 0.35);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-ver-resultados:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.45);
+    background: var(--brand-green-dark);
+    color: var(--brand-white);
+}
+
+/* Botón Limpiar */
+.btn-limpiar {
+    background: white;
+    color: #e53e3e;
+    border: 2px solid #fc8181;
+    padding: 0.875rem 1.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-limpiar:hover {
+    background: #e53e3e;
+    color: white;
+    border-color: #e53e3e;
+    transform: translateY(-2px);
+}
+
+/* Tabs Personalizados */
+.custom-tabs {
+    background: white;
+    border-radius: 50px;
+    padding: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.custom-tabs .nav-link {
+    border-radius: 50px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    color: #718096;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.custom-tabs .nav-link.active {
+    background: var(--brand-black);
+    color: var(--brand-white);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+
+/* Card de Upload */
+.upload-card {
+    background: white;
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: 2px dashed #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.upload-card:hover {
+    border-color: var(--brand-green);
+    box-shadow: 0 8px 30px rgba(34, 197, 94, 0.15);
+}
+
+.upload-icon i {
+    font-size: 4rem;
+    color: var(--brand-green);
+}
+
+.upload-card h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+/* File Input */
+.file-input-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.file-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.file-label {
+    display: inline-block;
+    padding: 0.875rem 2rem;
+    background: #f7fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 50px;
+    color: #4a5568;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.file-label:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+}
+
+.file-name {
+    color: var(--brand-green);
+    font-weight: 600;
+}
+
+.btn-upload {
+    background: var(--brand-green);
+    color: var(--brand-black);
+    border: none;
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(34, 197, 94, 0.35);
+}
+
+.btn-upload:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(34, 197, 94, 0.45);
+    background: var(--brand-green-dark);
+    color: var(--brand-white);
+}
+
+.btn-upload:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Card Manual */
+.manual-card {
+    background: white;
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.manual-card h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.franja-check {
+    background: #f7fafc;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    border: 2px solid #e2e8f0;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.franja-check:hover {
+    border-color: var(--brand-green);
+    background: #edf2f7;
+}
+
+.franja-check input:checked ~ label,
+.franja-check:has(input:checked) {
+    border-color: var(--brand-green);
+    background: rgba(34, 197, 94, 0.07);
+}
+
+.btn-submit {
+    width: 100%;
+    background: var(--brand-green);
+    color: var(--brand-black);
+    border: none;
+    padding: 1rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(34, 197, 94, 0.35);
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(34, 197, 94, 0.45);
+    background: var(--brand-green-dark);
+    color: var(--brand-white);
+}
+
+/* Header de tabla con gradiente */
+.bg-gradient-primary {
+    background: var(--brand-black);
+}
+
+/* ── Selector de tipo de torneo ── */
+.torneo-selector-label {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 0.75rem;
+}
+
+.torneo-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.torneo-card {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.65rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.torneo-card:hover:not(.active) {
+    border-color: #cbd5e0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transform: translateY(-1px);
+}
+
+.torneo-card.active {
+    background: #111111;
+    border-color: #111111;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+
+.torneo-weekend {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #374151;
+}
+
+.torneo-card.active .torneo-weekend {
+    color: #ffffff;
+}
+
+.torneo-cats {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.tcat {
+    background: color-mix(in srgb, var(--c) 15%, transparent);
+    color: var(--c);
+    border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+    border-radius: 20px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+/* Estado bloqueado */
+.torneo-locked .torneo-card {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+.torneo-locked .torneo-card:not(.active) {
+    opacity: 0.35;
+}
+.torneo-locked .torneo-card:hover:not(.active) {
+    transform: none;
+    box-shadow: none;
+    border-color: #e2e8f0;
+}
+
+.torneo-lock-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Badges de categoría */
+.badge.bg-cuarta { background-color: #28a745 !important; }
+.badge.bg-quinta { background-color: #ffc107 !important; color: #000 !important; }
+.badge.bg-sexta { background-color: #17a2b8 !important; }
+.badge.bg-septima,
+.badge.bg-séptima { background-color: #9b7fed !important; color: white !important; }
+.badge.bg-tercera { background-color: #e83e8c !important; color: white !important; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .app-title {
+        font-size: 2rem;
+    }
+    
+    .upload-card, .manual-card {
+        padding: 2rem 1.5rem;
+    }
+    
+    .custom-tabs .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .action-bar {
+        flex-direction: column;
+    }
+    
+    .btn-generar-grupos {
+        width: 100%;
+        min-width: unset;
+    }
+    
+    .btn-ver-resultados,
+    .btn-limpiar {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ==================== FILE INPUT ====================
+document.getElementById('archivoCSV').addEventListener('change', function(e) {
+    const fileName = e.target.files[0]?.name;
+    const fileNameDiv = document.getElementById('fileName');
+    const btnUpload = document.getElementById('btnUpload');
+    
+    if (fileName) {
+        fileNameDiv.innerHTML = `<i class="bi bi-file-earmark-text me-2"></i><strong>${fileName}</strong>`;
+        btnUpload.disabled = false;
+    } else {
+        fileNameDiv.innerHTML = '';
+        btnUpload.disabled = true;
+    }
+});
+
+// ==================== CARGAR CSV ====================
+document.getElementById('formCargarCSV').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const btnUpload = document.getElementById('btnUpload');
+    const originalText = btnUpload.innerHTML;
+    
+    btnUpload.innerHTML = '<i class="bi bi-hourglass-split"></i> Cargando...';
+    btnUpload.disabled = true;
+    
+    fetch('/api/cargar-csv', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Si hay suficientes parejas, ejecutar algoritmo automáticamente sin mostrar toast intermedio
+            if (data.parejas && data.parejas.length >= 3) {
+                ejecutarAlgoritmoAutomatico();
+            } else {
+                Toast.success(data.mensaje);
+                setTimeout(() => location.reload(), 800);
+            }
+        } else {
+            Toast.error(data.error || 'Error al cargar CSV');
+            btnUpload.innerHTML = originalText;
+            btnUpload.disabled = false;
+        }
+    })
+    .catch(error => {
+        Toast.error('Error al cargar CSV');
+        btnUpload.innerHTML = originalText;
+        btnUpload.disabled = false;
+    });
+});
+
+// ==================== AGREGAR PAREJA MANUAL ====================
+document.getElementById('formAgregarPareja').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const jugador1 = (formData.get('jugador1') || '').trim();
+    const jugador2 = (formData.get('jugador2') || '').trim();
+    const telefono = formData.get('telefono').trim();
+    const categoria = formData.get('categoria');
+    const franjas = formData.getAll('franjas[]');
+    
+    if (!jugador1) {
+        Toast.error('El nombre del Jugador 1 es obligatorio');
+        return;
+    }
+    
+    if (franjas.length === 0) {
+        Toast.error('Seleccioná al menos una franja horaria');
+        return;
+    }
+    
+    fetch('/api/agregar-pareja', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            jugador1: jugador1,
+            jugador2: jugador2,
+            telefono: telefono || 'Sin teléfono',
+            categoria: categoria,
+            franjas: franjas
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success || data.mensaje) {
+            Toast.success(data.mensaje);
+            setTimeout(() => location.reload(), 500);
+        } else {
+            Toast.error(data.error || 'Error al agregar pareja');
+        }
+    })
+    .catch(error => {
+        Toast.error('Error al agregar pareja');
+    });
+});
+
+// ==================== ELIMINAR PAREJA ====================
+let parejaIdAEliminar = null;
+
+function eliminarPareja(parejaId) {
+    parejaIdAEliminar = parejaId;
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEliminar'));
+    modal.show();
+}
+
+function confirmarEliminarPareja() {
+    if (!parejaIdAEliminar) return;
+    
+    // Cerrar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEliminar'));
+    modal.hide();
+    
+    fetch('/api/eliminar-pareja', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: parejaIdAEliminar })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success || data.mensaje) {
+            Toast.success(data.mensaje);
+            setTimeout(() => location.reload(), 500);
+        } else {
+            Toast.error(data.error || 'Error al eliminar pareja');
+        }
+    })
+    .catch(error => {
+        Toast.error('Error al eliminar pareja');
+    });
+    
+    parejaIdAEliminar = null;
+}
+
+// ==================== TIPO DE TORNEO ====================
+function cambiarTipoTorneo(tipo) {
+    fetch('/api/cambiar-tipo-torneo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo_torneo: tipo })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) location.reload();
+        else Toast.error('Error al cambiar tipo de torneo');
+    })
+    .catch(() => Toast.error('Error al cambiar tipo de torneo'));
+}
+
+// ==================== LIMPIAR DATOS ====================
+function limpiarDatos() {
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarLimpiar'));
+    modal.show();
+}
+
+function confirmarLimpiarDatos() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarLimpiar'));
+    modal.hide();
+
+    fetch('/api/limpiar-datos', { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+        Toast.success(data.mensaje || 'Datos eliminados');
+        setTimeout(() => location.reload(), 500);
+    })
+    .catch(() => Toast.error('Error al limpiar datos'));
+}
+
+// ==================== EJECUTAR ALGORITMO ====================
+function ejecutarAlgoritmoAutomatico() {
+    // Se ejecuta automáticamente después de cargar el CSV
+    const modalLoading = new bootstrap.Modal(document.getElementById('loadingModal'));
+    modalLoading.show();
+
+    fetch('/api/ejecutar-algoritmo', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ num_canchas: 2 })
+    })
+    .then(response => response.json())
+    .then(data => {
+        modalLoading.hide();
+        if (data.success) {
+            Toast.success(data.mensaje);
+            setTimeout(() => window.location.href = '/dashboard', 800);
+        } else {
+            Toast.error(data.error || 'Error al ejecutar algoritmo');
+            setTimeout(() => location.reload(), 500);
+        }
+    })
+    .catch(error => {
+        modalLoading.hide();
+        Toast.error('Error al ejecutar algoritmo');
+        setTimeout(() => location.reload(), 500);
+    });
+}
+
+// ==================== ACTUALIZACIÓN AUTOMÁTICA DE TABLA ====================
+let ultimoNumParejas = {{ parejas|length }};
+let tieneResultado = {{ 'true' if resultado else 'false' }};
+
+function actualizarTablaParejas() {
+    fetch('/api/obtener-parejas')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const parejas = data.parejas;
+            
+            // Solo actualizar si hay cambios
+            if (parejas.length !== ultimoNumParejas || detectarCambiosEstado(parejas)) {
+                ultimoNumParejas = parejas.length;
+                renderizarTablaParejas(parejas);
+                actualizarHeader(parejas);
+            }
+        }
+    })
+    .catch(error => {
+        // Silenciosamente ignorar errores de actualización
+    });
+}
+
+function detectarCambiosEstado(parejas) {
+    // Detectar si alguna pareja cambió de estado
+    const tbody = document.getElementById('tablaParejas');
+    if (!tbody) return true;
+    
+    const filasActuales = tbody.querySelectorAll('tr');
+    if (filasActuales.length !== parejas.length) return true;
+    
+    for (let i = 0; i < parejas.length; i++) {
+        const pareja = parejas[i];
+        const fila = filasActuales[i];
+        
+        // Verificar si cambió el estado de asignación
+        const tieneClaseRoja = fila.classList.contains('pareja-sin-asignar');
+        const tieneClaseAmarilla = fila.classList.contains('pareja-fuera-horario');
+        
+        if (!pareja.esta_asignada && !tieneClaseRoja) return true;
+        if (pareja.fuera_de_horario && !tieneClaseAmarilla) return true;
+        if (pareja.esta_asignada && !pareja.fuera_de_horario && (tieneClaseRoja || tieneClaseAmarilla)) return true;
+    }
+    
+    return false;
+}
+
+function renderizarTablaParejas(parejas) {
+    const tbody = document.getElementById('tablaParejas');
+    const mobileContainer = document.getElementById('parejasCardsContainer');
+    if (!tbody && !mobileContainer) return;
+    
+    // Ordenar parejas por categoría
+    const ordenCategorias = ['Tercera', 'Cuarta', 'Quinta', 'Sexta', 'Séptima'];
+    const parejasOrdenadas = [...parejas].sort((a, b) => {
+        const indexA = ordenCategorias.indexOf(a.categoria);
+        const indexB = ordenCategorias.indexOf(b.categoria);
+        return indexA - indexB;
+    });
+    
+    // Si no hay parejas
+    if (parejas.length === 0) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No hay parejas cargadas</td></tr>';
+        if (mobileContainer) mobileContainer.innerHTML = '<div class="text-center text-muted py-4">No hay parejas cargadas</div>';
+        return;
+    }
+    
+    // Renderizar tabla desktop
+    if (tbody) {
+        tbody.innerHTML = '';
+        parejasOrdenadas.forEach((pareja, index) => {
+            let claseEstado = '';
+            let iconoEstado = '';
+            
+            // Solo mostrar estado (rojo/amarillo) si el algoritmo ya corrió
+            if (tieneResultado) {
+                if (!pareja.esta_asignada) {
+                    claseEstado = 'pareja-sin-asignar';
+                    iconoEstado = '<i class="bi bi-exclamation-triangle-fill text-danger me-2" title="Sin grupo asignado"></i>';
+                } else if (pareja.fuera_de_horario) {
+                    claseEstado = 'pareja-fuera-horario';
+                    iconoEstado = '<i class="bi bi-exclamation-circle-fill text-warning me-2" title="Fuera de horario preferido"></i>';
+                }
+            }
+            
+            const tr = document.createElement('tr');
+            tr.className = claseEstado;
+            tr.setAttribute('data-id', pareja.id);
+            tr.setAttribute('data-categoria', pareja.categoria);
+            
+            const categoriaClass = pareja.categoria.toLowerCase();
+            
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td><strong>${iconoEstado}${escapeHtml(pareja.nombre)}</strong></td>
+                <td>${escapeHtml(pareja.telefono)}</td>
+                <td>
+                    <span class="badge bg-${categoriaClass}">
+                        ${escapeHtml(pareja.categoria)}
+                    </span>
+                </td>
+                <td>
+                    <small class="text-muted">
+                        ${pareja.franjas_disponibles.length} disponibles
+                    </small>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-danger" 
+                            onclick="eliminarPareja(${pareja.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            
+            tbody.appendChild(tr);
+        });
+    }
+    
+    // Renderizar vista móvil
+    if (mobileContainer) {
+        mobileContainer.innerHTML = '';
+        parejasOrdenadas.forEach((pareja, index) => {
+            const categoriaClass = pareja.categoria.toLowerCase();
+            
+            let alertHtml = '';
+            // Solo mostrar alert si el algoritmo ya corrió
+            if (tieneResultado) {
+                if (!pareja.esta_asignada) {
+                    alertHtml = '<div class="pareja-alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> Sin grupo asignado</div>';
+                } else if (pareja.fuera_de_horario) {
+                    alertHtml = '<div class="pareja-alert alert-warning"><i class="bi bi-exclamation-circle-fill"></i> Fuera de horario preferido</div>';
+                }
+            }
+            
+            const card = document.createElement('div');
+            card.className = 'pareja-card-mobile';
+            card.setAttribute('data-id', pareja.id);
+            card.setAttribute('data-categoria', pareja.categoria);
+            
+            card.innerHTML = `
+                <div class="pareja-card-header">
+                    <div class="pareja-numero">#${index + 1}</div>
+                    <span class="badge bg-${categoriaClass}">${escapeHtml(pareja.categoria)}</span>
+                </div>
+                
+                <div class="pareja-card-body">
+                    ${alertHtml}
+                    
+                    <div class="pareja-nombre">
+                        <i class="bi bi-people-fill"></i>
+                        <strong>${escapeHtml(pareja.nombre)}</strong>
+                    </div>
+                    
+                    <div class="pareja-info-row">
+                        <div class="pareja-info-item">
+                            <i class="bi bi-telephone-fill"></i>
+                            <span>${escapeHtml(pareja.telefono)}</span>
+                        </div>
+                        <div class="pareja-info-item">
+                            <i class="bi bi-clock-fill"></i>
+                            <span>${pareja.franjas_disponibles.length} franjas</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pareja-card-footer">
+                    <button class="btn btn-danger btn-sm w-100" onclick="eliminarPareja(${pareja.id})">
+                        <i class="bi bi-trash me-1"></i>Eliminar
+                    </button>
+                </div>
+            `;
+            
+            mobileContainer.appendChild(card);
+        });
+    }
+}
+
+function actualizarHeader(parejas) {
+    const header = document.getElementById('headerTablaParejas');
+    if (!header) return;
+    
+    let headerHTML = `<i class="bi bi-people-fill me-2"></i>Parejas Cargadas (${parejas.length})`;
+    
+    // Contar estados
+    const sinAsignar = parejas.filter(p => !p.esta_asignada).length;
+    const fueraHorario = parejas.filter(p => p.fuera_de_horario).length;
+    
+    if (sinAsignar > 0 || fueraHorario > 0) {
+        if (sinAsignar > 0) {
+            headerHTML += ` <span class="badge bg-danger ms-2">${sinAsignar} sin grupo</span>`;
+        }
+        if (fueraHorario > 0) {
+            headerHTML += ` <span class="badge bg-warning text-dark ms-2">${fueraHorario} fuera de horario</span>`;
+        }
+        
+        // Mostrar leyenda si hay estados
+        const leyendaRow = document.querySelector('.row.justify-content-center.mt-5');
+        if (leyendaRow && leyendaRow.querySelector('.alert.alert-light')) {
+            leyendaRow.style.display = '';
+        }
+    } else {
+        // Ocultar leyenda si no hay estados
+        const leyendaRow = document.querySelector('.row.justify-content-center.mt-5');
+        if (leyendaRow && leyendaRow.querySelector('.alert.alert-light')) {
+            leyendaRow.style.display = 'none';
+        }
+    }
+    
+    header.innerHTML = headerHTML;
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text || '').replace(/[&<>"']/g, m => map[m]);
+}
+
+// Actualizar cada 3 segundos si hay parejas cargadas
+if ({{ parejas|length }} > 0) {
+    setInterval(actualizarTablaParejas, 3000);
+}
+
+// También actualizar cuando la ventana recupera el foco
+window.addEventListener('focus', function() {
+    if ({{ parejas|length }} > 0) {
+        actualizarTablaParejas();
+    }
+});
+
+// ==================== TERMINAR TORNEO ====================
+function terminarTorneo() {
+    new bootstrap.Modal(document.getElementById('modalTerminarTorneo')).show();
+}
+
+async function confirmarTerminarTorneo() {
+    const btn = document.getElementById('btnConfirmarTerminar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Archivando...';
+
+    try {
+        const resp = await fetch('/api/admin/terminar-torneo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('Torneo archivado correctamente');
+            setTimeout(() => window.location.href = '/torneos', 1000);
+        } else {
+            Toast.error(data.error || 'Error al terminar el torneo');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trophy-fill me-1"></i>Terminar y Archivar';
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trophy-fill me-1"></i>Terminar y Archivar';
+    }
+}
+
+// ==================== PRÓXIMO TORNEO (estado espera) ====================
+let _tipoProximoSeleccionado = 'fin1';
+
+function abrirModalProximoTorneo() {
+    // Pre-rellenar con valores actuales si existen
+    const proximoNombre = {{ (proximo_torneo.nombre if proximo_torneo and proximo_torneo.nombre else '')|tojson }};
+    const proximoFecha  = {{ (proximo_torneo.fecha  if proximo_torneo and proximo_torneo.fecha  else '')|tojson }};
+    const proximoTipo   = {{ (proximo_torneo.tipo_torneo if proximo_torneo and proximo_torneo.tipo_torneo else 'fin1')|tojson }};
+
+    document.getElementById('inputProximoNombre').value = proximoNombre;
+    document.getElementById('inputProximoFecha').value  = proximoFecha;
+    seleccionarTipoProximo(proximoTipo);
+    new bootstrap.Modal(document.getElementById('modalProximoTorneo')).show();
+}
+
+function seleccionarTipoProximo(tipo) {
+    _tipoProximoSeleccionado = tipo;
+    document.getElementById('btnProximoFin1').classList.toggle('active', tipo === 'fin1');
+    document.getElementById('btnProximoFin2').classList.toggle('active', tipo === 'fin2');
+}
+
+async function guardarProximoTorneo() {
+    const nombre = document.getElementById('inputProximoNombre').value.trim();
+    const fecha  = document.getElementById('inputProximoFecha').value.trim();
+
+    if (!nombre) { Toast.error('El nombre es obligatorio'); return; }
+    if (!fecha)  { Toast.error('La fecha es obligatoria'); return; }
+
+    const btn = document.getElementById('btnGuardarProximo');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+
+    try {
+        const resp = await fetch('/api/admin/proximo-torneo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, fecha, tipo_torneo: _tipoProximoSeleccionado })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('Próximo torneo configurado');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Toast.error(data.error || 'Error al guardar');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Guardar';
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Guardar';
+    }
+}
+
+async function abrirInscripciones() {
+    if (!confirm('¿Abrir el período de inscripciones para este torneo?')) return;
+    try {
+        const resp = await fetch('/api/admin/abrir-inscripciones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('¡Inscripciones abiertas!');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Toast.error(data.error || 'Error al abrir inscripciones');
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+    }
+}
+
+// ── Inscripciones (panel admin) ─────────────────────────────────────────────
+
+const ESTADOS_BADGE = {
+    confirmado: 'bg-success',
+    pendiente:  'bg-warning text-dark',
+    rechazado:  'bg-danger',
+};
+
+async function cargarInscripciones() {
+    const container = document.getElementById('inscripcionesContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Cargando…</div>';
+
+    try {
+        const resp = await fetch('/api/admin/inscripciones', {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) { container.innerHTML = `<p class="text-danger">${data.error}</p>`; return; }
+
+        const lista = data.inscripciones || [];
+        const badge = document.getElementById('badgeInscripciones');
+        if (badge && lista.length > 0) { badge.textContent = lista.length; badge.style.display = ''; }
+
+        if (lista.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-4">No hay inscripciones aún.</p>';
+            return;
+        }
+
+        const rows = lista.map(i => `
+            <tr>
+                <td><strong>${i.integrante1}</strong><br><small class="text-muted">${i.integrante2}</small></td>
+                <td>${i.categoria}</td>
+                <td><small>${(i.franjas_disponibles || []).join(', ')}</small></td>
+                <td>${i.telefono || '—'}</td>
+                <td>
+                    <span class="badge ${ESTADOS_BADGE[i.estado] || 'bg-secondary'}">${i.estado}</span>
+                </td>
+                <td>
+                    ${i.estado !== 'confirmado' ? `<button class="btn btn-xs btn-outline-success me-1" onclick="cambiarEstadoInscripcion('${i.id}','confirmado')"><i class="bi bi-check"></i></button>` : ''}
+                    ${i.estado !== 'rechazado'  ? `<button class="btn btn-xs btn-outline-danger"  onclick="cambiarEstadoInscripcion('${i.id}','rechazado')"><i class="bi bi-x"></i></button>` : ''}
+                </td>
+            </tr>`).join('');
+
+        container.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Pareja</th><th>Categoría</th><th>Franjas</th>
+                            <th>Teléfono</th><th>Estado</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>`;
+    } catch (e) {
+        container.innerHTML = '<p class="text-danger">Error de conexión.</p>';
+    }
+}
+
+async function cambiarEstadoInscripcion(id, estado) {
+    try {
+        const resp = await fetch(`/api/admin/inscripciones/${id}/estado`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estado }),
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success(`Inscripción ${estado}`);
+            cargarInscripciones();
+        } else {
+            Toast.error(data.error || 'Error al actualizar');
+        }
+    } catch { Toast.error('Error de conexión'); }
+}
+
+// ── Cambio de fase del torneo ───────────────────────────────────────────────
+let _fasePendiente = null;
+
+function confirmarCambioFase(fase, titulo, descripcion) {
+    _fasePendiente = fase;
+    document.getElementById('modalFaseTitulo').textContent = titulo;
+    document.getElementById('modalFaseDescripcion').textContent = descripcion;
+    new bootstrap.Modal(document.getElementById('modalCambioFase')).show();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    cargarInscripciones();
+});
+
+async function ejecutarCambioFase() {
+    if (!_fasePendiente) return;
+    const btn = document.getElementById('btnConfirmarFase');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cambiando...';
+
+    try {
+        const resp = await fetch('/api/cambiar-fase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fase: _fasePendiente })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('Fase del torneo actualizada');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Toast.error(data.error || 'Error al cambiar la fase');
+            btn.disabled = false;
+            btn.innerHTML = 'Confirmar';
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar';
+    }
+}
+</script>
+{% endblock %}

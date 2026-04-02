@@ -5,29 +5,73 @@ Helper functions para trabajar con JWT en las rutas de la API.
 from flask import current_app, jsonify, make_response, request
 from utils.torneo_storage import storage
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
 
-def verificar_autenticacion_api():
+def _verificar_supabase_jwt(sb_token: str):
+    """
+    Verifica un JWT de Supabase Auth llamando a get_user().
+    Devuelve el objeto user si es válido, None en caso contrario.
+
+    Nota: usamos el cliente con ANON_KEY para verificar — get_user() acepta
+    el access_token del jugador directamente sin necesitar service_role.
+    """
+    try:
+        from utils.supabase_client import get_supabase_anon
+        sb = get_supabase_anon()
+        response = sb.auth.get_user(sb_token)
+        return response.user if response and response.user else None
+    except Exception as e:
+        logger.debug("Supabase JWT inválido: %s", e)
+        return None
+
+
+def verificar_autenticacion_api(roles_permitidos=None):
     """
     Verifica que la petición a la API esté autenticada.
-    
+
+    Acepta dos tipos de sesión:
+      - Cookie 'token'    → JWT custom del admin
+      - Cookie 'sb_token' → JWT de Supabase (jugador registrado)
+
+    Args:
+        roles_permitidos: lista de roles aceptados, p.ej. ['admin'] o ['admin', 'jugador'].
+                          Si es None, por defecto se restringe a ['admin'].
+
     Returns:
-        Tuple (authenticated: bool, error_response: Response|None)
-        Si authenticated es False, error_response contiene la respuesta de error
+        Tuple (authenticated: bool, error_response: Response | tuple[Response, int] | None)
+        donde `error_response` puede ser una Response directa o una tupla (Response, status_code).
     """
+    # Si no se especifican roles, por seguridad asumir solo-admin
+    if roles_permitidos is None:
+        roles_permitidos = ['admin']
+
+    # ── 1. Intentar con el JWT custom del admin ──────────────────────────────
     jwt_handler = current_app.jwt_handler
-    token = jwt_handler.obtener_token_desde_request()
-    
-    if not token:
-        return False, jsonify({'error': 'No autenticado', 'redirect': '/login'}), 401
-    
-    data = jwt_handler.verificar_token(token)
-    if not data or not data.get('authenticated'):
-        return False, jsonify({'error': 'Sesión inválida o expirada', 'redirect': '/login'}), 401
-    
-    return True, None
+    admin_token = jwt_handler.obtener_token_desde_request()
+
+    if admin_token:
+        data = jwt_handler.verificar_token(admin_token)
+        if data and data.get('authenticated'):
+            role = data.get('role', 'admin')
+            if role in roles_permitidos:
+                return True, None
+
+    # ── 2. Intentar con el JWT de Supabase (jugador) ─────────────────────────
+    sb_token = request.cookies.get('sb_token')
+
+    if sb_token:
+        user = _verificar_supabase_jwt(sb_token)
+        if user:
+            if 'jugador' in roles_permitidos:
+                return True, None
+            # Token válido pero rol no permitido (p.ej. ruta solo-admin)
+            return False, (jsonify({'error': 'Acceso restringido a administradores'}), 403)
+
+    # ── 3. Sin sesión válida ──────────────────────────────────────────────────
+    return False, (jsonify({'error': 'No autenticado', 'redirect': '/login'}), 401)
 
 
 def obtener_datos_desde_token():
@@ -84,7 +128,6 @@ def crear_respuesta_con_token_actualizado(data_respuesta, datos_token=None, stat
     jwt_handler = current_app.jwt_handler
     
     # Token mínimo - mantiene autenticación
-    import time
     token_data = {
         'authenticated': True,
         'session_id': 'torneo_session',
@@ -108,7 +151,8 @@ def crear_respuesta_con_token_actualizado(data_respuesta, datos_token=None, stat
     response.set_cookie('token', nuevo_token,
                        httponly=True,
                        samesite='Lax',
-                       max_age=60*60*2)  # 2 horas
+                       max_age=60*60*2,  # 2 horas
+                       secure=not current_app.debug)
     
     return response
 
@@ -128,7 +172,7 @@ def sincronizar_con_storage_y_token(datos):
     # Cargar torneo completo y fusionar — así se preservan tipo_torneo y metadata
     torneo_actual = storage.cargar()
     torneo_actual.update(datos)
-    storage.guardar(torneo_actual)
+    storage.guardar_con_version(torneo_actual)
 
     # Los datos del token se actualizarán en la respuesta
     logger.info("Datos sincronizados con storage")

@@ -1,0 +1,1501 @@
+{% extends "base.html" %}
+
+{% block title %}Resultados - Torneo de Pádel{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+
+{% block content %}
+<div class="container-fluid resultados-page">
+    <!-- Estadísticas del Torneo -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-10">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="mb-0">📊 Estadísticas del Torneo</h2>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAgregarPareja">
+                    <i class="bi bi-plus-circle me-2"></i>Agregar Pareja Manual
+                </button>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-success">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-number">{{ resultado.estadisticas.parejas_asignadas }}/{{ resultado.estadisticas.total_parejas }}</h3>
+                        <p class="stat-label">Parejas Asignadas</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-primary">
+                        <i class="bi bi-percent"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-number">{{ "%.0f"|format(resultado.estadisticas.porcentaje_asignacion) }}%</h3>
+                        <p class="stat-label">Tasa de Asignación</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-info">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-number">{{ resultado.estadisticas.total_grupos }}</h3>
+                        <p class="stat-label">Grupos Formados</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-warning">
+                        <i class="bi bi-star-fill"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-number">{{ "%.2f"|format(resultado.estadisticas.score_compatibilidad_promedio) }}/3.0</h3>
+                        <p class="stat-label">Calidad Promedio</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de Categorías -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-10">
+            <!-- Tabs principales: Fixture, Series -->
+            <ul class="nav nav-pills nav-fill mb-2 justify-content-center" id="mainTabs" role="tablist" style="max-width: 900px; margin: 0 auto;">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="fixture-tab" data-bs-toggle="pill" 
+                            data-bs-target="#fixture-main" type="button" role="tab" 
+                            aria-controls="fixture-main" aria-selected="true"
+                            style="padding: 0.7rem 4rem; font-size: 1.1rem;">
+                        <i class="bi bi-calendar-week me-2" style="font-size: 1.3rem;"></i>
+                        <strong>FIXTURE</strong>
+                        <small class="d-block" style="font-size: 0.85rem;">Calendario General</small>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="series-tab" data-bs-toggle="pill"
+                            data-bs-target="#series-main" type="button" role="tab"
+                            aria-controls="series-main" aria-selected="false"
+                            style="padding: 0.7rem 4rem; font-size: 1.1rem;">
+                        <i class="bi bi-grid-3x3-gap-fill me-2" style="font-size: 1.3rem;"></i>
+                        <strong>SERIES</strong>
+                        <small class="d-block" style="font-size: 0.85rem;">Grupos por Categoría</small>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="finales-tab" data-bs-toggle="pill"
+                            data-bs-target="#finales-main" type="button" role="tab"
+                            aria-controls="finales-main" aria-selected="false"
+                            style="padding: 0.7rem 4rem; font-size: 1.1rem;"
+                            onclick="inicializarLlaves()">
+                        <i class="bi bi-trophy-fill me-2" style="font-size: 1.3rem;"></i>
+                        <strong>LLAVES</strong>
+                        <small class="d-block" style="font-size: 0.85rem;">Sistema Eliminatorio</small>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Botón de Acción Flotante -->
+    <div class="floating-actions">
+        <a href="{{ url_for('admin_panel') }}" class="btn-float btn-float-primary" title="Volver al panel">
+            <i class="bi bi-house-fill"></i>
+        </a>
+    </div>
+
+    <!-- Modal Agregar Pareja -->
+    <div class="modal fade" id="modalAgregarPareja" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-plus-circle"></i> Agregar Nueva Pareja
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAgregarParejaModal">
+                        <div class="mb-3">
+                            <label for="nombreModal" class="form-label">Nombre de la Pareja *</label>
+                            <input type="text" class="form-control" id="nombreModal" name="nombre" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="telefonoModal" class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" id="telefonoModal" name="telefono">
+                        </div>
+                        <div class="mb-3">
+                            <label for="categoriaModal" class="form-label">Categoría *</label>
+                            <select class="form-select" id="categoriaModal" name="categoria" required>
+                                {% for cat in categorias %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Franjas Horarias Disponibles *</label>
+                            <div id="franjasModalContainer"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="agregarParejaDesdeModal()">
+                        <i class="bi bi-check-circle"></i> Agregar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Ganador -->
+    <div class="modal fade" id="modalConfirmarGanador" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-trophy-fill"></i> Confirmar Ganador
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="bi bi-trophy-fill text-warning" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 id="mensajeConfirmacion">¿Confirmar ganador?</h5>
+                    <p class="text-muted" id="detalleConfirmacion"></p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" id="btnConfirmarGanador">
+                        <i class="bi bi-check-circle-fill"></i> Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear Grupo Manual -->
+    <div class="modal fade" id="modalCrearGrupo" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-plus-circle-fill"></i> Crear Nuevo Grupo
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formCrearGrupo">
+                        <input type="hidden" id="crearGrupoCategoria">
+                        <div class="mb-3">
+                            <label for="crearGrupoFranja" class="form-label">Franja Horaria *</label>
+                            <select class="form-select" id="crearGrupoFranja" required>
+                                <option value="">-- Selecciona --</option>
+                                <option value="Viernes 18:00">Viernes 18:00 a 21:00</option>
+                                <option value="Viernes 21:00">Viernes 21:00 a 00:00</option>
+                                <option value="Sábado 09:00">Sábado 09:00 a 12:00</option>
+                                <option value="Sábado 12:00">Sábado 12:00 a 15:00</option>
+                                <option value="Sábado 16:00">Sábado 16:00 a 19:00</option>
+                                <option value="Sábado 19:00">Sábado 19:00 a 22:00</option>
+                            </select>
+                            <small class="text-muted">Franjas disponibles elegidas por las parejas</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="crearGrupoCancha" class="form-label">Cancha *</label>
+                            <select class="form-select" id="crearGrupoCancha" required>
+                                <option value="">-- Selecciona --</option>
+                                <option value="1">Cancha 1</option>
+                                <option value="2">Cancha 2</option>
+                            </select>
+                        </div>
+                    </form>
+
+                    <!-- Visualización de Disponibilidad -->
+                    <div class="card bg-light mt-3" id="disponibilidadCard" style="display: none;">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-calendar-check"></i> Disponibilidad de Canchas
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="disponibilidadInfo" class="row g-2">
+                                <!-- Se llenará dinámicamente con JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="confirmarCrearGrupo()">
+                        <i class="bi bi-check-circle"></i> Crear Grupo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Grupo -->
+    <div class="modal fade" id="modalEditarGrupo" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil-fill"></i> Editar Grupo
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarGrupo">
+                        <input type="hidden" id="editarGrupoId">
+                        <input type="hidden" id="editarGrupoCategoria">
+                        <div class="mb-3">
+                            <label for="editarGrupoFranja" class="form-label">Franja Horaria *</label>
+                            <select class="form-select" id="editarGrupoFranja" required>
+                                <option value="">-- Selecciona --</option>
+                                <option value="Viernes 18:00">Viernes 18:00 a 21:00</option>
+                                <option value="Viernes 21:00">Viernes 21:00 a 00:00</option>
+                                <option value="Sábado 09:00">Sábado 09:00 a 12:00</option>
+                                <option value="Sábado 12:00">Sábado 12:00 a 15:00</option>
+                                <option value="Sábado 16:00">Sábado 16:00 a 19:00</option>
+                                <option value="Sábado 19:00">Sábado 19:00 a 22:00</option>
+                            </select>
+                            <small class="text-muted">Franjas disponibles elegidas por las parejas</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editarGrupoCancha" class="form-label">Cancha *</label>
+                            <select class="form-select" id="editarGrupoCancha" required>
+                                <option value="">-- Selecciona --</option>
+                                <option value="1">Cancha 1</option>
+                                <option value="2">Cancha 2</option>
+                            </select>
+                        </div>
+                    </form>
+                    
+                    <!-- Listado de Parejas del Grupo -->
+                    <div class="mt-4 pt-3 border-top">
+                        <h6 class="mb-3"><i class="bi bi-people-fill"></i> Parejas en este grupo:</h6>
+                        <div id="parejasDelGrupo">
+                            <!-- Se llenará dinámicamente con JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmarEditarGrupo()">
+                        <i class="bi bi-check-circle"></i> Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Pareja -->
+    <div class="modal fade" id="modalEditarPareja" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil-square"></i> Editar Pareja
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarPareja">
+                        <input type="hidden" id="editarParejaId">
+                        <div class="mb-3">
+                            <label for="editarParejaNombre" class="form-label">Nombre de la Pareja *</label>
+                            <input type="text" class="form-control" id="editarParejaNombre" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editarParejaTelefono" class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" id="editarParejaTelefono">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editarParejaCategoria" class="form-label">Categoría *</label>
+                            <select class="form-select" id="editarParejaCategoria" required>
+                                {% for cat in categorias %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Si cambias la categoría, la pareja se moverá a "No Asignadas"</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Franjas Horarias Disponibles *</label>
+                            <div id="editarParejaFranjasContainer">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Viernes 18:00" id="editFranjaV18">
+                                    <label class="form-check-label" for="editFranjaV18">Viernes 18:00 a 21:00</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Viernes 21:00" id="editFranjaV21">
+                                    <label class="form-check-label" for="editFranjaV21">Viernes 21:00 a 00:00</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Sábado 09:00" id="editFranjaS09">
+                                    <label class="form-check-label" for="editFranjaS09">Sábado 09:00 a 12:00</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Sábado 12:00" id="editFranjaS12">
+                                    <label class="form-check-label" for="editFranjaS12">Sábado 12:00 a 15:00</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Sábado 16:00" id="editFranjaS16">
+                                    <label class="form-check-label" for="editFranjaS16">Sábado 16:00 a 19:00</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Sábado 19:00" id="editFranjaS19">
+                                    <label class="form-check-label" for="editFranjaS19">Sábado 19:00 a 22:00</label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-info text-white" onclick="confirmarEditarPareja()">
+                        <i class="bi bi-check-circle"></i> Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ingresar Resultado de Partido -->
+    <div class="modal fade" id="modalResultadoPartido" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 20px; overflow: hidden; border: none;">
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 1.5rem;">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-trophy-fill me-2"></i> Resultado del Partido
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="padding: 2rem;">
+                    <form id="formResultadoPartido">
+                        <input type="hidden" id="resultadoCategoria">
+                        <input type="hidden" id="resultadoGrupoId">
+                        <input type="hidden" id="resultadoPareja1Id">
+                        <input type="hidden" id="resultadoPareja2Id">
+                        
+                        <!-- Nombres de las parejas -->
+                        <div class="d-flex justify-content-between align-items-center mb-4" style="padding: 1.5rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 15px;">
+                            <div class="text-center flex-fill">
+                                <h5 class="fw-bold mb-0 text-primary" id="resultadoPareja1Nombre" style="font-size: 1.1rem;">Pareja 1</h5>
+                            </div>
+                            <div class="text-center px-3">
+                                <div class="badge bg-dark" style="font-size: 1rem; padding: 0.5rem 1rem;">VS</div>
+                            </div>
+                            <div class="text-center flex-fill">
+                                <h5 class="fw-bold mb-0 text-primary" id="resultadoPareja2Nombre" style="font-size: 1.1rem;">Pareja 2</h5>
+                            </div>
+                        </div>
+                        
+                        <!-- Sets en formato más compacto -->
+                        <div class="mb-4">
+                            <!-- Set 1 -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted" style="font-size: 0.85rem;">
+                                    <i class="bi bi-circle-fill text-primary" style="font-size: 0.6rem;"></i> PRIMER SET
+                                </label>
+                                <div class="d-flex gap-3 align-items-center">
+                                    <input type="number" class="form-control form-control-lg text-center fw-bold" 
+                                           id="gamesSet1Pareja1" min="0" max="7" required
+                                           placeholder="0"
+                                           style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #dee2e6;">
+                                    <div class="text-muted fw-bold" style="font-size: 1.5rem;">-</div>
+                                    <input type="number" class="form-control form-control-lg text-center fw-bold" 
+                                           id="gamesSet1Pareja2" min="0" max="7" required
+                                           placeholder="0"
+                                           style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #dee2e6;">
+                                </div>
+                            </div>
+                            
+                            <!-- Set 2 -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted" style="font-size: 0.85rem;">
+                                    <i class="bi bi-circle-fill text-primary" style="font-size: 0.6rem;"></i> SEGUNDO SET
+                                </label>
+                                <div class="d-flex gap-3 align-items-center">
+                                    <input type="number" class="form-control form-control-lg text-center fw-bold" 
+                                           id="gamesSet2Pareja1" min="0" max="7" required
+                                           placeholder="0"
+                                           style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #dee2e6;">
+                                    <div class="text-muted fw-bold" style="font-size: 1.5rem;">-</div>
+                                    <input type="number" class="form-control form-control-lg text-center fw-bold" 
+                                           id="gamesSet2Pareja2" min="0" max="7" required
+                                           placeholder="0"
+                                           style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #dee2e6;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Super Tie-break (condicional) -->
+                        <div id="tiebreakCard" style="display: none;">
+                            <div class="alert alert-warning mb-3" style="border-radius: 12px; border-left: 4px solid #ffc107;">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-lightning-fill me-2" style="font-size: 1.5rem;"></i>
+                                    <div>
+                                        <strong>Super Tie-break</strong>
+                                        <small class="d-block text-muted">Cada pareja ganó un set</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-3 align-items-center mb-3">
+                                <input type="number" class="form-control form-control-lg text-center fw-bold" 
+                                       id="tiebreakPareja1" min="0"
+                                       placeholder="0"
+                                       style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #ffc107;">
+                                <div class="text-warning fw-bold" style="font-size: 1.5rem;">-</div>
+                                <input type="number" class="form-control form-control-lg text-center fw-bold" 
+                                       id="tiebreakPareja2" min="0"
+                                       placeholder="0"
+                                       style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #ffc107;">
+                            </div>
+                        </div>
+                        
+                        <!-- Resumen del ganador -->
+                        <div id="resumenGanador" style="display: none; padding: 1.5rem; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-radius: 15px; text-align: center;">
+                            <h5 class="mb-2">
+                                <i class="bi bi-trophy-fill text-warning" style="font-size: 1.8rem;"></i>
+                            </h5>
+                            <h6 class="fw-bold text-success mb-1" id="nombreGanador"></h6>
+                            <small class="text-muted" id="detalleResultado"></small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="padding: 1.25rem 2rem; background: #f8f9fa;">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 10px; padding: 0.625rem 1.5rem;">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" id="btnGuardarResultado" style="border-radius: 10px; padding: 0.625rem 2rem;">
+                        <i class="bi bi-check-circle-fill me-2"></i> Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs de Resultados -->
+    <div class="tab-content" id="mainTabsContent">
+        <!-- TAB 1: FIXTURE (Calendario General) - ACTIVO POR DEFECTO -->
+        <div class="tab-pane fade show active" id="fixture-main" role="tabpanel">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="calendario-section">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h2 class="section-title mb-0">
+                                <i class="bi bi-calendar-week me-2"></i>Calendario General
+                            </h2>
+                        </div>
+                        
+                        <!-- VIERNES -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-success mb-3">📆 VIERNES</h3>
+                            
+                            <!-- Vista Móvil -->
+                            <div class="calendario-mobile d-none">
+                                <div class="dia-card">
+                                    <div class="dia-header">
+                                        <div class="dia-nombre">
+                                            <i class="bi bi-calendar-day"></i>
+                                            Viernes
+                                        </div>
+                                        {% if resultado.calendario.Viernes %}
+                                        <span class="dia-badge">{{ resultado.calendario.Viernes.keys()|length }} horarios</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if resultado.calendario.Viernes %}
+                                        {% for hora in ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'] %}
+                                            {% if hora in resultado.calendario.Viernes %}
+                                            <div class="horario-bloque">
+                                                <div class="horario-titulo">
+                                                    <i class="bi bi-clock"></i>{{ hora }}
+                                                </div>
+                                                
+                                                {% if resultado.calendario.Viernes[hora][0] %}
+                                                <div class="cancha-group">
+                                                    <div class="cancha-label"><i class="bi bi-square"></i> Cancha 1</div>
+                                                    {{ mostrar_partido_mobile(resultado.calendario.Viernes[hora][0]) }}
+                                                </div>
+                                                {% endif %}
+                                                
+                                                {% if resultado.calendario.Viernes[hora][1] %}
+                                                <div class="cancha-group">
+                                                    <div class="cancha-label"><i class="bi bi-square"></i> Cancha 2</div>
+                                                    {{ mostrar_partido_mobile(resultado.calendario.Viernes[hora][1]) }}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="sin-partidos">No hay partidos programados</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Vista Desktop (Tabla) -->
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover calendario-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th width="10%" class="text-center">HORA</th>
+                                            <th width="45%"> CANCHA 1</th>
+                                            <th width="45%"> CANCHA 2</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="calendario-viernes">
+                                        {% if resultado.calendario.Viernes %}
+                                            {% for hora in ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'] %}
+                                                {% if hora in resultado.calendario.Viernes %}
+                                                <tr>
+                                                    <td class="text-center align-middle bg-light fw-bold">
+                                                        {{ hora }}
+                                                    </td>
+                                                    <td class="calendario-celda">
+                                                        {% if resultado.calendario.Viernes[hora][0] %}
+                                                            {{ mostrar_partido_simple(resultado.calendario.Viernes[hora][0]) }}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="calendario-celda">
+                                                        {% if resultado.calendario.Viernes[hora][1] %}
+                                                            {{ mostrar_partido_simple(resultado.calendario.Viernes[hora][1]) }}
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- SÁBADO -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-warning mb-3">📆 SÁBADO</h3>
+                            
+                            <!-- Vista Móvil -->
+                            <div class="calendario-mobile d-none">
+                                <div class="dia-card">
+                                    <div class="dia-header">
+                                        <div class="dia-nombre">
+                                            <i class="bi bi-calendar-day"></i>
+                                            Sábado
+                                        </div>
+                                        {% if resultado.calendario['Sábado'] %}
+                                        <span class="dia-badge">{{ resultado.calendario['Sábado'].keys()|length }} horarios</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if resultado.calendario['Sábado'] %}
+                                        {% for hora in ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'] %}
+                                            {% if hora in resultado.calendario['Sábado'] %}
+                                            <div class="horario-bloque">
+                                                <div class="horario-titulo">
+                                                    <i class="bi bi-clock"></i>{{ hora }}
+                                                </div>
+                                                
+                                                {% if resultado.calendario['Sábado'][hora][0] %}
+                                                <div class="cancha-group">
+                                                    <div class="cancha-label"><i class="bi bi-square"></i> Cancha 1</div>
+                                                    {{ mostrar_partido_mobile(resultado.calendario['Sábado'][hora][0]) }}
+                                                </div>
+                                                {% endif %}
+                                                
+                                                {% if resultado.calendario['Sábado'][hora][1] %}
+                                                <div class="cancha-group">
+                                                    <div class="cancha-label"><i class="bi bi-square"></i> Cancha 2</div>
+                                                    {{ mostrar_partido_mobile(resultado.calendario['Sábado'][hora][1]) }}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="sin-partidos">No hay partidos programados</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Vista Desktop (Tabla) -->
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover calendario-table">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th width="10%" class="text-center">HORA</th>
+                                            <th width="45%"> CANCHA 1</th>
+                                            <th width="45%"> CANCHA 2</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="calendario-sabado">
+                                        {% if resultado.calendario['Sábado'] %}
+                                            {% for hora in ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'] %}
+                                                {% if hora in resultado.calendario['Sábado'] %}
+                                                <tr>
+                                                    <td class="text-center align-middle bg-light fw-bold">
+                                                        {{ hora }}
+                                                    </td>
+                                                    <td class="calendario-celda">
+                                                        {% if resultado.calendario['Sábado'][hora][0] %}
+                                                            {{ mostrar_partido_simple(resultado.calendario['Sábado'][hora][0]) }}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="calendario-celda">
+                                                        {% if resultado.calendario['Sábado'][hora][1] %}
+                                                            {{ mostrar_partido_simple(resultado.calendario['Sábado'][hora][1]) }}
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB 2: SERIES (Grupos por Categoría) -->
+        <div class="tab-pane fade" id="series-main" role="tabpanel">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    {% set cat_id_map = {'Cuarta': 'cuarta', 'Quinta': 'quinta', 'Sexta': 'sexta', 'Séptima': 'septima', 'Tercera': 'tercera'} %}
+                    {% set cat_border_map = {'Cuarta': '#90EE90', 'Quinta': '#FFD700', 'Sexta': '#87CEEB', 'Séptima': '#DDA0DD', 'Tercera': '#FFB6C1'} %}
+                    {% set cat_bg_map = {'Cuarta': '#f0fff0', 'Quinta': '#fffef0', 'Sexta': '#f0f8ff', 'Séptima': '#fff0ff', 'Tercera': '#fff0f5'} %}
+                    {% set cat_emoji_map = {'Cuarta': '🟢', 'Quinta': '🟡', 'Sexta': '🔵', 'Séptima': '🟣', 'Tercera': '🔴'} %}
+
+                    <!-- Sub-tabs para categorías del torneo activo -->
+                    <ul class="nav nav-tabs mb-4" id="seriesCategoriasTabs" role="tablist">
+                        {% for cat in categorias %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if loop.first %}active{% endif %}"
+                                    id="series-{{ cat_id_map[cat] }}-tab" data-bs-toggle="tab"
+                                    data-bs-target="#series-{{ cat_id_map[cat] }}" type="button" role="tab">
+                                {{ cat_emoji_map[cat] }} {{ cat }}
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Contenido de sub-tabs de Series -->
+                    <div class="tab-content" id="seriesCategoriasContent">
+                        {% for cat in categorias %}
+                        <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+                             id="series-{{ cat_id_map[cat] }}" role="tabpanel">
+                            {{ mostrar_grupos_categoria_solo_series(cat, resultado.grupos_por_categoria[cat], cat_border_map[cat], cat_bg_map[cat]) }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: FINALES (Redirige a página nueva) -->
+        <div class="tab-pane fade" id="finales-main" role="tabpanel">
+            <!-- Selector de Categoría -->
+            {%- set cat_meta = {
+                'Tercera': {'abrev': '3era', 'css': 'tercera', 'emoji': '🔴'},
+                'Cuarta':  {'abrev': '4ta',  'css': 'cuarta',  'emoji': '🟢'},
+                'Quinta':  {'abrev': '5ta',  'css': 'quinta',  'emoji': '🟡'},
+                'Sexta':   {'abrev': '6ta',  'css': 'sexta',   'emoji': '🔵'},
+                'Séptima': {'abrev': '7ma',  'css': 'septima', 'emoji': '🟣'}
+            } %}
+            <div class="categorias-selector" id="categoriasSelector">
+                {% for cat_nombre in categorias %}
+                {%- set meta = cat_meta[cat_nombre] %}
+                <div class="categoria-btn categoria-btn-{{ meta.css }}{% if loop.first %} active{% endif %}"
+                     onclick="cambiarCategoria('{{ meta.abrev }}', event)">
+                    <span class="categoria-emoji">{{ meta.emoji }}</span>
+                    <h3 class="categoria-nombre">{{ meta.abrev }}</h3>
+                    <p class="categoria-fases mb-0" id="fases-{{ meta.abrev }}">Cargando...</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Contenedor de Llaves -->
+            <div id="drawContainer" class="draw-container">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🏆</div>
+                    <p class="empty-state-text">Selecciona una categoría para ver las llaves</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ingresar Resultado de Partido Final -->
+<div class="modal fade" id="modalResultadoFinal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px; overflow: hidden; border: none;">
+            <div class="modal-header text-white" style="background: var(--brand-black); padding: 1.5rem;">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-trophy-fill me-2"></i> Resultado del Partido
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding: 2rem;">
+                <form id="formResultadoFinal">
+                    <input type="hidden" id="resultadoPartidoId">
+                    <input type="hidden" id="resultadoFase">
+                    <input type="hidden" id="resultadoCategoria">
+                    <div class="d-flex justify-content-between align-items-center mb-4" style="padding: 1.5rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 15px;">
+                        <div class="text-center flex-fill">
+                            <h5 class="fw-bold mb-0 text-primary" id="resultadoFinalPareja1" style="font-size: 1.1rem;">Pareja 1</h5>
+                        </div>
+                        <div class="text-center px-3">
+                            <div class="badge bg-dark" style="font-size: 1rem; padding: 0.5rem 1rem;">VS</div>
+                        </div>
+                        <div class="text-center flex-fill">
+                            <h5 class="fw-bold mb-0 text-primary" id="resultadoFinalPareja2" style="font-size: 1.1rem;">Pareja 2</h5>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted" style="font-size: 0.85rem;"><i class="bi bi-circle-fill text-primary" style="font-size: 0.6rem;"></i> PRIMER SET</label>
+                            <div class="d-flex gap-3 align-items-center">
+                                <input type="number" class="form-control form-control-lg text-center fw-bold" id="gamesSet1P1" min="0" max="6" required placeholder="0" style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #dee2e6;">
+                                <div class="text-muted fw-bold" style="font-size: 1.5rem;">-</div>
+                                <input type="number" class="form-control form-control-lg text-center fw-bold" id="gamesSet1P2" min="0" max="6" required placeholder="0" style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #dee2e6;">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted" style="font-size: 0.85rem;"><i class="bi bi-circle-fill text-primary" style="font-size: 0.6rem;"></i> SEGUNDO SET</label>
+                            <div class="d-flex gap-3 align-items-center">
+                                <input type="number" class="form-control form-control-lg text-center fw-bold" id="gamesSet2P1" min="0" max="6" required placeholder="0" style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #dee2e6;">
+                                <div class="text-muted fw-bold" style="font-size: 1.5rem;">-</div>
+                                <input type="number" class="form-control form-control-lg text-center fw-bold" id="gamesSet2P2" min="0" max="6" required placeholder="0" style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #dee2e6;">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tiebreakCardFinal" style="display: none;">
+                        <div class="alert alert-warning mb-3" style="border-radius: 12px; border-left: 4px solid #ffc107;">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-lightning-fill me-2" style="font-size: 1.5rem;"></i>
+                                <div><strong>Super Tie-break</strong><small class="d-block text-muted">Cada pareja ganó un set</small></div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-3 align-items-center mb-3">
+                            <input type="number" class="form-control form-control-lg text-center fw-bold" id="tiebreakP1" min="0" placeholder="0" style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #ffc107;">
+                            <div class="text-warning fw-bold" style="font-size: 1.5rem;">-</div>
+                            <input type="number" class="form-control form-control-lg text-center fw-bold" id="tiebreakP2" min="0" placeholder="0" style="font-size: 2rem; height: 70px; border-radius: 12px; border: 2px solid #ffc107;">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="padding: 1.25rem 2rem; background: #f8f9fa;">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 10px; padding: 0.625rem 1.5rem;">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarResultadoFinal()" style="background: var(--brand-green); color: var(--brand-black); border: none; border-radius: 30px; padding: 0.625rem 1.5rem; font-weight: 700;">
+                    <i class="bi bi-check-circle me-1"></i> Guardar Resultado
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- Macro para mostrar grupos de una categoría -->
+{% macro mostrar_grupos_categoria(categoria, grupos, border_color, bg_color) %}
+    {% if grupos %}
+        <!-- Encabezado con botón para ir a finales -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">Grupos de {{ categoria }}</h4>
+            <div>
+                <a href="{{ url_for('finales') }}" class="btn btn-primary me-2">
+                    <i class="bi bi-trophy-fill me-1"></i>Ver Finales
+                </a>
+                <button class="btn btn-success" onclick="abrirModalCrearGrupo('{{ categoria }}')">
+                    <i class="bi bi-plus-circle-fill"></i> Nuevo Grupo
+                </button>
+            </div>
+        </div>
+        
+        <!-- Parejas No Asignadas -->
+        <div id="parejas-no-asignadas-{{ categoria }}" class="mb-4">
+            <!-- Se carga dinámicamente -->
+        </div>
+        
+        <!-- Grid de 4 columnas para Grupos A, B, C, D -->
+        <div class="row g-3">
+                    {% for grupo in grupos %}
+                    <div class="col-md-3">
+                        <div class="card h-100 shadow-sm grupo-card" 
+                             style="border-top: 4px solid {{ border_color }};"
+                             data-grupo-id="{{ grupo.id }}"
+                             data-categoria="{{ categoria }}">
+                            <div class="card-header text-white text-center position-relative" style="background: linear-gradient(135deg, {{ border_color }} 0%, {{ border_color }}dd 100%);">
+                                <h5 class="mb-0 fw-bold">
+                                    {% if loop.index == 1 %}GRUPO A
+                                    {% elif loop.index == 2 %}GRUPO B
+                                    {% elif loop.index == 3 %}GRUPO C
+                                    {% elif loop.index == 4 %}GRUPO D
+                                    {% else %}GRUPO {{ loop.index }}
+                                    {% endif %}
+                                </h5>
+                                <button class="btn btn-sm btn-light position-absolute top-50 end-0 translate-middle-y me-2" 
+                                        data-grupo-id="{{ grupo.id }}"
+                                        data-categoria="{{ categoria }}"
+                                        data-franja="{{ grupo.franja_horaria }}"
+                                        data-cancha="{{ grupo.cancha }}"
+                                        data-parejas='{{ grupo.parejas|tojson }}'
+                                        onclick="abrirModalEditarGrupo(this)"
+                                        title="Editar horario y cancha">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="card-body" style="background-color: {{ bg_color }};">
+                                <!-- Info de Franja y Cancha -->
+                                <div class="alert alert-light alert-permanent border mb-3 py-2">
+                                    <small class="d-block">
+                                        <i class="bi bi-clock-fill"></i> <strong>{{ grupo.franja_horaria or 'Por coordinar' }}</strong>
+                                    </small>
+                                    <small class="d-block">
+                                        <i class="bi bi-geo-alt-fill"></i> <strong>Cancha {{ grupo.cancha or 'Por asignar' }}</strong>
+                                    </small>
+                                </div>
+
+                                <!-- Parejas del Grupo con 3 slots fijos -->
+                                <h6 class="fw-bold mb-2"> Parejas:</h6>
+                                
+                                {% for slot_num in range(3) %}
+                                {% set pareja = grupo.parejas[slot_num] if slot_num < grupo.parejas|length else none %}
+                                
+                                {% if pareja %}
+                                    {# Hay pareja en este slot #}
+                                    {% set franja_asignada = grupo.franja_horaria %}
+                                    {% set franjas_pareja = pareja.franjas_disponibles if pareja.franjas_disponibles else [] %}
+                                    
+                                    {# Verificar compatibilidad exacta #}
+                                    {% set compatible_exacto = franja_asignada in franjas_pareja if franja_asignada and franjas_pareja else true %}
+                                    
+                                    {# Verificar compatibilidad parcial (mismo día) #}
+                                    {% set compatible_parcial = namespace(value=false) %}
+                                    {% if franja_asignada and not compatible_exacto and franjas_pareja %}
+                                        {% set dia_asignado = franja_asignada.split(' ')[0] %}
+                                        {% for franja in franjas_pareja %}
+                                            {% set dia_franja = franja.split(' ')[0] %}
+                                            {% if dia_franja == dia_asignado %}
+                                                {% set compatible_parcial.value = true %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {# Determinar clase CSS y tooltip #}
+                                    {% if compatible_exacto %}
+                                        {% set border_class = '' %}
+                                        {% set text_class = '' %}
+                                        {% set tooltip = '' %}
+                                    {% elif compatible_parcial.value %}
+                                        {% set border_class = 'border-warning border-2' %}
+                                        {% set text_class = 'text-warning' %}
+                                        {% set tooltip = 'Esta pareja eligió este día pero en otro horario' %}
+                                    {% else %}
+                                        {% set border_class = 'border-danger border-2' %}
+                                        {% set text_class = 'text-danger' %}
+                                        {% set tooltip = 'Esta pareja no eligió este día' %}
+                                    {% endif %}
+                                    
+                                    <div class="pareja-slot mb-2 p-2 bg-white rounded border {{ border_class }}" 
+                                         draggable="true"
+                                         data-pareja-id="{{ pareja.id }}"
+                                         data-pareja-nombre="{{ pareja.nombre }}"
+                                         data-grupo-origen="{{ grupo.id }}"
+                                         data-grupo-id="{{ grupo.id }}"
+                                         data-slot="{{ slot_num }}"
+                                         data-posicion="{{ pareja.posicion_grupo or '' }}"
+                                         {% if tooltip %}title="{{ tooltip }}"{% endif %}>
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold text-truncate {{ text_class }}" title="{{ pareja.nombre }}">
+                                                    {{ slot_num + 1 }}. {{ pareja.nombre }}
+                                                </div>
+                                                <small class="text-muted d-block mt-1">
+                                                    <i class="bi bi-clock"></i> {{ pareja.franjas_disponibles|join(', ') if pareja.franjas_disponibles else 'Sin horarios' }}
+                                                </small>
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-telephone"></i> {{ pareja.telefono }}
+                                                </small>
+                                            </div>
+                                            <div class="ms-2 d-flex gap-1">
+                                                <!-- Botones para asignar posición -->
+                                                <span class="posicion-badge {{ 'posicion-primero' if pareja.posicion_grupo == 1 else '' }}" 
+                                                      onclick="asignarPosicion({{ pareja.id }}, 1, '{{ categoria }}', {{ grupo.id }})"
+                                                      title="1° Puesto">
+                                                    🥇
+                                                </span>
+                                                <span class="posicion-badge {{ 'posicion-segundo' if pareja.posicion_grupo == 2 else '' }}"
+                                                      onclick="asignarPosicion({{ pareja.id }}, 2, '{{ categoria }}', {{ grupo.id }})"
+                                                      title="2° Puesto">
+                                                    🥈
+                                                </span>
+                                                <span class="posicion-badge {{ 'posicion-tercero' if pareja.posicion_grupo == 3 else '' }}"
+                                                      onclick="asignarPosicion({{ pareja.id }}, 3, '{{ categoria }}', {{ grupo.id }})"
+                                                      title="3° Puesto">
+                                                    🥉
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    {# Slot vacío #}
+                                    <div class="pareja-slot pareja-slot-vacio mb-2 p-2 bg-light rounded border border-dashed" 
+                                         data-grupo-id="{{ grupo.id }}"
+                                         data-slot="{{ slot_num }}"
+                                         style="min-height: 80px; display: flex; align-items: center; justify-content: center; border-style: dashed !important;">
+                                        <div class="text-muted text-center">
+                                            <i class="bi bi-plus-circle"></i>
+                                            <small class="d-block">Slot {{ slot_num + 1 }} vacío</small>
+                                            <small class="d-block" style="font-size: 0.7rem;">Arrastra una pareja aquí</small>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="card-footer text-center" style="background-color: {{ bg_color }};">
+                                {% set score = grupo.score | default(0.0) %}
+                                {% if score == 3.0 %}
+                                    <span class="badge bg-success">✅ Perfecto: {{ "%.1f"|format(score) }}/3.0</span>
+                                {% elif score >= 2.5 %}
+                                    <span class="badge bg-success">✅ Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                                {% elif score >= 2.0 %}
+                                    <span class="badge bg-warning text-dark">⚠️ Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                                {% elif score >= 1.0 %}
+                                    <span class="badge bg-info text-white">📅 Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                                {% elif score > 0.0 %}
+                                    <span class="badge bg-warning text-dark">⚠️ Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                                {% else %}
+                                    <span class="badge bg-danger">❌ Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Listado de Partidos debajo de las cards -->
+                <div class="mt-4">
+                    <h5 class="fw-bold mb-3">🏆 Partidos de la Fase de Grupos</h5>
+                    <div class="row">
+                        {% for grupo in grupos %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-header" style="background: linear-gradient(135deg, {{ border_color }} 0%, {{ border_color }}dd 100%);">
+                                    <h6 class="mb-0 text-white fw-bold">
+                                        {% if loop.index == 1 %}GRUPO A
+                                        {% elif loop.index == 2 %}GRUPO B
+                                        {% elif loop.index == 3 %}GRUPO C
+                                        {% elif loop.index == 4 %}GRUPO D
+                                        {% else %}GRUPO {{ loop.index }}
+                                        {% endif %}
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="background-color: {{ bg_color }};" id="partidos-grupo-{{ grupo.id }}" data-franja="{{ grupo.franja_horaria }}">
+                                    <div class="mb-3 p-2 bg-white rounded border">
+                                        <small class="text-muted d-block">
+                                            <i class="bi bi-calendar3"></i> <strong>{{ grupo.franja_horaria or 'Por coordinar' }}</strong>
+                                        </small>
+                                        <small class="text-muted d-block">
+                                            <i class="bi bi-geo-alt-fill"></i> <strong>Cancha {{ grupo.cancha or 'Por asignar' }}</strong>
+                                        </small>
+                                    </div>
+                                    
+                                    {% if grupo.partidos %}
+                                        {% set hora_base = grupo.franja_horaria.split(' ')[1] if grupo.franja_horaria and ' ' in grupo.franja_horaria else '20:00' %}
+                                        {% set hora_partes = hora_base.split(':') %}
+                                        {% set hora_inicio = hora_partes[0]|int %}
+                                        
+                                        {% for partido in grupo.partidos %}
+                                            {% set hora_partido = (hora_inicio + loop.index0) % 24 %}
+                                            {% set hora_str = '%02d:00'|format(hora_partido) %}
+                                            
+                                            <div class="partido-card mb-3 p-3 bg-white rounded border shadow-sm">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <div class="me-2">
+                                                        <span class="badge bg-primary">
+                                                            <i class="bi bi-clock-fill"></i> {{ hora_str }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="flex-grow-1">
+                                                        <small class="text-muted">Partido {{ loop.index }}</small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="row g-0 align-items-center">
+                                                    <div class="col-5">
+                                                        <div class="text-end pe-2">
+                                                            <div class="fw-bold text-truncate" style="font-size: 0.95rem;" title="{{ partido.pareja1 }}">
+                                                                {{ partido.pareja1 }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-2">
+                                                        <div class="text-center">
+                                                            <span class="badge bg-secondary">VS</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-5">
+                                                        <div class="ps-2">
+                                                            <div class="fw-bold text-truncate" style="font-size: 0.95rem;" title="{{ partido.pareja2 }}">
+                                                                {{ partido.pareja2 }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="alert alert-light mb-0">
+                                            <i class="bi bi-info-circle"></i> No hay partidos generados aún
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No hay grupos formados en la categoría {{ categoria }}
+        </div>
+    {% endif %}
+{% endmacro %}
+
+<!-- Macro auxiliar: renderiza partidos de fase de grupos (reutilizable) -->
+{% macro _partidos_fase_grupos(categoria, grupos, border_color, bg_color) %}
+    <div class="row">
+        {% for grupo in grupos %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header" style="background: linear-gradient(135deg, {{ border_color }} 0%, {{ border_color }}dd 100%);">
+                    <h6 class="mb-0 text-white fw-bold">
+                        {% if loop.index == 1 %}GRUPO A
+                        {% elif loop.index == 2 %}GRUPO B
+                        {% elif loop.index == 3 %}GRUPO C
+                        {% elif loop.index == 4 %}GRUPO D
+                        {% else %}GRUPO {{ loop.index }}
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body" style="background-color: {{ bg_color }};" id="partidos-grupo-{{ grupo.id }}" data-franja="{{ grupo.franja_horaria }}">
+                    <div class="mb-3 p-2 bg-white rounded border">
+                        <small class="text-muted d-block">
+                            <i class="bi bi-calendar3"></i> <strong>{{ grupo.franja_horaria or 'Por coordinar' }}</strong>
+                        </small>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-geo-alt-fill"></i> <strong>Cancha {{ grupo.cancha or 'Por asignar' }}</strong>
+                        </small>
+                    </div>
+
+                    {% if grupo.partidos %}
+                        {% set hora_base = grupo.franja_horaria.split(' ')[1] if grupo.franja_horaria and ' ' in grupo.franja_horaria else '20:00' %}
+                        {% set hora_partes = hora_base.split(':') %}
+                        {% set hora_inicio = hora_partes[0]|int %}
+
+                        {% for partido in grupo.partidos %}
+                            {% set hora_partido = (hora_inicio + loop.index0) % 24 %}
+                            {% set hora_str = '%02d:00'|format(hora_partido) %}
+                            {% set p1_id = partido.pareja1_id if partido.pareja1_id is defined else 0 %}
+                            {% set p2_id = partido.pareja2_id if partido.pareja2_id is defined else 0 %}
+                            {% set resultado_key = [p1_id, p2_id]|sort|join('-') if p1_id and p2_id else '' %}
+                            {% set resultado = grupo.resultados.get(resultado_key, {}) if grupo.resultados and resultado_key else {} %}
+                            {% set tiene_resultado = resultado.get('ganador_id') is not none %}
+                            {% set puede_ingresar = p1_id > 0 and p2_id > 0 %}
+
+                            <div class="partido-card mb-3 p-3 bg-white rounded border shadow-sm {{ 'border-success border-2' if tiene_resultado else '' }}{{ ' border-danger' if not puede_ingresar else '' }}"
+                                 style="cursor: {{ 'pointer' if puede_ingresar else 'not-allowed' }}; transition: all 0.2s; {{ 'opacity: 0.6;' if not puede_ingresar else '' }}"
+                                 {% if puede_ingresar %}
+                                 onclick="abrirModalPorIds('{{ categoria }}', {{ grupo.id }}, {{ p1_id }}, {{ p2_id }})"
+                                 onmouseenter="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+                                 onmouseleave="this.style.transform=''; this.style.boxShadow='';"
+                                 {% else %}
+                                 title="Recarga la página para actualizar los datos del partido"
+                                 {% endif %}>
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="me-2">
+                                        <span class="badge bg-primary">
+                                            <i class="bi bi-clock-fill"></i> {{ hora_str }}
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted">Partido {{ loop.index }}</small>
+                                    </div>
+                                    {% if tiene_resultado %}
+                                        <div class="ms-2">
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle-fill"></i> Completado
+                                            </span>
+                                        </div>
+                                    {% else %}
+                                        <div class="ms-2">
+                                            <span class="badge bg-secondary">
+                                                <i class="bi bi-pencil-fill"></i> Pendiente
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="row g-0 align-items-center">
+                                    <div class="col-5">
+                                        <div class="text-end pe-2">
+                                            <div class="fw-bold text-truncate {{ 'text-success' if resultado.get('ganador_id') == partido.pareja1_id else '' }}"
+                                                 style="font-size: 0.95rem;" title="{{ partido.pareja1 }}">
+                                                {% if resultado.get('ganador_id') == partido.pareja1_id %}
+                                                    <i class="bi bi-trophy-fill text-warning"></i>
+                                                {% endif %}
+                                                {{ partido.pareja1 }}
+                                            </div>
+                                            {% if tiene_resultado %}
+                                                <small class="text-muted">
+                                                    {{ resultado.get('games_set1_pareja1', '-') }}-{{ resultado.get('games_set1_pareja2', '-') }},
+                                                    {{ resultado.get('games_set2_pareja1', '-') }}-{{ resultado.get('games_set2_pareja2', '-') }}
+                                                    {% if resultado.get('tiebreak_pareja1') is not none %}
+                                                        , TB: {{ resultado.get('tiebreak_pareja1', '-') }}-{{ resultado.get('tiebreak_pareja2', '-') }}
+                                                    {% endif %}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-2">
+                                        <div class="text-center">
+                                            <span class="badge bg-secondary">VS</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-5">
+                                        <div class="ps-2">
+                                            <div class="fw-bold text-truncate {{ 'text-success' if resultado.get('ganador_id') == partido.pareja2_id else '' }}"
+                                                 style="font-size: 0.95rem;" title="{{ partido.pareja2 }}">
+                                                {{ partido.pareja2 }}
+                                                {% if resultado.get('ganador_id') == partido.pareja2_id %}
+                                                    <i class="bi bi-trophy-fill text-warning"></i>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if not tiene_resultado %}
+                                    {% if puede_ingresar %}
+                                        <div class="text-center mt-2">
+                                            <small class="text-muted">
+                                                <i class="bi bi-hand-index"></i> Click para ingresar resultado
+                                            </small>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center mt-2">
+                                            <small class="text-danger">
+                                                <i class="bi bi-exclamation-triangle"></i> Recarga la página para ingresar resultado
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-light mb-0">
+                            <i class="bi bi-info-circle"></i> No hay partidos generados aún
+                        </div>
+                    {% endif %}
+
+                    <!-- Tabla de Posiciones -->
+                    <div class="mt-4" id="tabla-posiciones-{{ categoria }}-{{ grupo.id }}">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-trophy"></i> Tabla de Posiciones
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-primary">
+                                    <tr>
+                                        <th class="text-center" style="width: 10%;">Pos</th>
+                                        <th>Pareja</th>
+                                        <th class="text-center" style="width: 10%;">PJ</th>
+                                        <th class="text-center" style="width: 10%;">PG</th>
+                                        <th class="text-center" style="width: 15%;">Sets</th>
+                                        <th class="text-center" style="width: 15%;">Games</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-posiciones-{{ categoria }}-{{ grupo.id }}">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">
+                                            <small>Ingresa los resultados de los partidos para ver la tabla</small>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% endmacro %}
+
+<!-- Macro para mostrar solo los grupos/series de una categoría -->
+{% macro mostrar_grupos_categoria_solo_series(categoria, grupos, border_color, bg_color) %}
+    {% if grupos %}
+        {# --- Fase torneo: solo partidos (grupos ocultos) --- #}
+        {% if fase_torneo == 'torneo' %}
+        <div class="mt-2">
+            <h5 class="fw-bold mb-3">🏆 Partidos de la Fase de Grupos</h5>
+            {{ _partidos_fase_grupos(categoria, grupos, border_color, bg_color) }}
+        </div>
+        {% endif %}
+
+        {# --- Fase inscripcion: gestión de grupos + partidos bloqueados --- #}
+        {% if fase_torneo != 'torneo' %}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">Grupos de {{ categoria }}</h4>
+            <button class="btn btn-success" onclick="abrirModalCrearGrupo('{{ categoria }}')">
+                <i class="bi bi-plus-circle-fill"></i> Nuevo Grupo
+            </button>
+        </div>
+
+        <!-- Parejas No Asignadas -->
+        <div id="parejas-no-asignadas-{{ categoria }}" class="mb-4">
+            <!-- Se carga dinámicamente -->
+        </div>
+        
+        <!-- Grid de 4 columnas para Grupos A, B, C, D -->
+        <div class="row g-3">
+            {% for grupo in grupos %}
+            <div class="col-md-3">
+                <div class="card h-100 shadow-sm grupo-card" 
+                     style="border-top: 4px solid {{ border_color }};"
+                     data-grupo-id="{{ grupo.id }}"
+                     data-categoria="{{ categoria }}">
+                    <div class="card-header text-white text-center position-relative" style="background: linear-gradient(135deg, {{ border_color }} 0%, {{ border_color }}dd 100%);">
+                        <h5 class="mb-0 fw-bold">
+                            {% if loop.index == 1 %}GRUPO A
+                            {% elif loop.index == 2 %}GRUPO B
+                            {% elif loop.index == 3 %}GRUPO C
+                            {% elif loop.index == 4 %}GRUPO D
+                            {% else %}GRUPO {{ loop.index }}
+                            {% endif %}
+                        </h5>
+                        <button class="btn btn-sm btn-light position-absolute top-50 end-0 translate-middle-y me-2" 
+                                data-grupo-id="{{ grupo.id }}"
+                                data-categoria="{{ categoria }}"
+                                data-franja="{{ grupo.franja_horaria }}"
+                                data-cancha="{{ grupo.cancha }}"
+                                data-parejas='{{ grupo.parejas|tojson }}'
+                                onclick="abrirModalEditarGrupo(this)"
+                                title="Editar horario y cancha">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="card-body" style="background-color: {{ bg_color }};">
+                        <!-- Info de Franja y Cancha -->
+                        <div class="alert alert-light alert-permanent border mb-3 py-2">
+                            <small class="d-block">
+                                <i class="bi bi-clock-fill"></i> <strong>{{ grupo.franja_horaria or 'Por coordinar' }}</strong>
+                            </small>
+                            <small class="d-block">
+                                <i class="bi bi-geo-alt-fill"></i> <strong>Cancha {{ grupo.cancha or 'Por asignar' }}</strong>
+                            </small>
+                        </div>
+
+                        <!-- Parejas del Grupo con 3 slots fijos -->
+                        <h6 class="fw-bold mb-2">Parejas:</h6>
+                        
+                        {% for slot_num in range(3) %}
+                        {% set pareja = grupo.parejas[slot_num] if slot_num < grupo.parejas|length else none %}
+                        
+                        {% if pareja %}
+                            {# Hay pareja en este slot #}
+                            {% set franja_asignada = grupo.franja_horaria %}
+                            {% set franjas_pareja = pareja.franjas_disponibles if pareja.franjas_disponibles else [] %}
+                            
+                            {# Verificar compatibilidad exacta #}
+                            {% set compatible_exacto = franja_asignada in franjas_pareja if franja_asignada and franjas_pareja else true %}
+                            
+                            {# Verificar compatibilidad parcial (mismo día) #}
+                            {% set compatible_parcial = namespace(value=false) %}
+                            {% if franja_asignada and not compatible_exacto and franjas_pareja %}
+                                {% set dia_asignado = franja_asignada.split(' ')[0] %}
+                                {% for franja in franjas_pareja %}
+                                    {% set dia_franja = franja.split(' ')[0] %}
+                                    {% if dia_franja == dia_asignado %}
+                                        {% set compatible_parcial.value = true %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                            
+                            {# Determinar clase CSS y tooltip #}
+                            {% if compatible_exacto %}
+                                {% set border_class = '' %}
+                                {% set text_class = '' %}
+                                {% set tooltip = '' %}
+                            {% elif compatible_parcial.value %}
+                                {% set border_class = 'border-warning border-2' %}
+                                {% set text_class = 'text-warning' %}
+                                {% set tooltip = 'Esta pareja eligió este día pero en otro horario' %}
+                            {% else %}
+                                {% set border_class = 'border-danger border-2' %}
+                                {% set text_class = 'text-danger' %}
+                                {% set tooltip = 'Esta pareja no eligió este día' %}
+                            {% endif %}
+                            
+                            <div class="pareja-slot mb-2 p-2 bg-white rounded border {{ border_class }}" 
+                                 draggable="true"
+                                 data-pareja-id="{{ pareja.id }}"
+                                 data-pareja-nombre="{{ pareja.nombre }}"
+                                 data-grupo-origen="{{ grupo.id }}"
+                                 data-grupo-id="{{ grupo.id }}"
+                                 data-slot="{{ slot_num }}"
+                                 data-posicion="{{ pareja.posicion_grupo or '' }}"
+                                 {% if tooltip %}title="{{ tooltip }}"{% endif %}>
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold text-truncate {{ text_class }}" title="{{ pareja.nombre }}">
+                                            {{ slot_num + 1 }}. {{ pareja.nombre }}
+                                        </div>
+                                        <small class="text-muted d-block mt-1">
+                                            <i class="bi bi-clock"></i> {{ pareja.franjas_disponibles|join(', ') if pareja.franjas_disponibles else 'Sin horarios' }}
+                                        </small>
+                                        <small class="text-muted d-block">
+                                            <i class="bi bi-telephone"></i> {{ pareja.telefono }}
+                                        </small>
+                                    </div>
+                                    {% if pareja.posicion_grupo %}
+                                        <div class="ms-2">
+                                            <!-- Indicador de posición asignada automáticamente -->
+                                            {% if pareja.posicion_grupo == 1 %}
+                                                <span class="badge text-dark" style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);" title="1° Puesto (Automático)">1°</span>
+                                            {% elif pareja.posicion_grupo == 2 %}
+                                                <span class="badge text-dark" style="background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%);" title="2° Puesto (Automático)">2°</span>
+                                            {% elif pareja.posicion_grupo == 3 %}
+                                                <span class="badge text-white" style="background: linear-gradient(135deg, #CD7F32 0%, #A0522D 100%);" title="3° Puesto (Automático)">3°</span>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% else %}
+                            {# Slot vacío #}
+                            <div class="pareja-slot pareja-slot-vacio mb-2 p-2 bg-light rounded border border-dashed" 
+                                 data-grupo-id="{{ grupo.id }}"
+                                 data-slot="{{ slot_num }}"
+                                 style="min-height: 80px; display: flex; align-items: center; justify-content: center; border-style: dashed !important;">
+                                <div class="text-muted text-center">
+                                    <i class="bi bi-plus-circle"></i>
+                                    <small class="d-block">Slot {{ slot_num + 1 }} vacío</small>
+                                    <small class="d-block" style="font-size: 0.7rem;">Arrastra una pareja aquí</small>
+                                </div>
+                            </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="card-footer text-center" style="background-color: {{ bg_color }};">
+                        {% set score = grupo.score | default(0.0) %}
+                        {% if score == 3.0 %}
+                            <span class="badge bg-success">✅ Perfecto: {{ "%.1f"|format(score) }}/3.0</span>
+                        {% elif score >= 2.5 %}
+                            <span class="badge bg-success">✅ Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                        {% elif score >= 2.0 %}
+                            <span class="badge bg-warning text-dark">⚠️ Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                        {% elif score >= 1.0 %}
+                            <span class="badge bg-info text-white">📅 Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                        {% elif score > 0.0 %}
+                            <span class="badge bg-warning text-dark">⚠️ Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                        {% else %}
+                            <span class="badge bg-danger">❌ Calidad: {{ "%.1f"|format(score) }}/3.0</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Partidos visibles pero bloqueados en fase inscripcion -->
+        <div class="mt-4 position-relative">
+            <div style="opacity: 0.45; pointer-events: none; filter: grayscale(30%);">
+                <h5 class="fw-bold mb-3">🏆 Partidos de la Fase de Grupos</h5>
+                {{ _partidos_fase_grupos(categoria, grupos, border_color, bg_color) }}
+            </div>
+            <div class="alert alert-warning text-center mt-2 mb-0">
+                <i class="bi bi-lock-fill"></i> <strong>Activa el torneo</strong> para ingresar resultados de partidos.
+            </div>
+        </div>
+        {% endif %}{# fin fase_torneo != 'torneo' #}
+    {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No hay grupos formados en la categoría {{ categoria }}
+        </div>
+    {% endif %}
+{% endmacro %}
+
+<!-- Macro para mostrar un partido en el calendario -->
+{% macro mostrar_partido_simple(partido) %}
+    {% set clase_categoria = {
+        'Cuarta': 'partido-cuarta',
+        'Quinta': 'partido-quinta',
+        'Sexta': 'partido-sexta',
+        'Séptima': 'partido-septima',
+        'Tercera': 'partido-tercera'
+    } %}
+    
+    {% set emoji_categoria = {
+        'Cuarta': '🟢',
+        'Quinta': '🟡',
+        'Sexta': '🔵',
+        'Séptima': '🟣',
+        'Tercera': '🔴'
+    } %}
+    
+    <div class="partido-bloque-simple {{ clase_categoria[partido.categoria] }}">
+        <div class="mb-2 text-center">
+            <span class="badge-categoria">{{ emoji_categoria[partido.categoria] }} {{ partido.categoria }}</span>
+            <span class="badge-grupo">Grupo {{ partido.grupo_letra | default('A') }}</span>
+        </div>
+        
+        <div class="row align-items-center g-0">
+            <div class="col-5 text-end pe-2">
+                <div class="fw-bold">{{ partido.pareja1 }}</div>
+            </div>
+            <div class="col-2 text-center">
+                <strong class="text-muted">VS</strong>
+            </div>
+            <div class="col-5 text-start ps-2">
+                <div class="fw-bold">{{ partido.pareja2 }}</div>
+            </div>
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro mostrar_partido_mobile(partido) %}
+    {% set cat_lower = partido.categoria.lower() %}
+    <div class="partido-mobile {{ cat_lower }}">
+        <span class="partido-categoria {{ cat_lower }}">{{ partido.categoria }}</span>
+        <div class="partido-vs">{{ partido.pareja1 }} <strong>VS</strong> {{ partido.pareja2 }}</div>
+        <div class="partido-grupo">Grupo {{ partido.grupo_letra | default('A') }}</div>
+    </div>
+{% endmacro %}
+
+{% block extra_js %}
+<script>
+// Variables renderizadas por Jinja2 -- deben permanecer en el template
+const CATEGORIAS_TORNEO_FINALES = {{ categorias | tojson }};
+const CATS_ACTIVAS_FINALES = CATEGORIAS_TORNEO_FINALES.map(c => ({ "Tercera": "3era", "Cuarta": "4ta", "Quinta": "5ta", "Sexta": "6ta", "Séptima": "7ma" })[c]).filter(Boolean);
+</script>
+<script src="{{ url_for('static', filename='js/dashboard-grupos.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard-resultados.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard-finales.js') }}"></script>
+{% endblock %}

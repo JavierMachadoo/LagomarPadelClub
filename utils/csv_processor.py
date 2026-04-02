@@ -97,7 +97,8 @@ class CSVProcessor:
                     'nombre': nombre,
                     'jugador1': jugador1,
                     'jugador2': jugador2,
-                    'telefono': telefono or 'Sin teléfono'
+                    'telefono': telefono or 'Sin teléfono',
+                    'origen': 'csv',
                 })
 
         return parejas

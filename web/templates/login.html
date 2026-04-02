@@ -3,208 +3,366 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Torneo de Pádel</title>
-    
-    <!-- Bootstrap 5 CSS -->
+    <title>Ingresar - Lagomar Padel Club</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    
+
     <style>
+        :root {
+            --brand-black: #1D1A0C;
+            --brand-green: #2CC374;
+            --brand-green-dark: #22a860;
+            --brand-green-glow: rgba(44, 195, 116, 0.3);
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            background: #ffffff;
+            background-image: url("/static/img/Fachada.jpg");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 1rem;
         }
-        
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.80);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ── Asegurar que el contenido quede sobre el overlay ── */
+        .btn-inicio,
         .login-card {
-            background: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Botón volver al inicio ── */
+        .btn-inicio {
+            position: fixed;
+            top: 1.25rem;
+            left: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.2s;
+            z-index: 10;
+        }
+        .btn-inicio:hover { color: var(--brand-green); }
+
+        /* ── Card ── */
+        .login-card {
+            background: #141414;
+            border: 1px solid rgba(255,255,255,0.07);
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 25px 70px rgba(0,0,0,0.7), 0 0 0 1px rgba(34,197,94,0.05);
             overflow: hidden;
+            width: 100%;
             max-width: 400px;
-            width: 90%;
-            animation: slideIn 0.5s ease-out;
+            animation: fadeUp 0.45s ease-out;
         }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
-        
+
+        /* ── Header ── */
         .login-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2.5rem 2rem;
+            background: var(--brand-black);
+            padding: 2rem 2rem 1.5rem;
             text-align: center;
+            border-bottom: 1px solid rgba(34,197,94,0.15);
+            position: relative;
         }
-        
-        .login-header i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            animation: bounce 2s infinite;
+
+        .login-header::after {
+            content: '';
+            display: block;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--brand-green), transparent);
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
         }
-        
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+
+        .login-header img {
+            width: 260px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
         }
-        
-        .login-body {
-            padding: 2rem;
+
+        /* ── Body ── */
+        .login-body { padding: 2rem; }
+
+        .form-label {
+            font-weight: 600;
+            color: rgba(255,255,255,0.75);
+            font-size: 0.875rem;
+            margin-bottom: 0.4rem;
         }
-        
+
         .form-control {
+            background: #1e1e1e;
+            border: 1.5px solid rgba(255,255,255,0.1);
             border-radius: 10px;
             padding: 0.75rem 1rem;
-            border: 2px solid #e0e0e0;
-            transition: all 0.3s;
+            color: #fff;
+            font-size: 0.95rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
-        
+        .form-control::placeholder { color: rgba(255,255,255,0.25); }
         .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            background: #1e1e1e;
+            border-color: var(--brand-green);
+            box-shadow: 0 0 0 3px var(--brand-green-glow);
+            color: #fff;
+            outline: none;
         }
-        
+
         .input-group-text {
-            background: white;
-            border: 2px solid #e0e0e0;
+            background: #1e1e1e;
+            border: 1.5px solid rgba(255,255,255,0.1);
             border-right: none;
             border-radius: 10px 0 0 10px;
-            color: #667eea;
+            color: var(--brand-green);
         }
-        
         .input-group .form-control {
             border-left: none;
             border-radius: 0 10px 10px 0;
         }
-        
         .input-group:focus-within .input-group-text {
-            border-color: #667eea;
+            border-color: var(--brand-green);
         }
-        
+
+        /* ── Botón principal ── */
         .btn-login {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--brand-green);
             border: none;
             border-radius: 10px;
-            padding: 0.75rem 2rem;
-            color: white;
-            font-weight: 600;
+            padding: 0.8rem;
+            color: var(--brand-black);
+            font-weight: 700;
+            font-size: 1rem;
             width: 100%;
-            transition: all 0.3s;
+            letter-spacing: 0.03em;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
         }
-        
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        .btn-login:hover:not(:disabled) {
+            background: var(--brand-green-dark);
+            box-shadow: 0 6px 20px var(--brand-green-glow);
+            transform: translateY(-1px);
         }
-        
+        .btn-login:disabled { opacity: 0.6; }
+
+        /* ── Alert ── */
         .alert {
             border-radius: 10px;
             border: none;
-            animation: slideDown 0.3s ease-out;
+            font-size: 0.9rem;
         }
-        
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .form-label {
+
+        /* ── Link registro ── */
+        .link-registro {
+            color: var(--brand-green);
             font-weight: 600;
-            color: #333;
-            margin-bottom: 0.5rem;
+            text-decoration: none;
+        }
+        .link-registro:hover { color: var(--brand-green-dark); text-decoration: underline; }
+
+        .divider {
+            border-color: rgba(255,255,255,0.08);
+            margin: 1.25rem 0;
+        }
+
+        /* ── Remember me ── */
+        .remember-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .remember-wrap input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+            accent-color: var(--brand-green);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .remember-wrap label {
+            color: rgba(255,255,255,0.55);
+            font-size: 0.875rem;
+            cursor: pointer;
+            user-select: none;
+            margin: 0;
+        }
+        .remember-wrap label:hover { color: rgba(255,255,255,0.8); }
+
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            color: #3c4043;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn-google:hover {
+            background: #f1f3f4;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            color: #3c4043;
         }
     </style>
 </head>
 <body>
+
+    <!-- Volver al inicio -->
+    <a href="/" class="btn-inicio">
+        <i class="bi bi-arrow-left"></i> Inicio
+    </a>
+
     <div class="login-card">
+        <!-- Header con logo -->
         <div class="login-header">
-            <i class="bi bi-trophy-fill text-warning"></i>
-            <h2 class="mb-0">Torneo de Pádel</h2>
-            <p class="mb-0 mt-2 opacity-75">Sistema de Gestión</p>
+            <img src="{{ url_for('static', filename='img/logo_lagomar.png') }}"
+                 alt="Lagomar Padel Club">
         </div>
-        
+
         <div class="login-body">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                            <i class="bi bi-{{ 'exclamation-circle' if category == 'error' else 'info-circle' }} me-2"></i>
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-            
-            <form method="POST" action="{{ url_for('login') }}">
+            <div id="msg-login" class="alert" style="display:none"></div>
+
+            <!-- Botón Google -->
+            <a href="/api/auth/google" class="btn btn-google w-100 mb-3">
+                <svg width="18" height="18" viewBox="0 0 48 48" class="me-2" style="flex-shrink:0">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                Continuar con Google
+            </a>
+
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <hr class="flex-grow-1 m-0" style="border-color: rgba(255,255,255,0.1);">
+                <small style="color:rgba(255,255,255,0.3); white-space:nowrap;">o ingresá con email</small>
+                <hr class="flex-grow-1 m-0" style="border-color: rgba(255,255,255,0.1);">
+            </div>
+
+            <form id="form-login">
                 <div class="mb-3">
-                    <label for="username" class="form-label">
-                        <i class="bi bi-person-fill me-1"></i>Usuario
-                    </label>
+                    <label class="form-label">Email</label>
                     <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="bi bi-person"></i>
-                        </span>
-                        <input type="text" 
-                               class="form-control" 
-                               id="username" 
-                               name="username" 
-                               placeholder="Ingresa tu usuario"
-                               required 
-                               autofocus>
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input type="email" class="form-control" id="login-email"
+                               placeholder="tu@email.com" required autofocus>
                     </div>
                 </div>
-                
+
                 <div class="mb-4">
-                    <label for="password" class="form-label">
-                        <i class="bi bi-lock-fill me-1"></i>Contraseña
-                    </label>
+                    <label class="form-label">Contraseña</label>
                     <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="bi bi-lock"></i>
-                        </span>
-                        <input type="password" 
-                               class="form-control" 
-                               id="password" 
-                               name="password" 
-                               placeholder="Ingresa tu contraseña"
-                               required>
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input type="password" class="form-control" id="login-password"
+                               placeholder="Tu contraseña" required>
                     </div>
                 </div>
-                
-                <button type="submit" class="btn btn-login">
+
+                <div class="remember-wrap">
+                    <input type="checkbox" id="remember-me">
+                    <label for="remember-me">Recordame</label>
+                </div>
+
+                <button type="submit" class="btn btn-login" id="btn-login-submit">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Ingresar
                 </button>
             </form>
-            
-            <div class="text-center mt-4 text-muted">
-                <small>
-                    <i class="bi bi-shield-lock me-1"></i>
-                    Acceso restringido a administradores
+
+            <hr class="divider">
+
+            <div class="text-center">
+                <small style="color: rgba(255,255,255,0.4);">
+                    ¿No tienes cuenta?
+                    <a href="/registro" class="link-registro">Regístrate</a>
                 </small>
             </div>
         </div>
     </div>
-    
-    <!-- Bootstrap JS -->
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const form  = document.getElementById('form-login');
+        const btn   = document.getElementById('btn-login-submit');
+        const msgEl = document.getElementById('msg-login');
+
+        function mostrarMsg(texto, tipo) {
+            msgEl.className = `alert alert-${tipo}`;
+            msgEl.textContent = texto;
+            msgEl.style.display = 'block';
+        }
+
+        // Si el ?next= lleva un token de invitación, guardarlo en sessionStorage
+        // para que inscripcion.html lo recupere si el jugador pierde la URL
+        (function() {
+            const next = new URLSearchParams(window.location.search).get('next') || '';
+            const m = next.match(/[?&]token=([^&]+)/);
+            if (m) sessionStorage.setItem('pendingInviteToken', decodeURIComponent(m[1]));
+        })();
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Ingresando...';
+            msgEl.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email:       document.getElementById('login-email').value.trim(),
+                        password:    document.getElementById('login-password').value,
+                        remember_me: document.getElementById('remember-me').checked,
+                        next:        new URLSearchParams(window.location.search).get('next') || '',
+                    }),
+                });
+                const json = await res.json();
+
+                if (res.ok) {
+                    window.location.href = json.redirect || '/grupos';
+                } else {
+                    mostrarMsg(json.error || 'Credenciales incorrectas', 'danger');
+                }
+            } catch {
+                mostrarMsg('Error de red. Intenta de nuevo.', 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Ingresar';
+            }
+        });
+    </script>
 </body>
 </html>

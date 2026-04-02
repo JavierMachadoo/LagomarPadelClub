@@ -5,6 +5,12 @@ import itertools
 from core.models import Pareja, Grupo, ResultadoAlgoritmo
 from config import CATEGORIAS, EMOJI_CATEGORIA
 
+# Constantes de scoring de compatibilidad
+SCORE_FRANJA_EXACTA = 1.0       # Franja horaria exacta coincide
+SCORE_FRANJA_DIA = 0.5          # Mismo día, hora distinta
+SCORE_MAXIMO = 3.0              # Las 3 parejas comparten franja exacta
+SCORE_COMPATIBILIDAD_PARCIAL_MIN = 2.0  # Umbral para "compatibilidad parcial"
+
 
 class AlgoritmoGrupos:
     def __init__(self, parejas: List[Pareja], num_canchas: int = 2):
@@ -16,12 +22,21 @@ class AlgoritmoGrupos:
         parejas_por_categoria = self._separar_por_categoria()
         grupos_por_categoria = {}
         parejas_sin_asignar_total = []
-        
-        for categoria, parejas_cat in parejas_por_categoria.items():
-            grupos, sin_asignar = self._formar_grupos_categoria(parejas_cat, categoria)
+
+        # Contador compartido entre categorías: franja → grupos ya asignados.
+        # Limita a num_canchas grupos por franja en total para evitar solapamientos.
+        # Procesamos en orden de CATEGORIAS para que las de mayor rango tengan prioridad.
+        franja_canchas_ocupadas: Dict[str, int] = defaultdict(int)
+
+        for categoria in CATEGORIAS:
+            if categoria not in parejas_por_categoria:
+                continue
+            grupos, sin_asignar = self._formar_grupos_categoria(
+                parejas_por_categoria[categoria], categoria, franja_canchas_ocupadas
+            )
             grupos_por_categoria[categoria] = grupos
             parejas_sin_asignar_total.extend(sin_asignar)
-        
+
         calendario = self._generar_calendario(grupos_por_categoria)
         estadisticas = self._calcular_estadisticas(grupos_por_categoria, parejas_sin_asignar_total)
         
@@ -39,176 +54,175 @@ class AlgoritmoGrupos:
                 parejas_por_cat[pareja.categoria].append(pareja)
         return dict(parejas_por_cat)
     
-    def _formar_grupos_categoria(self, parejas: List[Pareja], categoria: str) -> Tuple[List[Grupo], List[Pareja]]:
+    def _formar_grupos_categoria(
+        self,
+        parejas: List[Pareja],
+        categoria: str,
+        franja_canchas_ocupadas: Dict[str, int],
+    ) -> Tuple[List[Grupo], List[Pareja]]:
         if len(parejas) < 3:
             return [], list(parejas)
-        
-        # Intentar optimización global si hay suficientes parejas pero no demasiadas
+
         num_grupos_posibles = len(parejas) // 3
-        
-        # Solo optimizar si podemos formar entre 2 y 6 grupos (para mantener eficiencia)
+
+        # Camino optimizado (backtracking) para 2–6 grupos
         if 2 <= num_grupos_posibles <= 6:
-            mejor_distribucion = self._buscar_distribucion_optima(list(parejas), categoria)
+            mejor_distribucion = self._buscar_distribucion_optima(
+                list(parejas), categoria, franja_canchas_ocupadas
+            )
             if mejor_distribucion:
                 grupos_formados, parejas_sin_asignar = mejor_distribucion
+                # Registrar las franjas comprometidas por estos grupos
+                for g in grupos_formados:
+                    if g.franja_horaria:
+                        franja_canchas_ocupadas[g.franja_horaria] += 1
                 return grupos_formados, parejas_sin_asignar
-        
-        # Si hay muy pocas o demasiadas parejas, usar algoritmo greedy original
+
+        # Camino greedy para casos extremos
         grupos_formados = []
         parejas_disponibles = set(parejas)
-        
+
         while len(parejas_disponibles) >= 3:
             mejor_grupo = None
             mejor_score = -1
             mejor_franja = None
-            
+
             for combo in itertools.combinations(parejas_disponibles, 3):
                 score, franja = self._calcular_compatibilidad(list(combo))
-                
-                if score > mejor_score:
-                    mejor_score = score
-                    mejor_grupo = combo
-                    mejor_franja = franja
-            
+                # Descartar si la franja ya agotó sus canchas disponibles
+                if score > 0 and franja and franja_canchas_ocupadas[franja] < self.num_canchas:
+                    if score > mejor_score:
+                        mejor_score = score
+                        mejor_grupo = combo
+                        mejor_franja = franja
+
             if mejor_grupo and mejor_score > 0:
                 grupo = self._crear_grupo(list(mejor_grupo), categoria, mejor_franja, mejor_score)
                 grupos_formados.append(grupo)
-                
+                franja_canchas_ocupadas[mejor_franja] += 1
                 for pareja in mejor_grupo:
                     parejas_disponibles.remove(pareja)
             else:
                 break
-        
+
         parejas_sin_asignar = list(parejas_disponibles)
         return grupos_formados, parejas_sin_asignar
     
-    def _buscar_distribucion_optima(self, parejas: List[Pareja], categoria: str) -> Optional[Tuple[List[Grupo], List[Pareja]]]:
+    def _buscar_distribucion_optima(
+        self,
+        parejas: List[Pareja],
+        categoria: str,
+        franja_canchas_ocupadas: Dict[str, int],
+    ) -> Optional[Tuple[List[Grupo], List[Pareja]]]:
         """
         Busca la distribución óptima de grupos que maximiza el score total.
         Usa backtracking con poda para explorar combinaciones eficientemente.
+
+        franja_canchas_ocupadas es el estado compartido entre categorías: solo se
+        pueden usar franjas con contador < num_canchas.  Durante la exploración se
+        incrementa/decrementa para mantener coherencia; al retornar queda igual que
+        al entrar (los grupos ganadores se confirman en _formar_grupos_categoria).
         """
         mejor_score_total = -1
         mejor_grupos = None
         mejor_sin_asignar = None
-        
+
         num_parejas = len(parejas)
         num_grupos_max = num_parejas // 3
-        
-        def backtrack(parejas_restantes: List[Pareja], grupos_actuales: List[Grupo], 
-                     score_acumulado: float, grupos_formados: int):
+
+        def backtrack(parejas_restantes: List[Pareja], grupos_actuales: List[Grupo],
+                      score_acumulado: float, grupos_formados: int):
             nonlocal mejor_score_total, mejor_grupos, mejor_sin_asignar
-            
-            # Si ya no podemos formar más grupos de 3
+
             if len(parejas_restantes) < 3:
-                # Evaluar si esta solución es mejor
                 if score_acumulado > mejor_score_total:
                     mejor_score_total = score_acumulado
                     mejor_grupos = grupos_actuales.copy()
                     mejor_sin_asignar = parejas_restantes.copy()
                 return
-            
-            # Si ya formamos el máximo de grupos posibles
+
             if grupos_formados >= num_grupos_max:
                 if score_acumulado > mejor_score_total:
                     mejor_score_total = score_acumulado
                     mejor_grupos = grupos_actuales.copy()
                     mejor_sin_asignar = parejas_restantes.copy()
                 return
-            
-            # Poda: si incluso con score perfecto no superamos el mejor, no continuar
+
             parejas_por_asignar = len(parejas_restantes)
             grupos_restantes = parejas_por_asignar // 3
             score_maximo_posible = score_acumulado + (grupos_restantes * 3.0)
-            
             if score_maximo_posible <= mejor_score_total:
                 return
-            
-            # Probar combinaciones de 3 parejas
+
+            # Solo aceptar combos cuya franja tenga canchas libres
             combinaciones_scores = []
             for combo in itertools.combinations(parejas_restantes, 3):
                 score, franja = self._calcular_compatibilidad(list(combo))
-                if score > 0:  # Solo considerar grupos con alguna compatibilidad
+                if score > 0 and franja and franja_canchas_ocupadas[franja] < self.num_canchas:
                     combinaciones_scores.append((score, franja, combo))
-            
-            # Ordenar por score descendente
+
             combinaciones_scores.sort(reverse=True, key=lambda x: x[0])
-            
-            # Limitar basado en el número de parejas restantes para balance eficiencia/precisión
-            # - Pocas parejas (≤9): explorar todas las combinaciones válidas
-            # - Más parejas: limitar progresivamente para evitar explosión combinatoria
+
             if len(parejas_restantes) <= 9:
-                # Con 9 parejas o menos (≤3 grupos), explorar todo
                 max_combos = len(combinaciones_scores)
             elif len(parejas_restantes) <= 12:
-                # Con 12 parejas (4 grupos), explorar las mejores 20
                 max_combos = min(20, len(combinaciones_scores))
             else:
-                # Con más parejas, limitar a 15
                 max_combos = min(15, len(combinaciones_scores))
-            
+
             for score, franja, combo in combinaciones_scores[:max_combos]:
-                # Crear grupo temporal
                 grupo = self._crear_grupo(list(combo), categoria, franja, score)
-                
-                # Quitar parejas de la lista restante
                 nuevas_restantes = [p for p in parejas_restantes if p not in combo]
-                
-                # Continuar backtracking
+
                 grupos_actuales.append(grupo)
+                franja_canchas_ocupadas[franja] += 1          # reservar cancha
                 backtrack(nuevas_restantes, grupos_actuales, score_acumulado + score, grupos_formados + 1)
+                franja_canchas_ocupadas[franja] -= 1          # rollback
                 grupos_actuales.pop()
-        
-        # Iniciar búsqueda
+
         backtrack(parejas, [], 0.0, 0)
-        
+
         if mejor_grupos is not None:
             return mejor_grupos, mejor_sin_asignar
-        
         return None
     
-    def _calcular_compatibilidad(self, parejas: List[Pareja]) -> Tuple[float, Optional[str]]:
-        if len(parejas) != 3:
-            return 0.0, None
-        
-        franjas_p1 = set(parejas[0].franjas_disponibles)
-        franjas_p2 = set(parejas[1].franjas_disponibles)
-        franjas_p3 = set(parejas[2].franjas_disponibles)
-        
-        # Primero intentar encontrar una franja común a las 3 parejas
-        franjas_comunes_todas = franjas_p1 & franjas_p2 & franjas_p3
-        
-        if franjas_comunes_todas:
-            return 3.0, list(franjas_comunes_todas)[0]
-        
-        # Buscar la mejor franja evaluando todas las posibilidades
+    def _calcular_score_compatibilidad(self, franjas_grupos: List[set], franja_candidata: str) -> float:
+        """Calcula el score de compatibilidad de una franja candidata contra los conjuntos de franjas del grupo."""
+        dia_candidato = franja_candidata.split(' ')[0] if ' ' in franja_candidata else ''
+        score = 0.0
+        for franjas_pareja in franjas_grupos:
+            if franja_candidata in franjas_pareja:
+                score += SCORE_FRANJA_EXACTA
+            else:
+                dias_pareja = set(f.split(' ')[0] for f in franjas_pareja if ' ' in f)
+                if dia_candidato and dia_candidato in dias_pareja:
+                    score += SCORE_FRANJA_DIA
+        return score
+
+    def _elegir_franja(self, franjas_grupos: List[set]) -> Tuple[float, Optional[str]]:
+        """Elige la mejor franja horaria para un grupo dado sus conjuntos de franjas disponibles."""
+        todas_franjas = set().union(*franjas_grupos)
         mejor_franja = None
         mejor_score = 0.0
-        
-        # Obtener todas las franjas únicas de las 3 parejas
-        todas_franjas = franjas_p1 | franjas_p2 | franjas_p3
-        
         for franja_candidata in todas_franjas:
-            dia_candidato = franja_candidata.split(' ')[0] if ' ' in franja_candidata else ''
-            score = 0.0
-            
-            # Calcular score para cada pareja con esta franja
-            for franjas_pareja in [franjas_p1, franjas_p2, franjas_p3]:
-                if franja_candidata in franjas_pareja:
-                    # Horario exacto: 1.0 punto
-                    score += 1.0
-                else:
-                    # Verificar si al menos tiene el mismo día
-                    dias_pareja = set(f.split(' ')[0] for f in franjas_pareja if ' ' in f)
-                    if dia_candidato and dia_candidato in dias_pareja:
-                        # Mismo día, hora diferente: 0.5 puntos
-                        score += 0.5
-                    # Si no tiene el día, suma 0.0 (no suma nada)
-            
+            score = self._calcular_score_compatibilidad(franjas_grupos, franja_candidata)
             if score > mejor_score:
                 mejor_score = score
                 mejor_franja = franja_candidata
-        
         return mejor_score, mejor_franja
+
+    def _calcular_compatibilidad(self, parejas: List[Pareja]) -> Tuple[float, Optional[str]]:
+        if len(parejas) != 3:
+            return 0.0, None
+
+        franjas_grupos = [set(p.franjas_disponibles) for p in parejas]
+
+        # Franja común a las 3 parejas → score máximo
+        franjas_comunes_todas = franjas_grupos[0] & franjas_grupos[1] & franjas_grupos[2]
+        if franjas_comunes_todas:
+            return SCORE_MAXIMO, sorted(franjas_comunes_todas)[0]
+
+        return self._elegir_franja(franjas_grupos)
     
     def _crear_grupo(self, parejas: List[Pareja], categoria: str, 
                      franja: Optional[str], score: float) -> Grupo:
@@ -228,18 +242,8 @@ class AlgoritmoGrupos:
     
     def _generar_calendario(self, grupos_por_categoria: Dict[str, List[Grupo]]) -> Dict[str, List[Dict]]:
         calendario = defaultdict(list)
-        
-        # Mapeo de franjas a horas (para detectar solapamientos)
-        franjas_a_horas = {
-            'Viernes 18:00': ['Viernes 18:00', 'Viernes 19:00', 'Viernes 20:00'],
-            'Viernes 21:00': ['Viernes 21:00', 'Viernes 22:00', 'Viernes 23:00'],
-            'Sábado 09:00': ['Sábado 09:00', 'Sábado 10:00', 'Sábado 11:00'],
-            'Sábado 12:00': ['Sábado 12:00', 'Sábado 13:00', 'Sábado 14:00'],
-            'Sábado 16:00': ['Sábado 16:00', 'Sábado 17:00', 'Sábado 18:00'],
-            'Sábado 19:00': ['Sábado 19:00', 'Sábado 20:00', 'Sábado 21:00'],
-        }
-        
-        # Recopilar todos los grupos con su información
+
+        # Recopilar todos los grupos con su info
         grupos_con_info = []
         for categoria, grupos in grupos_por_categoria.items():
             for grupo in grupos:
@@ -248,55 +252,38 @@ class AlgoritmoGrupos:
                         'grupo': grupo,
                         'franja': grupo.franja_horaria,
                         'categoria': categoria,
-                        'horas': franjas_a_horas.get(grupo.franja_horaria, [grupo.franja_horaria])
                     })
-        
-        # Asignar canchas a cada grupo evitando solapamientos
-        canchas_ocupadas = {}  # {cancha: [lista de horas ocupadas]}
-        asignaciones = {}  # {grupo.id: cancha}
-        
+
+        # Asignar canchas agrupando por franja y ordenando por rango de categoría.
+        # La formación de grupos ya garantizó que hay como máximo num_canchas grupos
+        # por franja, así que aquí no puede haber conflictos — solo ordenamos.
+        #
+        # Rango: posición en CATEGORIAS (0 = más alta, ej. Tercera).
+        # Grupos de categoría más alta → cancha 1; más baja → cancha 2.
+        # Mismo rango (misma categoría): el orden es arbitrario.
+        def _rango(cat: str) -> int:
+            try:
+                return CATEGORIAS.index(cat)
+            except ValueError:
+                return len(CATEGORIAS)
+
+        asignaciones: Dict[int, int] = {}  # grupo.id → número de cancha
+
+        grupos_por_franja: Dict[str, list] = defaultdict(list)
         for info in grupos_con_info:
-            grupo = info['grupo']
-            horas_franja = info['horas']
-            cancha_asignada = None
-            
-            # Buscar una cancha disponible sin solapamientos
-            for cancha_num in range(1, self.num_canchas + 1):
-                if cancha_num not in canchas_ocupadas:
-                    canchas_ocupadas[cancha_num] = []
-                
-                # Verificar si hay solapamiento de horas
-                horas_ocupadas = canchas_ocupadas[cancha_num]
-                solapamiento = any(hora in horas_ocupadas for hora in horas_franja)
-                
-                if not solapamiento:
-                    cancha_asignada = cancha_num
-                    # Marcar las horas como ocupadas
-                    canchas_ocupadas[cancha_num].extend(horas_franja)
-                    break
-            
-            # Si no se encontró cancha disponible, buscar la cancha con menos conflictos
-            if cancha_asignada is None:
-                mejor_cancha = 1
-                menor_conflictos = float('inf')
-                for cancha_num in range(1, self.num_canchas + 1):
-                    if cancha_num not in canchas_ocupadas:
-                        canchas_ocupadas[cancha_num] = []
-                    conflictos = sum(1 for hora in horas_franja if hora in canchas_ocupadas[cancha_num])
-                    if conflictos < menor_conflictos:
-                        menor_conflictos = conflictos
-                        mejor_cancha = cancha_num
-                cancha_asignada = mejor_cancha
-                canchas_ocupadas[cancha_asignada].extend(horas_franja)
-            
-            asignaciones[grupo.id] = cancha_asignada
-        
-        # Generar el calendario con las canchas asignadas
+            grupos_por_franja[info['franja']].append(info)
+
+        for _franja, infos in grupos_por_franja.items():
+            infos_ordenados = sorted(infos, key=lambda x: _rango(x['categoria']))
+            for idx, info in enumerate(infos_ordenados):
+                asignaciones[info['grupo'].id] = idx + 1  # cancha 1-indexada
+
+        # Construir el calendario con las canchas asignadas
         for info in grupos_con_info:
             grupo = info['grupo']
             franja = info['franja']
             cancha_asignada = asignaciones[grupo.id]
-            
+
             for idx_partido, (pareja1, pareja2) in enumerate(grupo.partidos):
                 calendario[franja].append({
                     "franja": franja,
@@ -309,7 +296,7 @@ class AlgoritmoGrupos:
                     "pareja2": pareja2.nombre,
                     "score_compatibilidad": grupo.score_compatibilidad
                 })
-        
+
         return dict(calendario)
     
     def _calcular_estadisticas(self, grupos_por_categoria: Dict[str, List[Grupo]], 
@@ -341,6 +328,6 @@ class AlgoritmoGrupos:
             "grupos_por_categoria": dict(grupos_por_cat),
             "parejas_por_categoria": dict(parejas_por_cat),
             "score_compatibilidad_promedio": score_promedio,
-            "grupos_compatibilidad_perfecta": sum(1 for s in todos_scores if s >= 3.0),
-            "grupos_compatibilidad_parcial": sum(1 for s in todos_scores if 2.0 <= s < 3.0)
+            "grupos_compatibilidad_perfecta": sum(1 for s in todos_scores if s >= SCORE_MAXIMO),
+            "grupos_compatibilidad_parcial": sum(1 for s in todos_scores if SCORE_COMPATIBILIDAD_PARCIAL_MIN <= s < SCORE_MAXIMO)
         }

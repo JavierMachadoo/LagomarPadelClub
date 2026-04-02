@@ -58,10 +58,10 @@
     }
     
     #mainTabs .nav-link.active {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: 2px solid #667eea;
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        background: var(--brand-black);
+        color: var(--brand-white);
+        border: 2px solid var(--brand-black);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
     }
     
     #mainTabs .nav-link small {
@@ -182,23 +182,37 @@
     .round-column:has(.match-wrapper:only-child) .matches-column {
         grid-template-rows: repeat(4, minmax(100px, 1fr));
     }
-    .round-column:has(.match-wrapper:only-child) .match-wrapper { 
-        grid-row: 2 / 4; 
+    .round-column:has(.match-wrapper:only-child) .match-wrapper {
+        grid-row: 2 / 4;
         align-self: center;
     }
-    
+
+    /* Octavos (5 grupos): alinear con cuartos 2 y 3.
+       Usamos .octavos-col para evitar afectar la columna de cuartos en 3 grupos (también 2 partidos). */
+    .round-column.octavos-col .matches-column {
+        grid-template-rows: repeat(4, minmax(100px, 1fr));
+    }
+    .round-column.octavos-col .match-wrapper:nth-child(1) {
+        grid-row: 2;
+        align-self: center;
+    }
+    .round-column.octavos-col .match-wrapper:nth-child(2) {
+        grid-row: 3;
+        align-self: center;
+    }
+
     .round-header-itf {
         text-align: center;
         padding: 0.9rem 1.5rem;
         margin-bottom: 2.5rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: var(--brand-black);
+        color: var(--brand-white);
         border-radius: 12px;
         font-size: 0.95rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1.2px;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.35);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
     
     .position-badges {
@@ -233,7 +247,25 @@
     .match-wrapper {
         position: relative;
     }
-    
+
+    /* Info de cancha/hora sobre cada card del bracket */
+    .match-schedule-info {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.67rem;
+        color: rgba(0,0,0,0.42);
+        margin-bottom: 0.25rem;
+        padding-left: 0.3rem;
+    }
+    .match-schedule-cancha {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-weight: 700;
+        font-size: 0.7rem;
+        color: var(--brand-green, #2E9B0E);
+    }
+    .match-schedule-info .bi { font-size: 0.62rem; }
+
     /* ========== PARTIDO (MATCH) ESTILO ITF ========== */
     .match-card-itf {
         background: white;
@@ -247,8 +279,8 @@
     }
     
     .match-card-itf:hover {
-        border-color: #667eea;
-        box-shadow: 0 4px 18px rgba(102, 126, 234, 0.2);
+        border-color: var(--brand-green);
+        box-shadow: 0 4px 18px rgba(34, 197, 94, 0.2);
         transform: translateX(3px);
     }
     
@@ -353,7 +385,7 @@
     }
     
     .bracket-line.winner-path {
-        stroke: #667eea;
+        stroke: var(--brand-green);
         stroke-width: 3;
     }
     
@@ -395,7 +427,8 @@
     }
     
     .btn-float-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--brand-green);
+        color: var(--brand-black) !important;
     }
     
     /* ========== BOTONES DE ACCIÓN ========== */
@@ -406,19 +439,20 @@
     }
     
     .btn-regenerar {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: var(--brand-green);
+        color: var(--brand-black);
         border: none;
         padding: 0.75rem 1.5rem;
         border-radius: 50px;
-        font-weight: 600;
-        transition: all 0.3s ease;
+        font-weight: 700;
+        transition: all 0.2s ease;
     }
-    
+
     .btn-regenerar:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        color: white;
+        box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+        background: var(--brand-green-dark);
+        color: var(--brand-white);
     }
     
     /* ========== CALENDARIO DOMINGO ========== */
@@ -458,10 +492,10 @@
     .cancha-header {
         font-size: 1.1rem;
         font-weight: 700;
-        color: #667eea;
+        color: var(--brand-green-dark);
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid #667eea;
+        border-bottom: 2px solid var(--brand-green);
     }
     
     .partido-calendario {
@@ -652,7 +686,7 @@
 
 <!-- Botón de Acción Flotante -->
 <div class="floating-actions">
-    <a href="{{ url_for('resultados') }}" class="btn-float btn-float-primary" title="Volver a Grupos">
+    <a href="{{ url_for('dashboard') }}" class="btn-float btn-float-primary" title="Volver a Grupos">
         <i class="bi bi-arrow-left"></i>
     </a>
 </div>
@@ -661,7 +695,7 @@
 <div class="modal fade" id="modalResultadoFinal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius: 20px; overflow: hidden; border: none;">
-            <div class="modal-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem;">
+            <div class="modal-header text-white" style="background: var(--brand-black); padding: 1.5rem;">
                 <h5 class="modal-title fw-bold">
                     <i class="bi bi-trophy-fill me-2"></i> Resultado del Partido
                 </h5>
@@ -754,7 +788,7 @@
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 10px; padding: 0.625rem 1.5rem;">
                     Cancelar
                 </button>
-                <button type="button" class="btn btn-primary" onclick="guardarResultadoFinal()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 10px; padding: 0.625rem 1.5rem; font-weight: 600;">
+                <button type="button" class="btn btn-primary" onclick="guardarResultadoFinal()" style="background: var(--brand-green); color: var(--brand-black); border: none; border-radius: 30px; padding: 0.625rem 1.5rem; font-weight: 700;">
                     <i class="bi bi-check-circle me-1"></i> Guardar Resultado
                 </button>
             </div>
@@ -781,15 +815,29 @@ const CATS_ACTIVAS = CATEGORIAS_TORNEO.map(c => CAT_MAP[c]).filter(Boolean);
 
 let currentCategoria = CATS_ACTIVAS[0] || '4ta';
 let fixtures = {};
+let calendarioIndex = {}; // { partido_id: { cancha, hora_inicio } }
+const _partidosFinalesData = {};
 
 // Cargar fixtures al inicio
 document.addEventListener('DOMContentLoaded', function() {
     cargarFixtures();
-    
+    cargarCalendarioIndex(); // fire-and-forget: puebla el índice para los chips de cancha/hora
+
     // Auto-actualizar cada 60 segundos (sin saturar el servidor free-tier)
     setInterval(() => {
         cargarFixtures(/* silencioso= */true);
     }, 60000);
+
+    // Event delegation para tarjetas de partido — evita onclick inline con datos de usuario
+    const drawContainer = document.getElementById('drawContainer');
+    if (drawContainer) {
+        drawContainer.addEventListener('click', e => {
+            const card = e.target.closest('[data-open-partido]');
+            if (!card) return;
+            const datos = _partidosFinalesData[card.dataset.openPartido];
+            if (datos) abrirModalResultadoFinal(card.dataset.openPartido, datos.categoria, datos.p1, datos.p2);
+        });
+    }
 });
 
 // Cargar todos los fixtures
@@ -893,7 +941,7 @@ function renderizarFixture(categoria) {
     // Octavos (si hay más de 4 grupos)
     if (fixture.octavos && fixture.octavos.length > 0) {
         hasAnyRound = true;
-        columns.push(renderizarColumnaITF('Octavos de Final', fixture.octavos, categoria, true));
+        columns.push(renderizarColumnaITF('Octavos de Final', fixture.octavos, categoria, true, true));
     }
     
     // Cuartos (siempre mostrar como mínimo)
@@ -1008,8 +1056,9 @@ function renderizarPartidoVacioITF() {
 
 // Renderizar una ronda completa
 // Renderizar columna ITF (una ronda con sus partidos)
-function renderizarColumnaITF(titulo, partidos, categoria, tieneSiguienteRonda = false) {
+function renderizarColumnaITF(titulo, partidos, categoria, tieneSiguienteRonda = false, isOctavos = false) {
     const hasNextClass = tieneSiguienteRonda ? 'has-next' : '';
+    const octavosClass = isOctavos ? 'octavos-col' : '';
     
     // Agregar badges de posición para diferentes fases
     let headerExtra = '';
@@ -1040,7 +1089,7 @@ function renderizarColumnaITF(titulo, partidos, categoria, tieneSiguienteRonda =
     }
     
     let html = `
-        <div class="round-column ${hasNextClass}">
+        <div class="round-column ${hasNextClass} ${octavosClass}">
             <div class="round-header-itf">
                 ${titulo}
                 ${headerExtra}
@@ -1130,15 +1179,26 @@ function renderizarPartidoITF(partido, categoria, tieneSiguienteRonda = false, i
     const pareja1Nombre = partido.pareja1 ? partido.pareja1.nombre : (partido.slot1_info || 'Por definir');
     const pareja2Nombre = partido.pareja2 ? partido.pareja2.nombre : (partido.slot2_info || 'Por definir');
     
-    // Click para abrir modal de resultado (solo si ambas parejas están definidas y no hay ganador)
-    const clickHandler = partido.pareja1 && partido.pareja2 && !ganador 
-        ? `onclick="abrirModalResultadoFinal('${partido.id}', '${categoria}', '${pareja1Nombre}', '${pareja2Nombre}')"` 
-        : '';
-    
+    // Click para abrir modal de resultado — datos en mapa, no en onclick inline (XSS)
+    let clickHandler = '';
+    if (partido.pareja1 && partido.pareja2 && !ganador) {
+        _partidosFinalesData[partido.id] = { categoria, p1: pareja1Nombre, p2: pareja2Nombre };
+        clickHandler = `data-open-partido="${partido.id}"`;
+    }
+
     const cursorStyle = partido.pareja1 && partido.pareja2 && !ganador ? 'cursor: pointer;' : 'cursor: default;';
-    
+
+    const horarioInfo = calendarioIndex[partido.id]
+        ? `<div class="match-schedule-info">
+               <span class="match-schedule-cancha"><i class="bi bi-geo-alt-fill"></i> Cancha ${calendarioIndex[partido.id].cancha}</span>
+               <span>·</span>
+               <span><i class="bi bi-clock"></i> ${calendarioIndex[partido.id].hora_inicio}</span>
+           </div>`
+        : '';
+
     return `
         <div class="match-wrapper">
+            ${horarioInfo}
             <div class="match-card-itf" ${clickHandler} style="${cursorStyle}">
                 <div class="player-row-itf ${pareja1Class} ${porDefinir1}">
                     ${pareja1Text}
@@ -1189,15 +1249,39 @@ function dibujarLineasConectoras() {
         
         const currentMatches = Array.from(currentColumn.querySelectorAll('.match-wrapper'));
         const nextMatches = Array.from(nextColumn.querySelectorAll('.match-wrapper'));
-        
-        // Conectar pares de partidos actuales con el siguiente
-        for (let j = 0; j < nextMatches.length; j++) {
-            const match1 = currentMatches[j * 2];
-            const match2 = currentMatches[j * 2 + 1];
-            const nextMatch = nextMatches[j];
-            
-            if (match1 && match2 && nextMatch) {
-                dibujarConexionBracket(svg, match1, match2, nextMatch, drawGrid);
+
+        if (currentMatches.length < nextMatches.length * 2) {
+            // Avance individual: cada partido actual → un destino específico en la siguiente ronda.
+            // Casos:
+            //   5 grupos: 2 octavos → 4 cuartos (nextMatches.length > currentMatches.length)
+            //     octavo[0]→cuarto[1], octavo[1]→cuarto[2]  (offset 1, saltan C.1)
+            //   3 grupos: 2 cuartos → 2 semis (nextMatches.length == currentMatches.length)
+            //     cuarto[0]→semi[0], cuarto[1]→semi[1]       (mismo índice)
+            const offset = nextMatches.length > currentMatches.length ? 1 : 0;
+            const totalLines = currentMatches.length;
+            for (let j = 0; j < totalLines; j++) {
+                const match = currentMatches[j];
+                const nextMatch = nextMatches[j + offset];
+                if (match && nextMatch) {
+                    // Escalonar el punto de giro (turnRatio) entre líneas para evitar que los
+                    // segmentos verticales se superpongan visualmente (efecto "las líneas se juntan").
+                    // Con 2 líneas: ratio 0.3 y 0.7 — con 1 línea: ratio 0.5 (centrado normal).
+                    const turnRatio = totalLines > 1
+                        ? 0.3 + (j / (totalLines - 1)) * 0.4
+                        : 0.5;
+                    dibujarConexionDirecta(svg, match, nextMatch, drawGrid, turnRatio);
+                }
+            }
+        } else {
+            // Patrón normal 2:1: cada par de partidos actuales converge hacia un partido siguiente
+            for (let j = 0; j < nextMatches.length; j++) {
+                const match1 = currentMatches[j * 2];
+                const match2 = currentMatches[j * 2 + 1];
+                const nextMatch = nextMatches[j];
+
+                if (match1 && match2 && nextMatch) {
+                    dibujarConexionBracket(svg, match1, match2, nextMatch, drawGrid);
+                }
             }
         }
     }
@@ -1246,6 +1330,30 @@ function dibujarConexionBracket(svg, match1, match2, nextMatch, container) {
     path.setAttribute('d', pathData.trim());
     path.setAttribute('class', 'bracket-line');
     
+    svg.appendChild(path);
+}
+
+function dibujarConexionDirecta(svg, match, nextMatch, container, turnRatio = 0.5) {
+    const svgNS = "http://www.w3.org/2000/svg";
+
+    const containerRect = container.getBoundingClientRect();
+    const rect = match.getBoundingClientRect();
+    const rectNext = nextMatch.getBoundingClientRect();
+
+    const x1 = rect.right - containerRect.left;
+    const y1 = rect.top + rect.height / 2 - containerRect.top;
+    const xNext = rectNext.left - containerRect.left;
+    const yNext = rectNext.top + rectNext.height / 2 - containerRect.top;
+    // turnRatio controla dónde se produce el giro vertical en el espacio entre columnas.
+    // Diferenciarlo por línea evita que segmentos verticales de distintas conexiones se superpongan.
+    const xMid = x1 + (xNext - x1) * turnRatio;
+
+    // H → V → H (sin converger con otro partido)
+    const pathData = `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${yNext} L ${xNext} ${yNext}`;
+
+    const path = document.createElementNS(svgNS, "path");
+    path.setAttribute('d', pathData);
+    path.setAttribute('class', 'bracket-line');
     svg.appendChild(path);
 }
 
@@ -1347,38 +1455,43 @@ async function guardarResultadoFinal() {
     const set2P1 = parseInt(document.getElementById('gamesSet2P1').value) || 0;
     const set2P2 = parseInt(document.getElementById('gamesSet2P2').value) || 0;
     
-    // Validar que hay sets ingresados
-    if (set1P1 === 0 && set1P2 === 0 && set2P1 === 0 && set2P2 === 0) {
-        showToast('Debes ingresar al menos los resultados de 2 sets', 'warning');
+    // Cada set: exactamente uno de los dos tiene 6, el otro tiene 0-5 (sin empate ni 6-6)
+    function esSetValido(a, b) {
+        return (a === 6 && b >= 0 && b <= 5) || (b === 6 && a >= 0 && a <= 5);
+    }
+    if (!esSetValido(set1P1, set1P2)) {
+        showToast('Set 1 inválido: el ganador debe tener exactamente 6 games y el perdedor entre 0 y 5 (ej: 6-4). No puede haber 6-6.', 'warning');
         return;
     }
-    
-    // Validar que los games no excedan 6 en sets normales
-    if (set1P1 > 6 || set1P2 > 6 || set2P1 > 6 || set2P2 > 6) {
-        showToast('Los games en un set no pueden ser mayores a 6', 'warning');
+    if (!esSetValido(set2P1, set2P2)) {
+        showToast('Set 2 inválido: el ganador debe tener exactamente 6 games y el perdedor entre 0 y 5 (ej: 6-3). No puede haber 6-6.', 'warning');
         return;
     }
-    
+
     const sets = [
         { pareja1: set1P1, pareja2: set1P2 },
         { pareja1: set2P1, pareja2: set2P2 }
     ];
-    
-    // Verificar si hay tiebreak (1-1 en sets)
+
+    // Verificar si hay super tie-break (1-1 en sets)
     const setsP1 = (set1P1 > set1P2 ? 1 : 0) + (set2P1 > set2P2 ? 1 : 0);
     const setsP2 = (set1P2 > set1P1 ? 1 : 0) + (set2P2 > set2P1 ? 1 : 0);
-    
+
     if (setsP1 === 1 && setsP2 === 1) {
-        // Requiere super tiebreak
-        const tieP1 = parseInt(document.getElementById('tiebreakP1').value) || 0;
-        const tieP2 = parseInt(document.getElementById('tiebreakP2').value) || 0;
-        
-        if (tieP1 === 0 && tieP2 === 0) {
+        const tieP1 = parseInt(document.getElementById('tiebreakP1').value);
+        const tieP2 = parseInt(document.getElementById('tiebreakP2').value);
+
+        if (isNaN(tieP1) || isNaN(tieP2)) {
             showToast('Debes ingresar el resultado del super tie-break', 'warning');
             document.getElementById('tiebreakCardFinal').style.display = 'block';
             return;
         }
-        
+        if (tieP1 === tieP2) { showToast('El super tie-break no puede quedar empatado', 'warning'); return; }
+        const tbGanador = Math.max(tieP1, tieP2);
+        const tbPerdedor = Math.min(tieP1, tieP2);
+        if (tbGanador < 11) { showToast('El ganador del super tie-break debe llegar mínimo a 11 puntos', 'warning'); return; }
+        if (tbGanador - tbPerdedor < 2) { showToast('El super tie-break se gana por al menos 2 puntos de diferencia (ej: 11-9, 12-10)', 'warning'); return; }
+
         sets.push({ pareja1: tieP1, pareja2: tieP2 });
     }
     
@@ -1420,6 +1533,7 @@ async function regenerarFixtures() {
         if (data.success) {
             showToast('Llaves regeneradas correctamente', 'success');
             await cargarFixtures();
+            cargarCalendarioIndex(); // actualizar chips de cancha/hora para el nuevo calendario
         } else {
             showToast('Error al regenerar: ' + data.message, 'danger');
         }
@@ -1427,6 +1541,28 @@ async function regenerarFixtures() {
         console.error('Error:', error);
         showToast('Error de conexión', 'danger');
     }
+}
+
+// Construir índice partido_id → { cancha, hora_inicio } para chips en el bracket
+async function cargarCalendarioIndex() {
+    try {
+        const response = await fetch('/api/finales/calendario', { credentials: 'same-origin' });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!data.success) return;
+
+        const nuevoIndex = {};
+        const canchas = [data.calendario.cancha_1 || [], data.calendario.cancha_2 || []];
+        canchas.forEach(lista => {
+            lista.forEach(p => {
+                nuevoIndex[p.partido_id] = { cancha: p.cancha, hora_inicio: p.hora_inicio };
+            });
+        });
+        calendarioIndex = nuevoIndex;
+
+        // Re-renderizar el bracket activo para que aparezcan los chips
+        if (currentCategoria) renderizarFixture(currentCategoria);
+    } catch (_) { /* silencioso: los chips son info extra, no crítica */ }
 }
 
 // Cargar calendario

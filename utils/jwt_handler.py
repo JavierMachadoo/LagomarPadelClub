@@ -4,7 +4,7 @@ Reemplaza el sistema de sesiones basado en archivos.
 """
 
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import request, jsonify
 import logging
@@ -28,26 +28,27 @@ class JWTHandler:
         self.algorithm = algorithm
         self.expiration_hours = expiration_hours
     
-    def generar_token(self, data=None):
+    def generar_token(self, data=None, expiration_hours=None):
         """
         Genera un nuevo token JWT.
-        
+
         Args:
             data: Dict con datos adicionales para incluir en el token
-            
+            expiration_hours: Override de expiración en horas (usa el default si es None)
+
         Returns:
             String con el token JWT
         """
         if data is None:
             data = {}
-        
-        # Agregar timestamp de expiración
+
+        horas = expiration_hours if expiration_hours is not None else self.expiration_hours
         payload = {
-            'exp': datetime.utcnow() + timedelta(hours=self.expiration_hours),
-            'iat': datetime.utcnow(),
+            'exp': datetime.now(tz=timezone.utc) + timedelta(hours=horas),
+            'iat': datetime.now(tz=timezone.utc),
             'data': data
         }
-        
+
         token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
         return token
     
@@ -149,9 +150,11 @@ def crear_respuesta_con_token(jwt_handler, data, mensaje='', status=200):
     response = jsonify(response_data)
     
     # También establecer como cookie para facilitar acceso desde el navegador
-    response.set_cookie('token', token, 
+    from flask import current_app
+    response.set_cookie('token', token,
                        httponly=True,  # No accesible desde JavaScript
                        samesite='Lax',  # CSRF protection
-                       max_age=60*60*2)  # 2 horas
+                       max_age=60*60*2,  # 2 horas
+                       secure=not current_app.debug)
     
     return response, status

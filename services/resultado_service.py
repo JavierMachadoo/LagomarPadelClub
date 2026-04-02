@@ -15,7 +15,6 @@ import logging
 from core import Pareja, Grupo
 from core.models import ResultadoPartido
 from core.clasificacion import CalculadorClasificacion
-from core.fixture_finales_generator import GeneradorFixtureFinales
 from utils.torneo_storage import storage, ConflictError
 from .exceptions import ServiceError
 

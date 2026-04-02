@@ -97,7 +97,7 @@ Flask web application for managing padel tennis tournaments. Optimizes group for
 - Single-tournament model — one `torneo_actual` per instance
 - Uses Supabase (JSONB) if env vars present, otherwise falls back to local JSON files in `data/torneos/`
 - In-memory cache with 5-second TTL
-- **Gunicorn is configured to 1 worker** to prevent cache staleness — do not increase worker count
+- **Gunicorn workers**: 1 locally / dev, 2 in Railway prod (see `DESPLIEGUE.md` §4). Cache TTL is 5s — stale reads across workers are bounded and acceptable for player reads. Single admin write pattern + optimistic locking (`guardar_con_version()`) keeps writes safe.
 
 ### Core Algorithm (`core/algoritmo.py`)
 - `AlgoritmoGrupos` forms groups of 3 couples based on schedule slot overlap (compatibility scoring)

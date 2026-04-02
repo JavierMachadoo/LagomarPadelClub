@@ -4,7 +4,7 @@ Reemplaza el sistema de sesiones basado en archivos.
 """
 
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import request, jsonify
 import logging
@@ -44,8 +44,8 @@ class JWTHandler:
 
         horas = expiration_hours if expiration_hours is not None else self.expiration_hours
         payload = {
-            'exp': datetime.utcnow() + timedelta(hours=horas),
-            'iat': datetime.utcnow(),
+            'exp': datetime.now(tz=timezone.utc) + timedelta(hours=horas),
+            'iat': datetime.now(tz=timezone.utc),
             'data': data
         }
 

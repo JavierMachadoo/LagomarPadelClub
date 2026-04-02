@@ -66,10 +66,9 @@ class TorneoStorage:
     _TABLE = 'torneo_actual'
 
     # TTL del caché en memoria (segundos).
-    # Con 1 worker en producción el caché es seguro.
-    # Se invalida automáticamente en cada guardar().
-    # Con múltiples workers esto causaría datos stale entre procesos.
-    _CACHE_TTL = 5  # Reducido: evita datos stale, sigue aliviando ráfagas rápidas
+    # Con 2 workers en Railway, cada proceso tiene su propia copia — stale acotado a 5s.
+    # Aceptable para lecturas de jugadores. Escrituras protegidas por optimistic locking.
+    _CACHE_TTL = 5
 
     def __init__(self) -> None:
         self._cache: Optional[Dict] = None
@@ -104,16 +103,24 @@ class TorneoStorage:
         }
 
     def _crear_torneo_default(self) -> None:
-        self.guardar(self._torneo_vacio())
+        self._guardar_sin_version(self._torneo_vacio())
+
+    def _reset_campos_torneo(self, torneo: Dict) -> None:
+        """Resetea los campos de juego del torneo (helper compartido por limpiar y transicion_a_espera)."""
+        torneo['parejas'] = []
+        torneo['resultado_algoritmo'] = None
+        torneo['fixtures_finales'] = {}
+        torneo['estado'] = 'creando'
+        torneo['torneo_id'] = str(uuid.uuid4())
+        torneo.pop('proximo_torneo', None)
 
     # ── API pública ───────────────────────────────────────────────────────────
 
-    def guardar(self, datos: Dict) -> None:
-        """Persiste el diccionario completo del torneo e invalida el caché.
+    def _guardar_sin_version(self, datos: Dict) -> None:
+        """Escritura incondicional — no verifica versión.
 
-        Escritura incondicional — no verifica versión. Usar solo para operaciones
-        internas de inicialización o migraciones. Para escrituras de admin usar
-        guardar_con_version().
+        Solo para operaciones internas (init, limpiar, transiciones de fase).
+        Para escrituras de admin usar guardar_con_version().
         """
         datos['fecha_modificacion'] = datetime.now().isoformat()
 
@@ -200,7 +207,7 @@ class TorneoStorage:
 
             # Primera ejecución: no hay fila todavía
             default = self._torneo_vacio()
-            self.guardar(default)
+            self._guardar_sin_version(default)
             return default
 
         # ── JSON local ────────────────────────────────────────────────────────
@@ -221,48 +228,47 @@ class TorneoStorage:
 
 
     def limpiar(self) -> None:
-        """Reinicia el torneo preservando nombre y tipo configurados en estado espera.
-
-        El nombre y tipo_torneo ya fueron asignados al configurar el próximo torneo,
-        por lo que se preservan. Limpia datos de juego y campos del estado espera.
-        """
+        """Reinicia el torneo preservando nombre y tipo configurados en estado espera."""
         torneo = self.cargar()
         nombre_actual = torneo.get('nombre', '')
         tipo_actual = torneo.get('tipo_torneo', 'fin1')
-        torneo['parejas'] = []
-        torneo['resultado_algoritmo'] = None
-        torneo['fixtures_finales'] = {}
-        torneo['estado'] = 'creando'
+        self._reset_campos_torneo(torneo)
         torneo['fase'] = 'inscripcion'
         torneo['nombre'] = nombre_actual
         torneo['tipo_torneo'] = tipo_actual
-        torneo['torneo_id'] = str(uuid.uuid4())
         torneo.pop('ultimo_torneo_id', None)
-        torneo.pop('proximo_torneo', None)
-        self.guardar(torneo)
+        self._guardar_sin_version(torneo)
+        self.inicializar_torneo_id()  # sincroniza el nuevo torneo_id con la tabla torneos en Supabase
 
     def get_torneo_id(self) -> str:
-        """Devuelve el UUID del torneo activo.
+        """Devuelve el UUID del torneo activo (solo lectura).
 
-        Si el blob no tiene `torneo_id` (torneos anteriores a Fase 1),
-        genera uno, lo persiste y crea la fila correspondiente en la tabla `torneos`.
+        Si no existe torneo_id (torneos pre-Fase 1), delega a inicializar_torneo_id().
+        Para operaciones normales no tiene side effects.
+        """
+        torneo_id = self.cargar().get('torneo_id')
+        if not torneo_id:
+            return self.inicializar_torneo_id()
+        return torneo_id
+
+    def inicializar_torneo_id(self) -> str:
+        """Genera un torneo_id si no existe y sincroniza con la tabla torneos.
+
+        Llamar explícitamente al crear un torneo nuevo. No se debe llamar en
+        operaciones de lectura normales — usar get_torneo_id() para eso.
         """
         torneo = self.cargar()
-        torneo_id = torneo.get('torneo_id')
+        torneo_id = torneo.get('torneo_id') or str(uuid.uuid4())
+        torneo['torneo_id'] = torneo_id
+        self._guardar_sin_version(torneo)
 
-        if not torneo_id:
-            torneo_id = str(uuid.uuid4())
-            torneo['torneo_id'] = torneo_id
-            self.guardar(torneo)
-
-        # Asegurar que existe la fila en la tabla torneos (idempotente)
         if _USE_SUPABASE:
             try:
                 self._sb.table('torneos').upsert({
-                    'id':      torneo_id,
-                    'nombre':  torneo.get('nombre', 'Torneo'),
-                    'tipo':    torneo.get('tipo_torneo', 'fin1'),
-                    'estado':  torneo.get('fase', 'inscripcion'),
+                    'id':     torneo_id,
+                    'nombre': torneo.get('nombre', 'Torneo'),
+                    'tipo':   torneo.get('tipo_torneo', 'fin1'),
+                    'estado': torneo.get('fase', 'inscripcion'),
                 }, on_conflict='id').execute()
             except Exception as e:
                 logger.warning('No se pudo sincronizar torneo_id con tabla torneos: %s', e)
@@ -283,23 +289,14 @@ class TorneoStorage:
         self.guardar_con_version(torneo)
 
     def transicion_a_espera(self, ultimo_torneo_id: str) -> None:
-        """Transiciona a estado 'espera' tras archivar un torneo.
-
-        Limpia datos del torneo (parejas, resultado, fixtures) y resetea nombre
-        para que el admin configure el próximo torneo desde cero.
-        """
+        """Transiciona a estado 'espera' tras archivar un torneo."""
         torneo = self.cargar()
-        torneo['parejas'] = []
-        torneo['resultado_algoritmo'] = None
-        torneo['fixtures_finales'] = {}
-        torneo['estado'] = 'creando'
+        self._reset_campos_torneo(torneo)
         torneo['fase'] = 'espera'
         torneo['nombre'] = ''
         torneo['tipo_torneo'] = 'fin1'
-        torneo['torneo_id'] = str(uuid.uuid4())
         torneo['ultimo_torneo_id'] = ultimo_torneo_id
-        torneo.pop('proximo_torneo', None)
-        self.guardar(torneo)
+        self._guardar_sin_version(torneo)
 
     def get_ultimo_torneo_id(self) -> Optional[str]:
         """Devuelve el ID del último torneo archivado (usado en estado 'espera')."""

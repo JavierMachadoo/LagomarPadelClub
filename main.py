@@ -26,11 +26,12 @@ from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
 from api.routes.inscripcion import inscripcion_bp
 from api.routes.historial import historial_bp, _cargar_archivado
-from utils.torneo_storage import storage
+from utils.torneo_storage import storage, ConflictError
 from utils.jwt_handler import JWTHandler
 from core.fixture_finales_generator import GeneradorFixtureFinales
 from utils.calendario_finales_builder import GeneradorCalendarioFinales
 from core.models import Grupo
+from services import grupo_service
 
 
 def crear_app():
@@ -163,40 +164,9 @@ def crear_app():
         parejas = datos.get('parejas', [])
         resultado = datos.get('resultado_algoritmo')
         torneo = storage.cargar()
-        
-        # Enriquecer parejas con información de asignación
-        parejas_enriquecidas = []
-        for pareja in parejas:
-            pareja_info = pareja.copy()
-            pareja_info['grupo_asignado'] = None
-            pareja_info['franja_asignada'] = None
-            pareja_info['esta_asignada'] = False
-            pareja_info['fuera_de_horario'] = False
-            
-            # Si hay resultado del algoritmo, buscar asignación
-            if resultado:
-                for categoria, grupos in resultado.get('grupos_por_categoria', {}).items():
-                    for grupo in grupos:
-                        for p in grupo.get('parejas', []):
-                            if p['id'] == pareja['id']:
-                                pareja_info['grupo_asignado'] = grupo['id']
-                                pareja_info['franja_asignada'] = grupo.get('franja_horaria')
-                                pareja_info['esta_asignada'] = True
-                                
-                                # Verificar si está fuera de horario
-                                franja_asignada = grupo.get('franja_horaria')
-                                if franja_asignada:
-                                    franjas_disponibles = pareja.get('franjas_disponibles', [])
-                                    if franja_asignada not in franjas_disponibles:
-                                        pareja_info['fuera_de_horario'] = True
-                                break
-                        if pareja_info['esta_asignada']:
-                            break
-                    if pareja_info['esta_asignada']:
-                        break
-            
-            parejas_enriquecidas.append(pareja_info)
-        
+
+        parejas_enriquecidas = grupo_service.enriquecer_parejas_con_asignacion(parejas, resultado)
+
         # Ordenar parejas por categoría
         orden_categorias = ['Tercera', 'Cuarta', 'Quinta', 'Sexta', 'Séptima']
         parejas_ordenadas = sorted(parejas_enriquecidas, 
@@ -392,7 +362,10 @@ def crear_app():
             if guardado:
                 torneo['fixtures_finales'] = fixtures
                 torneo['calendario_finales'] = GeneradorCalendarioFinales.asignar_horarios(fixtures)
-                storage.guardar(torneo)
+                try:
+                    storage.guardar_con_version(torneo)
+                except ConflictError:
+                    pass  # otro worker ya guardó — usamos los fixtures del torneo recargado
 
         calendario_finales = torneo.get('calendario_finales', {})
         return make_response(render_template('grupos_publico.html',
@@ -555,7 +528,7 @@ def _registrar_extras(app):
         Hace una query real a Supabase para evitar que el proyecto free tier se pause."""
         from flask import jsonify
         try:
-            storage = app.torneo_storage
+            from utils.torneo_storage import storage
             if storage._sb:
                 storage._sb.table('torneo_actual').select('id').limit(1).execute()
         except Exception:
@@ -568,7 +541,7 @@ def _registrar_extras(app):
         # Si es llamada de API devolver JSON; si es página devolver HTML
         if request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Ruta no encontrada'}), 404
-        return render_template('base.html'), 404
+        return render_template('404.html'), 404
 
     @app.errorhandler(500)
     def server_error(e):
@@ -576,7 +549,7 @@ def _registrar_extras(app):
         logger.error('Error 500 en %s %s: %s', request.method, request.path, e, exc_info=True)
         if request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Error interno del servidor'}), 500
-        return render_template('base.html'), 500
+        return render_template('500.html'), 500
 
 
 # Instancia a nivel de módulo para que gunicorn pueda encontrarla

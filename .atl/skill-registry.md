@@ -12,7 +12,7 @@ When modifying `core/algoritmo.py` or group formation logic.
 ### torneo-storage
 When modifying `utils/torneo_storage.py` or storage layer.
 - Single-tournament model — one `torneo_actual` per instance
-- In-memory cache with 5s TTL; Gunicorn fixed at 2 workers in Railway prod (possible staleness across workers)
+- In-memory cache with 5s TTL; Gunicorn: 1 worker local, 2 workers prod (Railway) — stale reads bounded to TTL
 - Use `guardar_con_version()` for all external writes (optimistic locking)
 - Supabase service role key bypasses RLS; anon key is blocked
 

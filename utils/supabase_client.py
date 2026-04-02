@@ -3,7 +3,7 @@ Singleton centralizado para clientes Supabase.
 
 Usar siempre estas funciones en lugar de instanciar create_client() inline.
 Cada llamada a create_client() inicializa un pool HTTP + TLS — costoso.
-Con Gunicorn en 1 worker, los singletons son estables entre requests.
+Con Gunicorn en 2 workers (prod) los singletons se inicializan por worker — ver DESPLIEGUE.md §4.
 """
 from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
 

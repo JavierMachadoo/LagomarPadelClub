@@ -285,7 +285,20 @@ function guardarResultadoPartido() {
         return;
     }
 
-    // Calcular sets
+    // Cada set: exactamente uno de los dos tiene 6, el otro tiene 0-5 (sin empate)
+    function esSetValido(a, b) {
+        return (a === 6 && b >= 0 && b <= 5) || (b === 6 && a >= 0 && a <= 5);
+    }
+    if (!esSetValido(gamesSet1P1, gamesSet1P2)) {
+        Toast.error('Set 1 inválido: el ganador debe tener exactamente 6 games y el perdedor entre 0 y 5 (ej: 6-4, 6-3). No puede haber 6-6.');
+        return;
+    }
+    if (!esSetValido(gamesSet2P1, gamesSet2P2)) {
+        Toast.error('Set 2 inválido: el ganador debe tener exactamente 6 games y el perdedor entre 0 y 5 (ej: 6-2, 6-5). No puede haber 6-6.');
+        return;
+    }
+
+    // Calcular sets ganados
     let setsP1 = 0;
     let setsP2 = 0;
     if (gamesSet1P1 > gamesSet1P2) setsP1++;
@@ -293,7 +306,7 @@ function guardarResultadoPartido() {
     if (gamesSet2P1 > gamesSet2P2) setsP1++;
     else setsP2++;
 
-    // Si hay empate en sets, validar tie-break
+    // Si hay empate en sets, validar super tie-break (mínimo 11, diferencia de al menos 2)
     if (setsP1 === 1 && setsP2 === 1) {
         tiebreakP1 = parseInt(tiebreakP1);
         tiebreakP2 = parseInt(tiebreakP2);
@@ -302,9 +315,18 @@ function guardarResultadoPartido() {
             Toast.error('Debes ingresar el resultado del super tie-break');
             return;
         }
-
         if (tiebreakP1 === tiebreakP2) {
-            Toast.error('El tie-break no puede quedar empatado');
+            Toast.error('El super tie-break no puede quedar empatado');
+            return;
+        }
+        const tbGanador = Math.max(tiebreakP1, tiebreakP2);
+        const tbPerdedor = Math.min(tiebreakP1, tiebreakP2);
+        if (tbGanador < 11) {
+            Toast.error('El ganador del super tie-break debe llegar mínimo a 11 puntos');
+            return;
+        }
+        if (tbGanador - tbPerdedor < 2) {
+            Toast.error('El super tie-break se gana por al menos 2 puntos de diferencia (ej: 11-9, 12-10)');
             return;
         }
     } else {

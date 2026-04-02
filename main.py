@@ -26,7 +26,7 @@ from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
 from api.routes.inscripcion import inscripcion_bp
 from api.routes.historial import historial_bp, _cargar_archivado
-from utils.torneo_storage import storage
+from utils.torneo_storage import storage, ConflictError
 from utils.jwt_handler import JWTHandler
 from core.fixture_finales_generator import GeneradorFixtureFinales
 from utils.calendario_finales_builder import GeneradorCalendarioFinales
@@ -362,7 +362,10 @@ def crear_app():
             if guardado:
                 torneo['fixtures_finales'] = fixtures
                 torneo['calendario_finales'] = GeneradorCalendarioFinales.asignar_horarios(fixtures)
-                storage._guardar_sin_version(torneo)
+                try:
+                    storage.guardar_con_version(torneo)
+                except ConflictError:
+                    pass  # otro worker ya guardó — usamos los fixtures del torneo recargado
 
         calendario_finales = torneo.get('calendario_finales', {})
         return make_response(render_template('grupos_publico.html',

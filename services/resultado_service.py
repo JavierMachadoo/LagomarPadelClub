@@ -105,12 +105,12 @@ def guardar_resultado_grupo(
     if games_set1_p1 is not None and games_set1_p2 is not None:
         if games_set1_p1 > games_set1_p2:
             sets_p1 += 1
-        else:
+        elif games_set1_p1 < games_set1_p2:
             sets_p2 += 1
     if games_set2_p1 is not None and games_set2_p2 is not None:
         if games_set2_p1 > games_set2_p2:
             sets_p1 += 1
-        else:
+        elif games_set2_p1 < games_set2_p2:
             sets_p2 += 1
 
     resultado = ResultadoPartido(

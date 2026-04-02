@@ -45,8 +45,8 @@ def obtener_o_generar_fixtures(torneo: dict) -> dict:
 
     if fixtures_guardados:
         hay_inconsistencia = any(
-            cat in fixtures_guardados
-            and not _fixture_es_consistente(fixtures_guardados[cat], len(grupos_data))
+            cat not in fixtures_guardados
+            or not _fixture_es_consistente(fixtures_guardados[cat], len(grupos_data))
             for cat, grupos_data in grupos_por_categoria.items()
         )
         if not hay_inconsistencia:

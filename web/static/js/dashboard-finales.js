@@ -20,6 +20,7 @@ let calendarioIndex = {};
 let llavesInicializadas = false;
 let pollInterval = 60000;
 let pollTimer = null;
+const _partidosFinalesData = {};
 
 function iniciarPolling() {
     pollTimer = setTimeout(async () => {
@@ -43,6 +44,15 @@ function inicializarLlaves() {
     cargarFixtures();
     cargarCalendarioIndex();
     iniciarPolling();
+    const drawContainer = document.getElementById('drawContainer');
+    if (drawContainer) {
+        drawContainer.addEventListener('click', e => {
+            const card = e.target.closest('[data-open-partido]');
+            if (!card) return;
+            const datos = _partidosFinalesData[card.dataset.openPartido];
+            if (datos) abrirModalResultadoFinal(card.dataset.openPartido, datos.categoria, datos.p1, datos.p2);
+        });
+    }
 }
 
 async function cargarFixtures(silencioso = false) {
@@ -184,8 +194,11 @@ function renderizarPartidoITF(partido, categoria, tieneSiguienteRonda = false, i
     }
     const pareja1Nombre = partido.pareja1 ? partido.pareja1.nombre : (partido.slot1_info || 'Por definir');
     const pareja2Nombre = partido.pareja2 ? partido.pareja2.nombre : (partido.slot2_info || 'Por definir');
-    const clickHandler = partido.pareja1 && partido.pareja2 && !ganador
-        ? `onclick="abrirModalResultadoFinal('${partido.id}', '${categoria}', '${pareja1Nombre}', '${pareja2Nombre}')"` : '';
+    let clickHandler = '';
+    if (partido.pareja1 && partido.pareja2 && !ganador) {
+        _partidosFinalesData[partido.id] = { categoria, p1: pareja1Nombre, p2: pareja2Nombre };
+        clickHandler = `data-open-partido="${partido.id}"`;
+    }
     const cursorStyle = partido.pareja1 && partido.pareja2 && !ganador ? 'cursor:pointer;' : 'cursor:default;';
     const horarioInfo = calendarioIndex[partido.id]
         ? `<div class="match-schedule-info"><span class="match-schedule-cancha"><i class="bi bi-geo-alt-fill"></i> Cancha ${calendarioIndex[partido.id].cancha}</span><span>·</span><span><i class="bi bi-clock"></i> ${calendarioIndex[partido.id].hora_inicio}</span></div>` : '';
@@ -273,15 +286,23 @@ async function guardarResultadoFinal() {
     const s1p2 = parseInt(document.getElementById('gamesSet1P2').value) || 0;
     const s2p1 = parseInt(document.getElementById('gamesSet2P1').value) || 0;
     const s2p2 = parseInt(document.getElementById('gamesSet2P2').value) || 0;
-    if (s1p1 === 0 && s1p2 === 0 && s2p1 === 0 && s2p2 === 0) { showToast('Debes ingresar al menos los resultados de 2 sets', 'warning'); return; }
-    if (s1p1 > 6 || s1p2 > 6 || s2p1 > 6 || s2p2 > 6) { showToast('Los games en un set no pueden ser mayores a 6', 'warning'); return; }
+    function esSetValido(a, b) {
+        return (a === 6 && b >= 0 && b <= 5) || (b === 6 && a >= 0 && a <= 5);
+    }
+    if (!esSetValido(s1p1, s1p2)) { showToast('Set 1 inválido: el ganador debe tener exactamente 6 games y el perdedor entre 0 y 5 (ej: 6-4). No puede haber 6-6.', 'warning'); return; }
+    if (!esSetValido(s2p1, s2p2)) { showToast('Set 2 inválido: el ganador debe tener exactamente 6 games y el perdedor entre 0 y 5 (ej: 6-3). No puede haber 6-6.', 'warning'); return; }
     const sets = [{ pareja1: s1p1, pareja2: s1p2 }, { pareja1: s2p1, pareja2: s2p2 }];
     const sP1 = (s1p1 > s1p2 ? 1 : 0) + (s2p1 > s2p2 ? 1 : 0);
     const sP2 = (s1p2 > s1p1 ? 1 : 0) + (s2p2 > s2p1 ? 1 : 0);
     if (sP1 === 1 && sP2 === 1) {
-        const tP1 = parseInt(document.getElementById('tiebreakP1').value) || 0;
-        const tP2 = parseInt(document.getElementById('tiebreakP2').value) || 0;
-        if (tP1 === 0 && tP2 === 0) { showToast('Debes ingresar el resultado del super tie-break', 'warning'); document.getElementById('tiebreakCardFinal').style.display = 'block'; return; }
+        const tP1 = parseInt(document.getElementById('tiebreakP1').value);
+        const tP2 = parseInt(document.getElementById('tiebreakP2').value);
+        if (isNaN(tP1) || isNaN(tP2)) { showToast('Debes ingresar el resultado del super tie-break', 'warning'); document.getElementById('tiebreakCardFinal').style.display = 'block'; return; }
+        if (tP1 === tP2) { showToast('El super tie-break no puede quedar empatado', 'warning'); return; }
+        const tbGanador = Math.max(tP1, tP2);
+        const tbPerdedor = Math.min(tP1, tP2);
+        if (tbGanador < 11) { showToast('El ganador del super tie-break debe llegar mínimo a 11 puntos', 'warning'); return; }
+        if (tbGanador - tbPerdedor < 2) { showToast('El super tie-break se gana por al menos 2 puntos de diferencia (ej: 11-9, 12-10)', 'warning'); return; }
         sets.push({ pareja1: tP1, pareja2: tP2 });
     }
     try {

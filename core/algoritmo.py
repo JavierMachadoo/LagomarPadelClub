@@ -5,6 +5,12 @@ import itertools
 from core.models import Pareja, Grupo, ResultadoAlgoritmo
 from config import CATEGORIAS, EMOJI_CATEGORIA
 
+# Constantes de scoring de compatibilidad
+SCORE_FRANJA_EXACTA = 1.0       # Franja horaria exacta coincide
+SCORE_FRANJA_DIA = 0.5          # Mismo día, hora distinta
+SCORE_MAXIMO = 3.0              # Las 3 parejas comparten franja exacta
+SCORE_COMPATIBILIDAD_PARCIAL_MIN = 2.0  # Umbral para "compatibilidad parcial"
+
 
 class AlgoritmoGrupos:
     def __init__(self, parejas: List[Pareja], num_canchas: int = 2):
@@ -180,49 +186,43 @@ class AlgoritmoGrupos:
             return mejor_grupos, mejor_sin_asignar
         return None
     
-    def _calcular_compatibilidad(self, parejas: List[Pareja]) -> Tuple[float, Optional[str]]:
-        if len(parejas) != 3:
-            return 0.0, None
-        
-        franjas_p1 = set(parejas[0].franjas_disponibles)
-        franjas_p2 = set(parejas[1].franjas_disponibles)
-        franjas_p3 = set(parejas[2].franjas_disponibles)
-        
-        # Primero intentar encontrar una franja común a las 3 parejas
-        franjas_comunes_todas = franjas_p1 & franjas_p2 & franjas_p3
-        
-        if franjas_comunes_todas:
-            return 3.0, sorted(franjas_comunes_todas)[0]
-        
-        # Buscar la mejor franja evaluando todas las posibilidades
+    def _calcular_score_compatibilidad(self, franjas_grupos: List[set], franja_candidata: str) -> float:
+        """Calcula el score de compatibilidad de una franja candidata contra los conjuntos de franjas del grupo."""
+        dia_candidato = franja_candidata.split(' ')[0] if ' ' in franja_candidata else ''
+        score = 0.0
+        for franjas_pareja in franjas_grupos:
+            if franja_candidata in franjas_pareja:
+                score += SCORE_FRANJA_EXACTA
+            else:
+                dias_pareja = set(f.split(' ')[0] for f in franjas_pareja if ' ' in f)
+                if dia_candidato and dia_candidato in dias_pareja:
+                    score += SCORE_FRANJA_DIA
+        return score
+
+    def _elegir_franja(self, franjas_grupos: List[set]) -> Tuple[float, Optional[str]]:
+        """Elige la mejor franja horaria para un grupo dado sus conjuntos de franjas disponibles."""
+        todas_franjas = set().union(*franjas_grupos)
         mejor_franja = None
         mejor_score = 0.0
-        
-        # Obtener todas las franjas únicas de las 3 parejas
-        todas_franjas = franjas_p1 | franjas_p2 | franjas_p3
-        
         for franja_candidata in todas_franjas:
-            dia_candidato = franja_candidata.split(' ')[0] if ' ' in franja_candidata else ''
-            score = 0.0
-            
-            # Calcular score para cada pareja con esta franja
-            for franjas_pareja in [franjas_p1, franjas_p2, franjas_p3]:
-                if franja_candidata in franjas_pareja:
-                    # Horario exacto: 1.0 punto
-                    score += 1.0
-                else:
-                    # Verificar si al menos tiene el mismo día
-                    dias_pareja = set(f.split(' ')[0] for f in franjas_pareja if ' ' in f)
-                    if dia_candidato and dia_candidato in dias_pareja:
-                        # Mismo día, hora diferente: 0.5 puntos
-                        score += 0.5
-                    # Si no tiene el día, suma 0.0 (no suma nada)
-            
+            score = self._calcular_score_compatibilidad(franjas_grupos, franja_candidata)
             if score > mejor_score:
                 mejor_score = score
                 mejor_franja = franja_candidata
-        
         return mejor_score, mejor_franja
+
+    def _calcular_compatibilidad(self, parejas: List[Pareja]) -> Tuple[float, Optional[str]]:
+        if len(parejas) != 3:
+            return 0.0, None
+
+        franjas_grupos = [set(p.franjas_disponibles) for p in parejas]
+
+        # Franja común a las 3 parejas → score máximo
+        franjas_comunes_todas = franjas_grupos[0] & franjas_grupos[1] & franjas_grupos[2]
+        if franjas_comunes_todas:
+            return SCORE_MAXIMO, sorted(franjas_comunes_todas)[0]
+
+        return self._elegir_franja(franjas_grupos)
     
     def _crear_grupo(self, parejas: List[Pareja], categoria: str, 
                      franja: Optional[str], score: float) -> Grupo:
@@ -328,6 +328,6 @@ class AlgoritmoGrupos:
             "grupos_por_categoria": dict(grupos_por_cat),
             "parejas_por_categoria": dict(parejas_por_cat),
             "score_compatibilidad_promedio": score_promedio,
-            "grupos_compatibilidad_perfecta": sum(1 for s in todos_scores if s >= 3.0),
-            "grupos_compatibilidad_parcial": sum(1 for s in todos_scores if 2.0 <= s < 3.0)
+            "grupos_compatibilidad_perfecta": sum(1 for s in todos_scores if s >= SCORE_MAXIMO),
+            "grupos_compatibilidad_parcial": sum(1 for s in todos_scores if SCORE_COMPATIBILIDAD_PARCIAL_MIN <= s < SCORE_MAXIMO)
         }

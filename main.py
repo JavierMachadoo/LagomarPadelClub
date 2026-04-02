@@ -538,7 +538,7 @@ def _registrar_extras(app):
         # Si es llamada de API devolver JSON; si es página devolver HTML
         if request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Ruta no encontrada'}), 404
-        return render_template('base.html'), 404
+        return render_template('404.html'), 404
 
     @app.errorhandler(500)
     def server_error(e):
@@ -546,7 +546,7 @@ def _registrar_extras(app):
         logger.error('Error 500 en %s %s: %s', request.method, request.path, e, exc_info=True)
         if request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Error interno del servidor'}), 500
-        return render_template('base.html'), 500
+        return render_template('500.html'), 500
 
 
 # Instancia a nivel de módulo para que gunicorn pueda encontrarla

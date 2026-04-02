@@ -238,6 +238,7 @@ class TorneoStorage:
         torneo['tipo_torneo'] = tipo_actual
         torneo.pop('ultimo_torneo_id', None)
         self._guardar_sin_version(torneo)
+        self.inicializar_torneo_id()  # sincroniza el nuevo torneo_id con la tabla torneos en Supabase
 
     def get_torneo_id(self) -> str:
         """Devuelve el UUID del torneo activo (solo lectura).

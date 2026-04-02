@@ -36,7 +36,7 @@ def cargar_csv():
     try:
         df = pd.read_csv(file)
         parejas = CSVProcessor.procesar_dataframe(df)
-        datos_token = {'parejas': parejas, 'resultado_algoritmo': None, 'num_canchas': NUM_CANCHAS_DEFAULT}
+        datos_token = {'parejas': parejas, 'resultado_algoritmo': None}
         sincronizar_con_storage_y_token(datos_token)
         return crear_respuesta_con_token_actualizado(
             {'success': True, 'mensaje': f'{len(parejas)} parejas cargadas', 'parejas': parejas},
@@ -121,7 +121,6 @@ def remover_pareja_de_grupo():
         estadisticas = grupo_service.remover_pareja_de_grupo(
             resultado_data,
             pareja_id,
-            datos_actuales.get('num_canchas', NUM_CANCHAS_DEFAULT),
         )
     except ServiceError as e:
         return jsonify({'error': e.message}), e.status_code
@@ -176,7 +175,6 @@ def editar_pareja():
     try:
         mensaje = grupo_service.editar_pareja(
             datos_actuales, pareja_id, nombre, telefono, categoria, franjas,
-            datos_actuales.get('num_canchas', NUM_CANCHAS_DEFAULT),
         )
     except ServiceError as e:
         return jsonify({'error': e.message}), e.status_code
@@ -191,9 +189,8 @@ def obtener_franjas_disponibles():
     resultado_data = datos_actuales.get('resultado_algoritmo')
     if not resultado_data:
         return jsonify({'error': 'No hay resultados del algoritmo'}), 404
-    num_canchas = datos_actuales.get('num_canchas', 2)
-    disponibilidad = grupo_service.obtener_franjas_disponibles(resultado_data, num_canchas)
-    return jsonify({'success': True, 'disponibilidad': disponibilidad, 'num_canchas': num_canchas})
+    disponibilidad = grupo_service.obtener_franjas_disponibles(resultado_data)
+    return jsonify({'success': True, 'disponibilidad': disponibilidad, 'num_canchas': NUM_CANCHAS_DEFAULT})
 
 
 @api_bp.route('/limpiar-datos', methods=['POST'])
@@ -207,7 +204,7 @@ def limpiar_datos():
         storage.guardar_con_version(torneo)
     except ConflictError as e:
         return jsonify({'error': str(e)}), 409
-    datos_limpios = {'parejas': parejas_a_mantener, 'resultado_algoritmo': None, 'num_canchas': NUM_CANCHAS_DEFAULT}
+    datos_limpios = {'parejas': parejas_a_mantener, 'resultado_algoritmo': None}
     return crear_respuesta_con_token_actualizado({'success': True, 'mensaje': 'Datos CSV limpiados'}, datos_limpios)
 
 

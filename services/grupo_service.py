@@ -112,7 +112,6 @@ def intercambiar_pareja(
     grupo_origen_id: int,
     grupo_destino_id: int,
     slot_destino: int,
-    num_canchas: int = NUM_CANCHAS_DEFAULT,
 ) -> tuple[str, dict]:
     """Intercambia una pareja entre dos grupos.
 
@@ -160,7 +159,7 @@ def intercambiar_pareja(
 
     recalcular_score_grupo(grupo_origen_obj)
     recalcular_score_grupo(grupo_destino_obj)
-    regenerar_calendario(resultado, num_canchas)
+    regenerar_calendario(resultado)
     estadisticas = recalcular_estadisticas(resultado)
 
     return mensaje, estadisticas
@@ -173,7 +172,6 @@ def asignar_pareja_a_grupo(
     categoria: str,
     pareja_a_remover_id: int | None,
     slot_destino: int | None,
-    num_canchas: int = NUM_CANCHAS_DEFAULT,
 ) -> dict:
     """Asigna una pareja no asignada a un grupo.
 
@@ -233,7 +231,7 @@ def asignar_pareja_a_grupo(
     if len(grupo_encontrado['parejas']) == 3:
         _regenerar_partidos_grupo(grupo_encontrado, categoria)
 
-    regenerar_calendario(resultado_data, num_canchas)
+    regenerar_calendario(resultado_data)
     return recalcular_estadisticas(resultado_data)
 
 
@@ -265,7 +263,6 @@ def crear_grupo_manual(
     categoria: str,
     franja_horaria: str,
     cancha: int | str,
-    num_canchas: int = NUM_CANCHAS_DEFAULT,
 ) -> dict:
     """Crea un nuevo grupo vacío para una categoría.
 
@@ -322,7 +319,7 @@ def crear_grupo_manual(
     }
 
     grupos_dict[categoria].append(nuevo_grupo)
-    regenerar_calendario(resultado_data, num_canchas)
+    regenerar_calendario(resultado_data)
     return nuevo_grupo
 
 
@@ -332,7 +329,6 @@ def editar_grupo(
     categoria: str,
     franja_horaria: str,
     cancha: int | str,
-    num_canchas: int = NUM_CANCHAS_DEFAULT,
 ) -> None:
     """Edita la franja horaria y cancha de un grupo.
 
@@ -365,7 +361,7 @@ def editar_grupo(
     grupo_encontrado['cancha'] = cancha
 
     recalcular_score_grupo(grupo_encontrado)
-    regenerar_calendario(resultado_data, num_canchas)
+    regenerar_calendario(resultado_data)
 
 
 # ==================== GESTIÓN DE PAREJAS ====================
@@ -442,7 +438,6 @@ def eliminar_pareja(datos: dict, pareja_id: int) -> None:
 def remover_pareja_de_grupo(
     resultado_data: dict,
     pareja_id: int,
-    num_canchas: int = NUM_CANCHAS_DEFAULT,
 ) -> dict:
     """Remueve una pareja de su grupo y la pone en sin asignar.
 
@@ -478,7 +473,7 @@ def remover_pareja_de_grupo(
     pareja_encontrada['posicion_grupo'] = None
     parejas_sin_asignar.append(pareja_encontrada)
     recalcular_score_grupo(grupo_contenedor)
-    regenerar_calendario(resultado_data, num_canchas)
+    regenerar_calendario(resultado_data)
     return recalcular_estadisticas(resultado_data)
 
 
@@ -489,7 +484,6 @@ def editar_pareja(
     telefono: str,
     categoria: str,
     franjas: list,
-    num_canchas: int = NUM_CANCHAS_DEFAULT,
 ) -> str:
     """Edita los datos de una pareja (en grupos, sin asignar y blob base).
 
@@ -563,7 +557,7 @@ def editar_pareja(
     if grupo_contenedor and not cambio_categoria:
         recalcular_score_grupo(grupo_contenedor)
 
-    regenerar_calendario(resultado_data, num_canchas)
+    regenerar_calendario(resultado_data)
     datos['resultado_algoritmo'] = resultado_data
 
     mensaje = 'Pareja actualizada'
@@ -612,7 +606,7 @@ def enriquecer_parejas_con_asignacion(parejas: list, resultado: dict | None) -> 
     return enriched
 
 
-def obtener_franjas_disponibles(resultado_data: dict, num_canchas: int) -> dict:
+def obtener_franjas_disponibles(resultado_data: dict) -> dict:
     """Calcula disponibilidad de franjas y canchas considerando solapamientos.
 
     Returns:
@@ -631,7 +625,7 @@ def obtener_franjas_disponibles(resultado_data: dict, num_canchas: int) -> dict:
     disponibilidad: dict = {}
     for franja in FRANJAS_HORARIAS:
         disponibilidad[franja] = {}
-        for cn in range(1, num_canchas + 1):
+        for cn in range(1, NUM_CANCHAS_DEFAULT + 1):
             cs = str(cn)
             ocupada = franja in franjas_ocupadas and cs in franjas_ocupadas[franja]
             solapamiento = None
@@ -734,14 +728,10 @@ def recalcular_score_grupo(grupo_dict: dict) -> None:
     grupo_dict['score_compatibilidad'] = score
 
 
-def regenerar_calendario(resultado_data: dict, num_canchas: int = NUM_CANCHAS_DEFAULT) -> dict:
+def regenerar_calendario(resultado_data: dict) -> dict:
     """Regenera el calendario completo y los partidos de cada grupo.
 
     Muta resultado_data['calendario'] en lugar.
-
-    Args:
-        resultado_data: dict del resultado del algoritmo.
-        num_canchas: número de canchas disponibles (antes se leía del token, ahora se pasa explícitamente).
     """
     try:
         resultado_obj = _deserializar_resultado(resultado_data)
@@ -752,7 +742,7 @@ def regenerar_calendario(resultado_data: dict, num_canchas: int = NUM_CANCHAS_DE
                 if grupo_dict.get('cancha'):
                     canchas_por_grupo[grupo_dict['id']] = grupo_dict['cancha']
 
-        calendario_builder = CalendarioBuilder(num_canchas)
+        calendario_builder = CalendarioBuilder(NUM_CANCHAS_DEFAULT)
         calendario = calendario_builder.organizar_partidos(resultado_obj, canchas_por_grupo)
         resultado_data['calendario'] = calendario
 

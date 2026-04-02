@@ -1733,6 +1733,10 @@ function confirmarCambioFase(fase, titulo, descripcion) {
     new bootstrap.Modal(document.getElementById('modalCambioFase')).show();
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    cargarInscripciones();
+});
+
 async function ejecutarCambioFase() {
     if (!_fasePendiente) return;
     const btn = document.getElementById('btnConfirmarFase');

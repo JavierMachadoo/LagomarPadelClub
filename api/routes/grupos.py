@@ -8,7 +8,6 @@ from utils.api_helpers import (
     sincronizar_con_storage_y_token,
     verificar_autenticacion_api,
 )
-from config import NUM_CANCHAS_DEFAULT
 from services import ServiceError
 from services import grupo_service, torneo_service
 
@@ -41,7 +40,6 @@ def ejecutar_algoritmo():
         return jsonify({'error': e.message}), e.status_code
 
     datos_actuales['resultado_algoritmo'] = resultado
-    datos_actuales['num_canchas'] = NUM_CANCHAS_DEFAULT
     datos_actuales['parejas'] = todas_parejas_data
     sincronizar_con_storage_y_token(datos_actuales)
 
@@ -79,7 +77,6 @@ def intercambiar_pareja():
             grupo_origen_id=data.get('grupo_origen'),
             grupo_destino_id=data.get('grupo_destino'),
             slot_destino=data.get('slot_destino'),
-            num_canchas=datos_actuales.get('num_canchas', NUM_CANCHAS_DEFAULT),
         )
     except ServiceError as e:
         return jsonify({'error': e.message}), e.status_code
@@ -122,7 +119,6 @@ def asignar_pareja_a_grupo():
             categoria=categoria,
             pareja_a_remover_id=data.get('pareja_a_remover_id'),
             slot_destino=data.get('slot_destino'),
-            num_canchas=datos_actuales.get('num_canchas', NUM_CANCHAS_DEFAULT),
         )
     except ServiceError as e:
         return jsonify({'error': e.message}), e.status_code
@@ -157,7 +153,6 @@ def crear_grupo_manual():
     try:
         nuevo_grupo = grupo_service.crear_grupo_manual(
             resultado_data, categoria, franja_horaria, cancha,
-            datos_actuales.get('num_canchas', NUM_CANCHAS_DEFAULT),
         )
     except ServiceError as e:
         return jsonify({'error': e.message}), e.status_code
@@ -193,7 +188,6 @@ def editar_grupo():
     try:
         grupo_service.editar_grupo(
             resultado_data, grupo_id, categoria, franja_horaria, cancha,
-            datos_actuales.get('num_canchas', NUM_CANCHAS_DEFAULT),
         )
     except ServiceError as e:
         return jsonify({'error': e.message}), e.status_code

@@ -27,6 +27,7 @@ from flask import Blueprint, request, jsonify, render_template, make_response, g
 from core import Pareja, Grupo
 from utils.torneo_storage import storage
 from utils.api_helpers import verificar_autenticacion_api
+from utils.supabase_client import get_supabase_admin as _get_supabase_central
 from config import FRANJAS_HORARIAS, TIPOS_TORNEO, CATEGORIAS
 from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO, MAX_CATEGORIA
 
@@ -37,23 +38,13 @@ inscripcion_bp = Blueprint('inscripcion', __name__)
 
 # ── Helpers Supabase ──────────────────────────────────────────────────────────
 
-_supabase_admin_client = None
-
-
 def _get_supabase_admin():
-    """Cliente con SERVICE_ROLE — bypasea RLS. Solo operaciones server-side.
+    """Delega al singleton centralizado de utils/supabase_client.py.
 
-    Singleton: create_client() es costoso (inicializa pool HTTP + TLS).
-    Con 1 worker Gunicorn el estado del módulo es estable entre requests.
+    Evita crear un segundo cliente cuando torneo_storage ya inicializó el singleton
+    compartido — elimina la latencia de cold-start en el primer request de inscripcion.
     """
-    global _supabase_admin_client
-    if _supabase_admin_client is None:
-        from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-        from supabase import create_client
-        if not SUPABASE_SERVICE_ROLE_KEY:
-            raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY no está configurada")
-        _supabase_admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    return _supabase_admin_client
+    return _get_supabase_central()
 
 
 def _get_jugador_data() -> dict | None:

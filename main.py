@@ -4,6 +4,7 @@ Genera grupos optimizados según categorías y disponibilidad horaria.
 """
 
 from flask import Flask, render_template, request, redirect, url_for, flash, make_response, g, session
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import logging
 import time
@@ -45,10 +46,11 @@ def crear_app():
         ]
     )
     
-    app = Flask(__name__, 
+    app = Flask(__name__,
                 template_folder='web/templates',
                 static_folder='web/static')
-    
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     # Configuración básica
     app.secret_key = SECRET_KEY
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0

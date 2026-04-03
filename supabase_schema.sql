@@ -95,6 +95,9 @@ CREATE INDEX IF NOT EXISTS idx_pf_categoria_fase   ON partidos_finales(categoria
 -- Columna para vincular al compañero (Player B) en la inscripción
 ALTER TABLE inscripciones ADD COLUMN IF NOT EXISTS jugador2_id UUID REFERENCES jugadores(id);
 
+-- integrante2 puede ser NULL cuando el jugador se inscribe sin compañero aún (estado pendiente_companero)
+ALTER TABLE inscripciones ALTER COLUMN integrante2 DROP NOT NULL;
+
 -- Un jugador no puede ser invitado por 2 personas distintas en el mismo torneo
 -- Búsqueda de inscripción por Player A (jugador que crea la inscripción)
 CREATE INDEX IF NOT EXISTS idx_inscripciones_jugador_torneo

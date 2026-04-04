@@ -406,7 +406,11 @@ def crear_app():
                 'timestamp': int(time.time()),
             }
             token = jwt_handler.generar_token(token_data)
-            response = make_response(redirect(url_for('grupos_publico')))
+            # Recuperar next_url guardado antes del salto OAuth (invitaciones)
+            next_url = session.pop('oauth_next', '')
+            es_invitacion = next_url and next_url.startswith('/') and 'token=' in next_url
+            destino = next_url if es_invitacion else '/'
+            response = make_response(redirect(destino))
             response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not app.debug)
             return response
 

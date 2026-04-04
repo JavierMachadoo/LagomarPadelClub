@@ -290,7 +290,9 @@ def login():
                 'timestamp': int(time.time()),
             }
             token = jwt_handler.generar_token(token_data)
-            redirect_to = next_url if next_url and next_url.startswith('/') else '/grupos'
+            # Solo respetar next_url si es una invitación (contiene token=)
+            es_invitacion = next_url and next_url.startswith('/') and 'token=' in next_url
+            redirect_to = next_url if es_invitacion else '/'
             response = make_response(jsonify({
                 "message":  "Login exitoso",
                 "nombre":   f"{nombre} {apellido}".strip(),
@@ -351,6 +353,11 @@ def google_oauth():
     """
     verifier, challenge = _pkce_verifier_y_challenge()
     session['pkce_verifier'] = verifier
+
+    # Preservar next_url para recuperarlo en el callback post-OAuth
+    next_url = request.args.get('next', '').strip()
+    if next_url and next_url.startswith('/') and 'token=' in next_url:
+        session['oauth_next'] = next_url
 
     # La URL de callback debe coincidir con la configurada en Supabase Dashboard
     # → Authentication → URL Configuration → Redirect URLs

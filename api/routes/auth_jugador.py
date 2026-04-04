@@ -14,6 +14,7 @@ El callback OAuth vive en main.py: GET /auth/callback
 import hashlib
 import base64
 import logging
+import re
 import secrets
 import time
 from flask import Blueprint, request, jsonify, make_response, current_app, redirect, session, url_for
@@ -81,6 +82,8 @@ def register():
         return jsonify({"error": "La contraseña debe tener al menos 8 caracteres"}), 400
     if not telefono:
         return jsonify({"error": "El teléfono es obligatorio"}), 400
+    if not re.match(r'^\d{9}$', telefono):
+        return jsonify({"error": "El teléfono debe tener exactamente 9 dígitos numéricos"}), 400
 
     error_len = validar_longitud({
         'Nombre':    (nombre, MAX_NOMBRE),

@@ -35,6 +35,23 @@ from core.models import Grupo
 from services import grupo_service
 
 
+def _jugador_ya_inscripto(jugador_id: str, torneo_id: str) -> bool:
+    """Verifica si el jugador ya tiene inscripción activa en el torneo (como Player A o B)."""
+    try:
+        from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+        from supabase import create_client
+        if not SUPABASE_SERVICE_ROLE_KEY or not jugador_id:
+            return False
+        sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        resp1 = sb.table('inscripciones').select('id').eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).execute()
+        if resp1.data:
+            return True
+        resp2 = sb.table('inscripciones').select('id').eq('torneo_id', torneo_id).eq('jugador2_id', jugador_id).execute()
+        return bool(resp2.data)
+    except Exception:
+        return False
+
+
 def crear_app():
     """Factory para crear y configurar la aplicación Flask."""
     # Configure logging - solo consola, sin archivo
@@ -109,6 +126,7 @@ def crear_app():
         g.es_autenticado = False
         g.es_admin = False
         g.es_jugador = False
+        g.jugador_id = None
         token = jwt_handler.obtener_token_desde_request()
         if token:
             data = jwt_handler.verificar_token(token)
@@ -120,6 +138,7 @@ def crear_app():
                     g.es_admin = True
                 elif role == 'jugador':
                     g.es_jugador = True
+                    g.jugador_id = data.get('user_id')
         # Rutas públicas: no requieren autenticación
         rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/jugadores/buscar', '/api/admin/inscripciones', '/torneos']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
@@ -341,7 +360,10 @@ def crear_app():
             return make_response(render_template('organizando.html', torneo=torneo))
 
         if fase != 'torneo':
-            return make_response(render_template('organizando.html', torneo=torneo))
+            ya_inscripto = False
+            if g.es_jugador and fase == 'inscripcion' and g.jugador_id:
+                ya_inscripto = _jugador_ya_inscripto(g.jugador_id, storage.get_torneo_id())
+            return make_response(render_template('organizando.html', torneo=torneo, ya_inscripto=ya_inscripto))
 
         datos = obtener_datos_torneo()
         resultado = datos.get('resultado_algoritmo')
@@ -414,7 +436,10 @@ def crear_app():
             return make_response(render_template('organizando.html', torneo=torneo))
 
         if fase != 'torneo':
-            return make_response(render_template('organizando.html', torneo=torneo))
+            ya_inscripto = False
+            if g.es_jugador and fase == 'inscripcion' and g.jugador_id:
+                ya_inscripto = _jugador_ya_inscripto(g.jugador_id, storage.get_torneo_id())
+            return make_response(render_template('organizando.html', torneo=torneo, ya_inscripto=ya_inscripto))
 
         resultado = torneo.get('resultado_algoritmo')
         tipo_torneo = torneo.get('tipo_torneo', 'fin1')
@@ -444,15 +469,63 @@ def crear_app():
     @app.route('/auth/callback')
     def oauth_callback():
         """
-        Callback del flujo OAuth (Google).
+        Callback unificado para dos flujos distintos:
 
-        Supabase redirige aquí con un `code` después de que el usuario autenticó
-        con Google. Intercambiamos ese code + el PKCE verifier guardado en sesión
-        por un access_token y seteamos la cookie sb_token.
+        1. Confirmación de email (Supabase manda ?token_hash=XXX&type=signup o type=email)
+           → Verificamos el OTP, creamos sesión y seteamos cookie JWT.
+
+        2. OAuth Google (Supabase manda ?code=XXX tras autenticación con Google)
+           → Intercambiamos code + PKCE verifier por access_token y seteamos cookie JWT.
         """
         from config.settings import SUPABASE_URL, SUPABASE_ANON_KEY
         from supabase import create_client
 
+        # ── 1. Confirmación de email ──────────────────────────────────────────
+        token_hash = request.args.get('token_hash')
+        if token_hash:
+            otp_type = request.args.get('type', 'email')
+            try:
+                sb = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+                auth_response = sb.auth.verify_otp({'token_hash': token_hash, 'type': otp_type})
+
+                if not auth_response.session:
+                    raise ValueError("Sin sesión tras verificar OTP")
+
+                user      = auth_response.user
+                jwt_token = auth_response.session.access_token
+
+                sb_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+                perfil   = sb_admin.table('jugadores').select('nombre,apellido,telefono').eq('id', user.id).single().execute()
+                nombre   = ''
+                apellido = ''
+                telefono = ''
+                if perfil.data:
+                    nombre   = perfil.data.get('nombre', '')
+                    apellido = perfil.data.get('apellido', '')
+                    telefono = perfil.data.get('telefono') or ''
+
+                jwt_handler = app.jwt_handler
+                token_data = {
+                    'authenticated': True,
+                    'role':          'jugador',
+                    'user_id':       str(user.id),
+                    'nombre':        nombre,
+                    'apellido':      apellido,
+                    'telefono':      telefono,
+                    'timestamp':     int(time.time()),
+                }
+                token    = jwt_handler.generar_token(token_data)
+                response = make_response(redirect('/'))
+                response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not app.debug)
+                logger.info("Email confirmado y sesión creada para jugador: %s", user.id)
+                return response
+
+            except Exception as e:
+                logger.error("Error al confirmar email: %s", e)
+                flash('El enlace de confirmación es inválido o ya fue usado. Intentá registrarte de nuevo.', 'error')
+                return redirect(url_for('login'))
+
+        # ── 2. OAuth Google ───────────────────────────────────────────────────
         code     = request.args.get('code')
         verifier = session.pop('pkce_verifier', None)
 

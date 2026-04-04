@@ -42,13 +42,13 @@
 
                         <div class="d-flex gap-2 flex-wrap">
                             {% if fase_torneo == 'espera' %}
-                            <button class="btn btn-outline-primary px-4 py-2 fw-bold"
-                                    style="border-radius:30px;"
+                            <button class="btn px-4 py-2 fw-bold"
+                                    style="border-radius:30px; border:2px solid var(--brand-black); color:var(--brand-black); background:transparent;"
                                     onclick="abrirModalProximoTorneo()">
                                 <i class="bi bi-gear me-2"></i>Configurar Próximo Torneo
                             </button>
-                            <button class="btn btn-success px-4 py-2 fw-bold"
-                                    style="border-radius:30px;"
+                            <button class="btn px-4 py-2 fw-bold"
+                                    style="border-radius:30px; background:var(--brand-green); color:var(--brand-black); border:none;"
                                     id="btnAbrirInscripciones"
                                     {% if not proximo_torneo or not proximo_torneo.nombre or not proximo_torneo.fecha %}disabled{% endif %}
                                     onclick="abrirInscripciones()">
@@ -151,7 +151,7 @@
             <div class="modal-content" style="border-radius:16px; border:0;">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title fw-bold">
-                        <i class="bi bi-calendar-plus text-primary me-2"></i>Configurar Próximo Torneo
+                        <i class="bi bi-calendar-plus me-2" style="color:var(--brand-green);"></i>Configurar Próximo Torneo
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -198,7 +198,8 @@
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
                             data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold"
+                    <button type="button" class="btn rounded-pill px-4 fw-bold"
+                            style="background:var(--brand-black); color:var(--brand-green); border:none;"
                             id="btnGuardarProximo" onclick="guardarProximoTorneo()">
                         <i class="bi bi-check-circle me-1"></i>Guardar
                     </button>
@@ -243,7 +244,7 @@
     <div class="row justify-content-center mb-4">
         <div class="col-lg-8">
             <div class="p-3 rounded-3 d-flex align-items-center gap-3" style="background:#eff6ff; border:1px solid #bfdbfe;">
-                <i class="bi bi-calendar-check text-primary fs-4"></i>
+                <i class="bi bi-calendar-check fs-4" style="color:var(--brand-green);"></i>
                 <div>
                     <p class="mb-0 fw-bold">{{ proximo_torneo.nombre }}</p>
                     <p class="mb-0 text-muted" style="font-size:0.88rem;">
@@ -251,7 +252,8 @@
                         {% if proximo_torneo.tipo_torneo == 'fin1' %}Fin de semana 1 (3ra, 5ta, 7ma){% else %}Fin de semana 2 (4ta, 6ta){% endif %}
                     </p>
                 </div>
-                <button class="btn btn-sm btn-outline-primary ms-auto rounded-pill"
+                <button class="btn btn-sm ms-auto rounded-pill"
+                        style="border:2px solid var(--brand-black); color:var(--brand-black); background:transparent;"
                         onclick="abrirModalProximoTorneo()">
                     <i class="bi bi-pencil me-1"></i>Editar
                 </button>

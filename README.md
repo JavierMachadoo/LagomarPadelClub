@@ -81,9 +81,16 @@ Los mejores de cada categoría avanzan a un bracket de eliminación:
 - Se mantiene una "burbuja" para evitar que parejas del mismo grupo se crucen antes de la final
 - El sistema genera automáticamente el calendario de finales (típicamente domingo)
 
-### 5. Archivado
+### 5. Archivado y espera
 
-Al terminar, el admin archiva el torneo con nombre (ej: "Torneo Marzo 2026"). Todos los datos quedan guardados permanentemente: grupos, resultados de fase de grupos, bracket completo de finales. El sistema se resetea y queda listo para el siguiente torneo.
+Al terminar, el admin archiva el torneo con nombre (ej: "Torneo Marzo 2026"). Todos los datos quedan guardados permanentemente: grupos, resultados de fase de grupos, bracket completo de finales.
+
+El sistema entra en estado **espera**: las vistas públicas muestran los resultados del último torneo, y la pantalla principal muestra info del próximo torneo (fecha, categorías). Cuando el admin está listo, abre inscripciones manualmente y comienza el siguiente ciclo.
+
+**Máquina de estados:**
+```
+espera → inscripcion ↔ torneo → (archivar) → espera
+```
 
 ---
 
@@ -97,6 +104,7 @@ Al terminar, el admin archiva el torneo con nombre (ej: "Torneo Marzo 2026"). To
 | Invitación de compañero | Al inscribirse, la pareja queda en estado `pendiente_companero` hasta que el segundo jugador acepte (in-app o vía link). Si rechaza, la inscripción se cancela. Las invitaciones expiran a las 48h. |
 | Resultados editables | El admin puede corregir resultados antes de archivar; standings y bracket se recalculan automáticamente |
 | Un torneo a la vez | Solo puede haber un torneo activo; para empezar otro hay que archivar el anterior |
+| Estado entre torneos | Tras archivar, el sistema entra en `espera` mostrando resultados del último torneo e info del próximo. El admin abre inscripciones cuando está listo |
 
 ---
 
@@ -145,7 +153,9 @@ Tras ejecutar el algoritmo, el sistema entrega:
 
 **7. Finales:** Auto-seeding: 1° del Grupo 1 vs 8° del Grupo 6, etc. Bracket de octavos → cuartos → semis → final.
 
-**8. Archivado:** "Torneo Marzo 2026" queda guardado permanentemente. Sistema limpio para el siguiente.
+**8. Archivado:** "Torneo Marzo 2026" queda guardado permanentemente. El sistema entra en estado `espera`.
+
+**9. Espera:** Las vistas públicas muestran los resultados del torneo archivado. El admin configura fecha y categorías del próximo torneo. Cuando está listo, abre inscripciones y el ciclo comienza de nuevo.
 
 ---
 
@@ -167,3 +177,4 @@ Tras ejecutar el algoritmo, el sistema entrega:
 - **Autonomía del jugador:** se inscribe solo, ve su grupo y resultados sin depender del admin
 - **Historial perpetuo:** cada torneo queda archivado y consultable, base para un futuro sistema de ranking
 - **Identidad real de jugadores:** ambos integrantes de cada pareja tienen cuenta propia — elimina homónimos y permite ranking individual preciso
+- **Continuidad entre torneos:** el estado `espera` mantiene visibles los resultados del último torneo mientras se prepara el siguiente

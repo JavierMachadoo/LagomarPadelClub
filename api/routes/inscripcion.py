@@ -19,6 +19,7 @@ Rutas admin:
 
 import logging
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, request, jsonify, render_template, make_response, g, redirect, url_for
@@ -26,6 +27,7 @@ from flask import Blueprint, request, jsonify, render_template, make_response, g
 from core import Pareja, Grupo
 from utils.torneo_storage import storage
 from utils.api_helpers import verificar_autenticacion_api
+from utils.supabase_client import get_supabase_admin as _get_supabase_central
 from config import FRANJAS_HORARIAS, TIPOS_TORNEO, CATEGORIAS
 from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO, MAX_CATEGORIA
 
@@ -37,12 +39,12 @@ inscripcion_bp = Blueprint('inscripcion', __name__)
 # ── Helpers Supabase ──────────────────────────────────────────────────────────
 
 def _get_supabase_admin():
-    """Cliente con SERVICE_ROLE — bypasea RLS. Solo operaciones server-side."""
-    from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-    from supabase import create_client
-    if not SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY no está configurada")
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    """Delega al singleton centralizado de utils/supabase_client.py.
+
+    Evita crear un segundo cliente cuando torneo_storage ya inicializó el singleton
+    compartido — elimina la latencia de cold-start en el primer request de inscripcion.
+    """
+    return _get_supabase_central()
 
 
 def _get_jugador_data() -> dict | None:
@@ -155,7 +157,7 @@ def _auto_asignar_en_grupos(inscripcion: dict) -> None:
             logger.error('Error al regenerar calendario post-inscripción: %s', e, exc_info=True)
     
     torneo['resultado_algoritmo'] = resultado
-    storage.guardar(torneo)
+    storage.guardar_con_version(torneo)
     logger.info('Inscripción completada y torneo guardado con resultado actualizado')
 
 
@@ -176,8 +178,21 @@ def _generar_token_invitacion(sb, inscripcion_id: str) -> str:
     return token
 
 
+_last_expiracion: float = 0.0
+_EXPIRACION_INTERVALO: float = 60.0  # correr la RPC como máximo 1 vez por minuto
+
+
 def _expirar_invitaciones_vencidas(sb, torneo_id: str) -> None:
-    """Expira invitaciones cuyo token ya venció (verificación lazy)."""
+    """Expira invitaciones cuyo token ya venció (verificación lazy, rate-limited).
+
+    Las invitaciones vencen cada 48h — correr esta RPC en cada request es innecesario.
+    Con 1 worker Gunicorn el estado del módulo es estable y no hay riesgo de race condition.
+    """
+    global _last_expiracion
+    ahora = time.monotonic()
+    if ahora - _last_expiracion < _EXPIRACION_INTERVALO:
+        return
+    _last_expiracion = ahora
     try:
         sb.rpc('expirar_invitaciones', {'p_torneo_id': torneo_id}).execute()
     except Exception as e:
@@ -694,30 +709,46 @@ def estado_inscripcion():
                     .eq('estado', 'pendiente_companero')
                     .execute())
 
+        # Construir invitaciones con 2 queries batch en lugar de 2×N queries individuales
+        inv_list = inv_resp.data or []
         invitaciones = []
-        for ins in (inv_resp.data or []):
-            perfil_resp = sb.table('jugadores').select('nombre, apellido').eq('id', ins['jugador_id']).execute()
-            nombre_invitador = ins['integrante1']
-            if perfil_resp.data:
-                p = perfil_resp.data[0]
-                nombre_invitador = f"{p['nombre']} {p['apellido']}".strip()
+        if inv_list:
+            # Una sola query para todos los perfiles de invitadores
+            jugador_ids = list({ins['jugador_id'] for ins in inv_list})
+            perfiles_resp = (sb.table('jugadores')
+                             .select('id, nombre, apellido')
+                             .in_('id', jugador_ids)
+                             .execute())
+            perfiles_map = {p['id']: p for p in (perfiles_resp.data or [])}
 
-            token_resp = (sb.table('invitacion_tokens')
-                          .select('expira_at')
-                          .eq('inscripcion_id', ins['id'])
-                          .eq('usado', False)
-                          .order('created_at', desc=True)
-                          .limit(1)
-                          .execute())
+            # Una sola query para todos los tokens de estas inscripciones
+            inscripcion_ids = [ins['id'] for ins in inv_list]
+            tokens_resp = (sb.table('invitacion_tokens')
+                           .select('inscripcion_id, expira_at')
+                           .in_('inscripcion_id', inscripcion_ids)
+                           .eq('usado', False)
+                           .order('created_at', desc=True)
+                           .execute())
+            # Tomar el token más reciente por inscripción (order desc ya viene del query)
+            tokens_map: dict[str, str] = {}
+            for t in (tokens_resp.data or []):
+                if t['inscripcion_id'] not in tokens_map:
+                    tokens_map[t['inscripcion_id']] = t['expira_at']
 
-            invitaciones.append({
-                'inscripcion_id':   ins['id'],
-                'nombre_invitador': nombre_invitador,
-                'categoria':        ins['categoria'],
-                'franjas':          ins['franjas_disponibles'],
-                'created_at':       ins['created_at'],
-                'expira_at':        token_resp.data[0]['expira_at'] if token_resp.data else None,
-            })
+            for ins in inv_list:
+                perfil = perfiles_map.get(ins['jugador_id'])
+                nombre_invitador = (
+                    f"{perfil['nombre']} {perfil['apellido']}".strip()
+                    if perfil else ins['integrante1']
+                )
+                invitaciones.append({
+                    'inscripcion_id':   ins['id'],
+                    'nombre_invitador': nombre_invitador,
+                    'categoria':        ins['categoria'],
+                    'franjas':          ins['franjas_disponibles'],
+                    'created_at':       ins['created_at'],
+                    'expira_at':        tokens_map.get(ins['id']),
+                })
 
         return jsonify({'inscripcion': inscripcion, 'invitaciones': invitaciones})
 
@@ -965,14 +996,16 @@ def listar_inscripciones():
         _expirar_invitaciones_vencidas(sb, torneo_id)
         resp = sb.table('inscripciones').select('*').eq('torneo_id', torneo_id).order('created_at').execute()
 
-        # Enriquecer con nombre de jugador2 si existe
+        # Enriquecer con nombre de jugador2 — una sola query batch para todos
         inscripciones = resp.data or []
-        for ins in inscripciones:
-            if ins.get('jugador2_id'):
-                perfil = sb.table('jugadores').select('nombre, apellido').eq('id', ins['jugador2_id']).execute()
-                if perfil.data:
-                    p = perfil.data[0]
-                    ins['nombre_jugador2'] = f"{p['nombre']} {p['apellido']}".strip()
+        jugador2_ids = list({ins['jugador2_id'] for ins in inscripciones if ins.get('jugador2_id')})
+        if jugador2_ids:
+            perfiles = sb.table('jugadores').select('id, nombre, apellido').in_('id', jugador2_ids).execute()
+            perfiles_map = {p['id']: p for p in (perfiles.data or [])}
+            for ins in inscripciones:
+                perfil = perfiles_map.get(ins.get('jugador2_id'))
+                if perfil:
+                    ins['nombre_jugador2'] = f"{perfil['nombre']} {perfil['apellido']}".strip()
 
         return jsonify({'inscripciones': inscripciones, 'total': len(inscripciones)})
     except Exception as e:

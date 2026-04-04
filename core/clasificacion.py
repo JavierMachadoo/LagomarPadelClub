@@ -126,6 +126,25 @@ class CalculadorClasificacion:
         return posiciones
     
     @staticmethod
+    def rankear_clasificados(clasificados: List[dict]) -> List[dict]:
+        """
+        Rankea parejas de distintos grupos usando los mismos criterios de clasificación.
+
+        Recibe lista de dicts con keys: 'pareja', 'grupo_id', 'estadisticas' (EstadisticasPareja).
+        Retorna la lista ordenada de mejor a peor:
+          1° partidos_ganados, 2° sets_ganados, 3° games_ganados
+        """
+        return sorted(
+            clasificados,
+            key=lambda c: (
+                c['estadisticas'].partidos_ganados,
+                c['estadisticas'].sets_ganados,
+                c['estadisticas'].games_ganados,
+            ),
+            reverse=True,
+        )
+
+    @staticmethod
     def calcular_tabla_posiciones(grupo: Grupo) -> List[Dict]:
         """
         Genera una tabla de posiciones formateada para mostrar en el frontend

@@ -2,13 +2,12 @@ from flask import Blueprint, request, jsonify
 import logging
 
 from core import Pareja, Grupo, PosicionGrupo, FixtureGenerator, FixtureFinales
-from utils.torneo_storage import storage
+from utils.torneo_storage import storage, ConflictError
 from utils.calendario_finales_builder import CalendarioFinalesBuilder
 from utils.api_helpers import (
     obtener_datos_desde_token,
     verificar_autenticacion_api
 )
-from ._helpers import guardar_estado_torneo
 
 calendario_bp = Blueprint('calendario', __name__, url_prefix='/api')
 logger = logging.getLogger(__name__)
@@ -63,8 +62,7 @@ def generar_fixture(categoria):
         if 'fixtures' not in torneo:
             torneo['fixtures'] = {}
         torneo['fixtures'][categoria] = fixture.to_dict()
-        storage.guardar(torneo)
-        guardar_estado_torneo()
+        storage.guardar_con_version(torneo)
 
         return jsonify({
             'success': True,
@@ -72,6 +70,8 @@ def generar_fixture(categoria):
             'fixture': fixture.to_dict()
         })
 
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
     except Exception as e:
         logger.error(f"Error al generar fixture: {str(e)}", exc_info=True)
         return jsonify({
@@ -157,7 +157,7 @@ def marcar_ganador():
 
         fixtures[categoria] = fixture.to_dict()
         torneo['fixtures'] = fixtures
-        storage.guardar(torneo)
+        storage.guardar_con_version(torneo)
 
         return jsonify({
             'success': True,
@@ -165,6 +165,8 @@ def marcar_ganador():
             'fixture': fixture.to_dict()
         })
 
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
     except Exception as e:
         logger.error(f"Error al marcar ganador: {str(e)}", exc_info=True)
         return jsonify({

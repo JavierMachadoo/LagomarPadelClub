@@ -18,7 +18,7 @@ from flask import Blueprint, jsonify, render_template, request
 from api.routes._helpers import deserializar_resultado
 from core.clasificacion import CalculadorClasificacion
 from utils.api_helpers import verificar_autenticacion_api
-from utils.torneo_storage import storage
+from utils.torneo_storage import storage, ConflictError
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,8 @@ def _use_supabase() -> bool:
 
 
 def _sb_admin():
-    from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-    from supabase import create_client
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    from utils.supabase_client import get_supabase_admin
+    return get_supabase_admin()
 
 
 def _listar_archivados():
@@ -188,26 +187,26 @@ def _poblar_tablas_relacionales(sb, torneo_id: str, datos_blob: dict) -> None:
 
 @historial_bp.route('/api/admin/terminar-torneo', methods=['POST'])
 def terminar_torneo():
-    """Archiva el torneo actual con sus datos y lo resetea completamente."""
+    """Archiva el torneo actual con sus datos y lo resetea completamente.
+
+    El nombre ya fue asignado al configurar el próximo torneo en estado espera,
+    por lo que se toma del blob directamente (no se pide en el request).
+    """
     autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
     if not autenticado:
         return error
 
-    data = request.get_json(silent=True) or {}
-    nombre = (data.get('nombre') or '').strip()
-    if not nombre:
-        return jsonify({'error': 'El nombre del torneo es obligatorio'}), 400
-
     torneo = storage.cargar()
-    torneo_id = torneo.get('torneo_id')
+    torneo_id = storage.get_torneo_id()
     tipo = torneo.get('tipo_torneo', 'fin1')
+    nombre = torneo.get('nombre', '').strip() or f"Torneo {datetime.now().strftime('%d/%m/%Y')}"
 
     datos_blob = {
         'resultado_algoritmo': torneo.get('resultado_algoritmo'),
         'fixtures_finales': torneo.get('fixtures_finales', {}),
+        'calendario_finales': torneo.get('calendario_finales', {}),
         'tipo_torneo': tipo,
     }
-
     if _use_supabase():
         sb = _sb_admin()  # Una sola instancia para todo el bloque
         try:
@@ -247,9 +246,84 @@ def terminar_torneo():
         with open(_HISTORIAL_FILE, 'w', encoding='utf-8') as f:
             json.dump(torneos, f, indent=2, ensure_ascii=False)
 
-    storage.limpiar()
-    logger.info('Torneo "%s" (%s) archivado y reseteado', nombre, torneo_id)
+    try:
+        storage.transicion_a_espera(torneo_id)
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
+    logger.info('Torneo "%s" (%s) archivado → estado espera', nombre, torneo_id)
     return jsonify({'ok': True})
+
+
+@historial_bp.route('/api/admin/abrir-inscripciones', methods=['POST'])
+def abrir_inscripciones():
+    """Transiciona de estado 'espera' a 'inscripcion'.
+
+    Requiere que el próximo torneo haya sido configurado (nombre y fecha).
+    El nombre y tipo_torneo ya están en el blob y se preservan en limpiar().
+    """
+    autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
+    if not autenticado:
+        return error
+
+    fase_actual = storage.get_fase()
+    if fase_actual != 'espera':
+        return jsonify({'error': f'Solo se puede abrir inscripciones desde estado espera (actual: {fase_actual})'}), 400
+
+    proximo = storage.get_proximo_torneo()
+    if not proximo or not proximo.get('nombre') or not proximo.get('fecha'):
+        return jsonify({'error': 'Debes configurar el nombre y la fecha del próximo torneo antes de abrir inscripciones'}), 400
+
+    try:
+        storage.limpiar()
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
+    logger.info('Inscripciones abiertas — transición espera → inscripcion')
+    return jsonify({'ok': True, 'fase': 'inscripcion'})
+
+
+@historial_bp.route('/api/admin/proximo-torneo', methods=['POST'])
+def configurar_proximo_torneo():
+    """Guarda nombre, fecha y tipo del próximo torneo (solo durante estado 'espera').
+
+    El nombre y tipo_torneo se aplican directamente al blob activo para que
+    sobrevivan la transición a inscripcion.
+    """
+    autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
+    if not autenticado:
+        return error
+
+    fase_actual = storage.get_fase()
+    if fase_actual != 'espera':
+        return jsonify({'error': 'Solo se puede configurar el próximo torneo en estado espera'}), 400
+
+    data = request.get_json(silent=True) or {}
+    nombre = (data.get('nombre') or '').strip()
+    fecha = (data.get('fecha') or '').strip()
+    tipo_torneo = (data.get('tipo_torneo') or 'fin1').strip()
+    descripcion = (data.get('descripcion') or '').strip()
+
+    if not nombre:
+        return jsonify({'error': 'El nombre es obligatorio'}), 400
+    if not fecha:
+        return jsonify({'error': 'La fecha es obligatoria'}), 400
+    if tipo_torneo not in ('fin1', 'fin2'):
+        return jsonify({'error': 'El tipo de torneo debe ser fin1 o fin2'}), 400
+
+    try:
+        storage.set_proximo_torneo(fecha=fecha, nombre=nombre, tipo_torneo=tipo_torneo, descripcion=descripcion)
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
+    logger.info('Próximo torneo configurado: "%s" — %s (%s)', nombre, fecha, tipo_torneo)
+    return jsonify({'ok': True, 'proximo_torneo': storage.get_proximo_torneo()})
+
+
+@historial_bp.route('/api/proximo-torneo', methods=['GET'])
+def obtener_proximo_torneo():
+    """Devuelve la info del próximo torneo (endpoint público)."""
+    proximo = storage.get_proximo_torneo()
+    if not proximo:
+        return jsonify({'proximo_torneo': None})
+    return jsonify({'proximo_torneo': proximo})
 
 
 @historial_bp.route('/torneos')

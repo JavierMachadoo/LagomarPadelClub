@@ -17,6 +17,7 @@ import logging
 import re
 import secrets
 import time
+from urllib.parse import urlparse
 from flask import Blueprint, request, jsonify, make_response, current_app, redirect, session, url_for
 
 from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
@@ -28,32 +29,34 @@ logger = logging.getLogger(__name__)
 auth_jugador_bp = Blueprint("auth_jugador", __name__, url_prefix="/api/auth")
 
 
+def _es_redirect_seguro(url: str) -> bool:
+    """
+    Valida que la URL sea un path relativo interno seguro.
+
+    Rechaza:
+      - URLs vacías
+      - Rutas scheme-relative tipo //evil.com (open redirect)
+      - URLs con scheme (http://, https://)
+      - URLs con netloc (dominio externo)
+
+    Acepta solo paths que empiecen con '/' y no contengan '//' al inicio.
+    """
+    if not url:
+        return False
+    parsed = urlparse(url)
+    return parsed.scheme == "" and parsed.netloc == "" and url.startswith("/") and not url.startswith("//")
+
+
 def _get_supabase_admin():
-    """
-    Devuelve un cliente Supabase con SERVICE_ROLE_KEY.
-    Se usa solo server-side para operaciones de admin (insertar jugadores, etc.)
-    """
-    from supabase import create_client
-
-    if not SUPABASE_SERVICE_ROLE_KEY:
-        # Error claro si falta la SERVICE_ROLE_KEY en la configuración
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY no está configurada en el servidor")
-
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    """Devuelve un cliente Supabase con SERVICE_ROLE_KEY. Solo operaciones server-side."""
+    from utils.supabase_client import get_supabase_admin
+    return get_supabase_admin()
 
 
 def _get_supabase_anon():
-    """
-    Devuelve un cliente Supabase con ANON_KEY.
-    Se usa para operaciones públicas de autenticación (sign_up / sign_in).
-    """
-    from supabase import create_client
-
-    if not SUPABASE_ANON_KEY:
-        # Error claro si falta la ANON_KEY en la configuración
-        raise RuntimeError("SUPABASE_ANON_KEY no está configurada en el servidor")
-
-    return create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    """Devuelve un cliente Supabase con ANON_KEY. Para sign_up / sign_in."""
+    from utils.supabase_client import get_supabase_anon
+    return get_supabase_anon()
 
 
 @auth_jugador_bp.route("/register", methods=["POST"])
@@ -96,17 +99,53 @@ def register():
         return jsonify({"error": error_len}), 400
 
     try:
-        # 1. Crear usuario en Supabase Auth usando ANON_KEY
-        sb_auth = _get_supabase_anon()
-        auth_response = sb_auth.auth.sign_up({"email": email, "password": password})
-
-        if not auth_response.user:
-            return jsonify({"error": "No se pudo crear el usuario"}), 400
-
-        user_id = str(auth_response.user.id)
-
-        # 2. Insertar perfil en tabla jugadores usando SERVICE_ROLE_KEY
+        # 1. Crear usuario en Supabase Auth usando Admin API (SERVICE_ROLE_KEY).
+        # sign_up() con anon_key puede devolver un user ID ficticio cuando el email
+        # ya existe (Supabase lo hace para no revelar si el email está registrado),
+        # lo que causa FK violation al insertar en jugadores. La Admin API es
+        # síncrona y lanza excepción explícita si el email ya existe.
         sb_admin = _get_supabase_admin()
+        user_id = None
+        try:
+            auth_response = sb_admin.auth.admin.create_user({
+                "email":          email,
+                "password":       password,
+                "email_confirm":  False,  # False = requiere confirmación de email (no auto-confirmar)
+            })
+            if not auth_response.user:
+                return jsonify({"error": "No se pudo crear el usuario"}), 400
+            user_id = str(auth_response.user.id)
+
+            # admin.create_user NO dispara el email de confirmación automáticamente.
+            # Hay que pedirlo explícitamente vía resend() con el cliente anon.
+            try:
+                sb_anon = _get_supabase_anon()
+                sb_anon.auth.resend({"type": "signup", "email": email})
+            except Exception as resend_err:
+                logger.warning("No se pudo enviar email de confirmación a %s: %s", email, resend_err)
+
+        except Exception as create_err:
+            err_str = str(create_err)
+            if "already registered" not in err_str and "already been registered" not in err_str:
+                raise
+
+            # Registro parcial: el usuario existe en auth.users pero sin perfil.
+            # Buscamos su ID para completar el perfil en jugadores.
+            all_users = sb_admin.auth.admin.list_users()
+            existing = next((u for u in all_users if u.email == email), None)
+            if not existing:
+                return jsonify({"error": "Este email ya está registrado"}), 409
+
+            existing_profile = sb_admin.table("jugadores").select("id").eq("id", str(existing.id)).execute()
+            if existing_profile.data:
+                # Tiene perfil completo — email genuinamente duplicado
+                return jsonify({"error": "Este email ya está registrado"}), 409
+
+            # Sin perfil → completar registro parcial
+            user_id = str(existing.id)
+            logger.warning("Completando registro parcial para %s (%s)", email, user_id)
+
+        # 2. Insertar perfil en tabla jugadores
         sb_admin.table("jugadores").insert({
             "id":       user_id,
             "nombre":   nombre,
@@ -189,7 +228,7 @@ def _auto_aceptar_invitacion_post_registro(sb, token: str, jugador_id: str, nomb
     sb.table('invitacion_tokens').update({'usado': True}).eq('token', token).execute()
 
 
-def _login_admin_fallback(usuario, password):
+def _login_admin_fallback(usuario, password, cookie_max_age=None, token_exp_hours=2):
     """
     Fallback: verifica las credenciales hardcodeadas del admin en .env.
     Se usa cuando Supabase no tiene al admin como usuario, o como contingencia.
@@ -205,9 +244,9 @@ def _login_admin_fallback(usuario, password):
         'session_id': 'admin_session',
         'timestamp': int(time.time()),
     }
-    token = jwt_handler.generar_token(token_data)
+    token = jwt_handler.generar_token(token_data, expiration_hours=token_exp_hours)
     response = make_response(jsonify({"message": "Login exitoso", "redirect": "/"}), 200)
-    response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
+    response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=cookie_max_age, secure=not current_app.debug)
     logger.info("Admin autenticado via fallback .env")
     return response
 
@@ -228,10 +267,14 @@ def login():
          (permite al admin seguir entrando aunque no esté en Supabase Auth)
     """
     data = request.get_json(silent=True) or {}
-    email    = data.get("email", "").strip()
-    password = data.get("password", "")
+    email       = data.get("email", "").strip()
+    password    = data.get("password", "")
+    remember_me = bool(data.get("remember_me", False))
     # next_url: destino de redirección post-login (ej: /inscripcion/invitar?token=XXX)
     next_url = data.get("next", "").strip() or request.args.get("next", "").strip() or ""
+
+    cookie_max_age  = 60 * 60 * 24 * 30 if remember_me else None  # 30d ó session cookie
+    token_exp_hours = 24 * 30            if remember_me else 2    # 30d ó 2h
 
     if not email or not password:
         return jsonify({"error": "Usuario/email y contraseña son obligatorios"}), 400
@@ -265,9 +308,9 @@ def login():
                     'session_id': str(user.id),
                     'timestamp': int(time.time()),
                 }
-                token = jwt_handler.generar_token(token_data)
+                token = jwt_handler.generar_token(token_data, expiration_hours=token_exp_hours)
                 response = make_response(jsonify({"message": "Login exitoso", "redirect": "/admin"}), 200)
-                response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
+                response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=cookie_max_age, secure=not current_app.debug)
                 logger.info("Admin autenticado via Supabase: %s", user.id)
                 return response
 
@@ -292,16 +335,14 @@ def login():
                 'telefono': telefono,
                 'timestamp': int(time.time()),
             }
-            token = jwt_handler.generar_token(token_data)
-            # Solo respetar next_url si es una invitación (contiene token=)
-            es_invitacion = next_url and next_url.startswith('/') and 'token=' in next_url
-            redirect_to = next_url if es_invitacion else '/'
+            token = jwt_handler.generar_token(token_data, expiration_hours=token_exp_hours)
+            redirect_to = next_url if _es_redirect_seguro(next_url) else '/grupos'
             response = make_response(jsonify({
                 "message":  "Login exitoso",
                 "nombre":   f"{nombre} {apellido}".strip(),
                 "redirect": redirect_to,
             }), 200)
-            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=60 * 60 * 2, secure=not current_app.debug)
+            response.set_cookie('token', token, httponly=True, samesite='Lax', max_age=cookie_max_age, secure=not current_app.debug)
             logger.info("Jugador autenticado: %s", user.id)
             return response
 
@@ -309,7 +350,7 @@ def login():
         logger.debug("Supabase login falló (%s), intentando fallback admin", e)
 
     # ── 2. Fallback: credenciales admin del .env ──────────────────────────────
-    fallback = _login_admin_fallback(email, password)
+    fallback = _login_admin_fallback(email, password, cookie_max_age=cookie_max_age, token_exp_hours=token_exp_hours)
     if fallback:
         return fallback
 

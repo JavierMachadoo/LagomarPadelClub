@@ -49,6 +49,16 @@ FRANJAS_HORARIAS = [
 
 CATEGORIAS = ["Tercera", "Cuarta", "Quinta", "Sexta", "Séptima"]
 
+# Mapa de franjas a horas que ocupan (para detección de conflictos de cancha)
+FRANJAS_A_HORAS_MAP = {
+    "Viernes 18:00": ["Viernes 18:00", "Viernes 19:00", "Viernes 20:00"],
+    "Viernes 21:00": ["Viernes 21:00", "Viernes 22:00", "Viernes 23:00"],
+    "Sábado 09:00":  ["Sábado 09:00",  "Sábado 10:00",  "Sábado 11:00"],
+    "Sábado 12:00":  ["Sábado 12:00",  "Sábado 13:00",  "Sábado 14:00"],
+    "Sábado 16:00":  ["Sábado 16:00",  "Sábado 17:00",  "Sábado 18:00"],
+    "Sábado 19:00":  ["Sábado 19:00",  "Sábado 20:00",  "Sábado 21:00"],
+}
+
 # Tipos de torneo: define qué categorías se juegan cada fin de semana
 TIPOS_TORNEO = {
     "fin1": ["Tercera", "Quinta", "Séptima"],   # 1er fin de semana

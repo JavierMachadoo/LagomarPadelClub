@@ -3,12 +3,19 @@
 {% block title %}Categorías — {{ torneo.nombre or 'Torneo de Pádel' }}{% endblock %}
 
 {# ── Macro: renderiza un partido de finales (read-only) ── #}
-{% macro render_partido(partido) %}
+{% macro render_partido(partido, cal={}) %}
 {% set p1 = partido.pareja1 %}
 {% set p2 = partido.pareja2 %}
 {% set ganador = partido.ganador %}
 {% set sets = partido.sets if partido.sets is defined else [] %}
+{% set info = cal.get(partido.id) if cal and partido.id is defined else none %}
 <div class="bk-match {{ 'tiene-ganador' if partido.tiene_ganador else '' }}">
+{% if info %}
+<div class="bk-match-head">
+    <span class="bk-match-cancha"><i class="bi bi-geo-alt-fill"></i> Cancha {{ info.cancha }}</span>
+    <span class="bk-match-hora"><i class="bi bi-clock"></i> {{ info.hora_inicio }}</span>
+</div>
+{% endif %}
     <div class="bk-team {{ 'winner' if ganador and p1 and ganador.id == p1.id else '' }} {{ 'tbd' if not p1 else '' }}">
         <span class="bk-team-name">{{ p1.nombre if p1 else (partido.slot1_info or 'Por definir') }}</span>
         {% if ganador and p1 and ganador.id == p1.id %}
@@ -457,6 +464,30 @@
     }
     .bk-grupo-team:first-child { border-top: none; }
 
+    /* Header de cancha/hora dentro de la card del bracket */
+    .bk-match-head {
+        background: var(--brand-black, #111);
+        padding: 0.32rem 0.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.4rem;
+    }
+    .bk-match-cancha {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-weight: 700;
+        font-size: 0.72rem;
+        color: var(--brand-green, #2E9B0E);
+    }
+    .bk-match-hora {
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.45);
+        display: flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+    .bk-match-head .bi { font-size: 0.6rem; }
+
     /* Match card (inside bracket) */
     .bk-match {
         background: #fff;
@@ -721,10 +752,9 @@
                         <div class="bk-col-label"><i class="bi bi-grid me-1"></i>Octavos de Final</div>
                         <div class="bk-col-cards">
                             {% set oct = fixture.octavos %}
-                            {% for i in range(0, oct|length, 2) %}
-                            <div class="bk-pair">
-                                {{ render_partido(oct[i]) }}
-                                {% if i + 1 < oct|length %}{{ render_partido(oct[i + 1]) }}{% endif %}
+                            {% for i in range(0, oct|length) %}
+                            <div class="bk-pair" data-next-idx="{{ i + 1 }}">
+                                {{ render_partido(oct[i], calendario_index) }}
                             </div>
                             {% endfor %}
                         </div>
@@ -739,8 +769,8 @@
                             {% set cuartos = fixture.cuartos %}
                             {% for i in range(0, cuartos|length, 2) %}
                             <div class="bk-pair">
-                                {{ render_partido(cuartos[i]) }}
-                                {% if i + 1 < cuartos|length %}{{ render_partido(cuartos[i + 1]) }}{% endif %}
+                                {{ render_partido(cuartos[i], calendario_index) }}
+                                {% if i + 1 < cuartos|length %}{{ render_partido(cuartos[i + 1], calendario_index) }}{% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -755,8 +785,8 @@
                             {% set semis = fixture.semifinales %}
                             {% for i in range(0, semis|length, 2) %}
                             <div class="bk-pair">
-                                {{ render_partido(semis[i]) }}
-                                {% if i + 1 < semis|length %}{{ render_partido(semis[i + 1]) }}{% endif %}
+                                {{ render_partido(semis[i], calendario_index) }}
+                                {% if i + 1 < semis|length %}{{ render_partido(semis[i + 1], calendario_index) }}{% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -770,7 +800,7 @@
                             <i class="bi bi-trophy-fill me-1"></i>Final
                         </div>
                         <div class="bk-col-cards">
-                            {{ render_partido(fixture.final) }}
+                            {{ render_partido(fixture.final, calendario_index) }}
                         </div>
                     </div>
                     {% endif %}
@@ -948,23 +978,20 @@ function gpApplyTint(panelEl, hex) {
     });
 }
 
-/* ── Draw SVG bracket connector lines (same approach as finales.html) ── */
+/* ── Draw SVG bracket connector lines ── */
 function gpDrawConnectors(panelEl) {
     if (!panelEl) return;
 
-    /* Remove any previously drawn SVG overlay */
     panelEl.querySelectorAll('.bk-connector-svg').forEach(s => s.remove());
 
     const bkRow = panelEl.querySelector('.bk-row');
     if (!bkRow) return;
 
-    /* Only columns that contain .bk-match elements (skip the Grupos column) */
     const columns = Array.from(bkRow.querySelectorAll('.bk-col')).filter(col =>
         col.querySelectorAll('.bk-match').length > 0
     );
     if (columns.length < 2) return;
 
-    /* Single SVG overlay over the whole .bk-row */
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
     svg.classList.add('bk-connector-svg');
@@ -974,40 +1001,83 @@ function gpDrawConnectors(panelEl) {
 
     const containerRect = bkRow.getBoundingClientRect();
 
-    for (let i = 0; i < columns.length - 1; i++) {
-        const currentMatches = Array.from(columns[i].querySelectorAll('.bk-match'));
-        const nextMatches    = Array.from(columns[i + 1].querySelectorAll('.bk-match'));
+    function drawPath(d) {
+        const path = document.createElementNS(svgNS, 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', '#1D1A0C');
+        path.setAttribute('stroke-width', '1.5');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        svg.appendChild(path);
+    }
 
+    /* Draw a simple L-shaped connector from one match to another (1:1) */
+    function drawOne(mFrom, mTo) {
+        const rF = mFrom.getBoundingClientRect();
+        const rT = mTo.getBoundingClientRect();
+        const x1   = rF.right - containerRect.left;
+        const y1   = rF.top   + rF.height / 2 - containerRect.top;
+        const x2   = rT.left  - containerRect.left;
+        const y2   = rT.top   + rT.height / 2 - containerRect.top;
+        const xMid = x1 + (x2 - x1) / 2;
+        drawPath(`M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${y2} L ${x2} ${y2}`);
+    }
+
+    /* Draw a Y-shaped connector merging two matches into one (2:1) */
+    function drawMerge(mTop, mBot, mNext) {
+        const r1    = mTop.getBoundingClientRect();
+        const r2    = mBot.getBoundingClientRect();
+        const rNext = mNext.getBoundingClientRect();
+        const x1    = r1.right  - containerRect.left;
+        const y1    = r1.top    + r1.height / 2 - containerRect.top;
+        const x2    = r2.right  - containerRect.left;
+        const y2    = r2.top    + r2.height / 2 - containerRect.top;
+        const xNext = rNext.left - containerRect.left;
+        const yNext = rNext.top  + rNext.height / 2 - containerRect.top;
+        const xMid  = x1 + (xNext - x1) / 2;
+        drawPath(
+            `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${yNext} ` +
+            `M ${x2} ${y2} L ${xMid} ${y2} L ${xMid} ${yNext} ` +
+            `M ${xMid} ${yNext} L ${xNext} ${yNext}`
+        );
+    }
+
+    for (let i = 0; i < columns.length - 1; i++) {
+        const currentCol    = columns[i];
+        const currentMatches = Array.from(currentCol.querySelectorAll('.bk-match'));
+        const nextMatches    = Array.from(columns[i + 1].querySelectorAll('.bk-match'));
+        if (!currentMatches.length || !nextMatches.length) continue;
+
+        /* Case 1 — explicit mapping via data-next-idx on .bk-pair
+           Used for octavos (5 grupos): each octavo feeds a specific cuarto.
+           OF.1 → cuartos[1], OF.2 → cuartos[2] */
+        const pairsWithIdx = Array.from(currentCol.querySelectorAll('.bk-pair[data-next-idx]'));
+        if (pairsWithIdx.length > 0) {
+            pairsWithIdx.forEach(pair => {
+                const nextIdx = parseInt(pair.dataset.nextIdx, 10);
+                const mFrom   = pair.querySelector('.bk-match');
+                const mTo     = nextMatches[nextIdx];
+                if (mFrom && mTo) drawOne(mFrom, mTo);
+            });
+            continue;
+        }
+
+        /* Case 2 — 1:1 ratio: each match connects straight to its counterpart.
+           Used for cuartos → semis when there are 3 grupos (2 cuartos, 2 semis). */
+        if (currentMatches.length === nextMatches.length) {
+            currentMatches.forEach((m, j) => drawOne(m, nextMatches[j]));
+            continue;
+        }
+
+        /* Case 3 — standard 2:1 merge: pairs of current matches feed one next match.
+           Used for cuartos → semis (4 grupos, 5 grupos) and semis → final. */
         for (let j = 0; j < nextMatches.length; j++) {
             const m1   = currentMatches[j * 2];
             const m2   = currentMatches[j * 2 + 1];
             const mNext = nextMatches[j];
             if (!m1 || !m2 || !mNext) continue;
-
-            const r1    = m1.getBoundingClientRect();
-            const r2    = m2.getBoundingClientRect();
-            const rNext = mNext.getBoundingClientRect();
-
-            const x1    = r1.right  - containerRect.left;
-            const y1    = r1.top    + r1.height / 2 - containerRect.top;
-            const x2    = r2.right  - containerRect.left;
-            const y2    = r2.top    + r2.height / 2 - containerRect.top;
-            const xNext = rNext.left - containerRect.left;
-            const yNext = rNext.top  + rNext.height / 2 - containerRect.top;
-            const xMid  = x1 + (xNext - x1) / 2;
-
-            const path = document.createElementNS(svgNS, 'path');
-            path.setAttribute('d',
-                `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${yNext} ` +
-                `M ${x2} ${y2} L ${xMid} ${y2} L ${xMid} ${yNext} ` +
-                `M ${xMid} ${yNext} L ${xNext} ${yNext}`
-            );
-            path.setAttribute('stroke', '#1D1A0C');
-            path.setAttribute('stroke-width', '1.5');
-            path.setAttribute('fill', 'none');
-            path.setAttribute('stroke-linecap', 'round');
-            path.setAttribute('stroke-linejoin', 'round');
-            svg.appendChild(path);
+            drawMerge(m1, m2, mNext);
         }
     }
 }

@@ -21,6 +21,12 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+
+class ConflictError(Exception):
+    """Otro proceso escribió el torneo entre el cargar() y el guardar().
+    El caller debe devolver HTTP 409 y pedirle al admin que recargue."""
+
+
 # Directorio base del proyecto (dos niveles arriba de este archivo)
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -60,10 +66,9 @@ class TorneoStorage:
     _TABLE = 'torneo_actual'
 
     # TTL del caché en memoria (segundos).
-    # Con 1 worker en producción el caché es seguro.
-    # Se invalida automáticamente en cada guardar().
-    # Con múltiples workers esto causaría datos stale entre procesos.
-    _CACHE_TTL = 5  # Reducido: evita datos stale, sigue aliviando ráfagas rápidas
+    # Con 2 workers en Railway, cada proceso tiene su propia copia — stale acotado a 5s.
+    # Aceptable para lecturas de jugadores. Escrituras protegidas por optimistic locking.
+    _CACHE_TTL = 5
 
     def __init__(self) -> None:
         self._cache: Optional[Dict] = None
@@ -84,25 +89,39 @@ class TorneoStorage:
         """Devuelve la estructura de un torneo nuevo."""
         now = datetime.now().isoformat()
         return {
-            'nombre': f"Torneo {datetime.now().strftime('%d/%m/%Y')}",
+            'nombre': '',
             'fecha_creacion': now,
             'fecha_modificacion': now,
             'parejas': [],
             'resultado_algoritmo': None,
             'num_canchas': 2,
             'estado': 'creando',
-            'fase': 'inscripcion',
+            'fase': 'espera',
             'tipo_torneo': 'fin1',
             'torneo_id': str(uuid.uuid4()),
+            'version': 0,
         }
 
     def _crear_torneo_default(self) -> None:
-        self.guardar(self._torneo_vacio())
+        self._guardar_sin_version(self._torneo_vacio())
+
+    def _reset_campos_torneo(self, torneo: Dict) -> None:
+        """Resetea los campos de juego del torneo (helper compartido por limpiar y transicion_a_espera)."""
+        torneo['parejas'] = []
+        torneo['resultado_algoritmo'] = None
+        torneo['fixtures_finales'] = {}
+        torneo['estado'] = 'creando'
+        torneo['torneo_id'] = str(uuid.uuid4())
+        torneo.pop('proximo_torneo', None)
 
     # ── API pública ───────────────────────────────────────────────────────────
 
-    def guardar(self, datos: Dict) -> None:
-        """Persiste el diccionario completo del torneo e invalida el caché."""
+    def _guardar_sin_version(self, datos: Dict) -> None:
+        """Escritura incondicional — no verifica versión.
+
+        Solo para operaciones internas (init, limpiar, transiciones de fase).
+        Para escrituras de admin usar guardar_con_version().
+        """
         datos['fecha_modificacion'] = datetime.now().isoformat()
 
         if _USE_SUPABASE:
@@ -114,6 +133,48 @@ class TorneoStorage:
                 json.dump(datos, f, indent=2, ensure_ascii=False)
 
         # Actualizar caché con los datos recién guardados
+        self._cache = datos
+        self._cache_ts = time.monotonic()
+
+    def guardar_con_version(self, datos: Dict) -> None:
+        """Persiste el torneo solo si la versión no cambió desde el último cargar().
+
+        Implementa optimistic locking: lee la versión actual del dict, intenta
+        escribir condicionalmente en Supabase vía RPC. Si otro proceso se adelantó,
+        la RPC devuelve False y se lanza ConflictError.
+
+        El caller debe capturar ConflictError y devolver HTTP 409.
+        """
+        expected_version = datos.get('version', 0)
+        datos['version'] = expected_version + 1
+        datos['fecha_modificacion'] = datetime.now().isoformat()
+
+        if _USE_SUPABASE:
+            resp = self._sb.rpc('guardar_torneo_con_version', {
+                'p_datos': datos,
+                'p_expected_version': expected_version,
+            }).execute()
+            if not resp.data:
+                # Revertir el incremento de versión para no dejar el dict en estado sucio
+                datos['version'] = expected_version
+                raise ConflictError(
+                    'Otro administrador modificó los datos. Recargá la página para continuar.'
+                )
+        else:
+            # Fallback JSON: verificar versión directamente desde el archivo
+            try:
+                with open(self._TORNEO_FILE, encoding='utf-8') as f:
+                    current = json.load(f)
+                if current.get('version', 0) != expected_version:
+                    datos['version'] = expected_version
+                    raise ConflictError(
+                        'Conflicto de versión en almacenamiento local.'
+                    )
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass  # Archivo no existe o corrupto — escribir de todas formas
+            with open(self._TORNEO_FILE, 'w', encoding='utf-8') as f:
+                json.dump(datos, f, indent=2, ensure_ascii=False)
+
         self._cache = datos
         self._cache_ts = time.monotonic()
 
@@ -146,7 +207,7 @@ class TorneoStorage:
 
             # Primera ejecución: no hay fila todavía
             default = self._torneo_vacio()
-            self.guardar(default)
+            self._guardar_sin_version(default)
             return default
 
         # ── JSON local ────────────────────────────────────────────────────────
@@ -167,40 +228,47 @@ class TorneoStorage:
 
 
     def limpiar(self) -> None:
-        """Reinicia el torneo preservando el tipo de torneo activo."""
+        """Reinicia el torneo preservando nombre y tipo configurados en estado espera."""
         torneo = self.cargar()
+        nombre_actual = torneo.get('nombre', '')
         tipo_actual = torneo.get('tipo_torneo', 'fin1')
-        torneo['parejas'] = []
-        torneo['resultado_algoritmo'] = None
-        torneo['fixtures_finales'] = {}
-        torneo['estado'] = 'creando'
+        self._reset_campos_torneo(torneo)
         torneo['fase'] = 'inscripcion'
+        torneo['nombre'] = nombre_actual
         torneo['tipo_torneo'] = tipo_actual
-        torneo['torneo_id'] = str(uuid.uuid4())  # Nuevo UUID para el siguiente torneo
-        self.guardar(torneo)
+        torneo.pop('ultimo_torneo_id', None)
+        self._guardar_sin_version(torneo)
+        self.inicializar_torneo_id()  # sincroniza el nuevo torneo_id con la tabla torneos en Supabase
 
     def get_torneo_id(self) -> str:
-        """Devuelve el UUID del torneo activo.
+        """Devuelve el UUID del torneo activo (solo lectura).
 
-        Si el blob no tiene `torneo_id` (torneos anteriores a Fase 1),
-        genera uno, lo persiste y crea la fila correspondiente en la tabla `torneos`.
+        Si no existe torneo_id (torneos pre-Fase 1), delega a inicializar_torneo_id().
+        Para operaciones normales no tiene side effects.
+        """
+        torneo_id = self.cargar().get('torneo_id')
+        if not torneo_id:
+            return self.inicializar_torneo_id()
+        return torneo_id
+
+    def inicializar_torneo_id(self) -> str:
+        """Genera un torneo_id si no existe y sincroniza con la tabla torneos.
+
+        Llamar explícitamente al crear un torneo nuevo. No se debe llamar en
+        operaciones de lectura normales — usar get_torneo_id() para eso.
         """
         torneo = self.cargar()
-        torneo_id = torneo.get('torneo_id')
+        torneo_id = torneo.get('torneo_id') or str(uuid.uuid4())
+        torneo['torneo_id'] = torneo_id
+        self._guardar_sin_version(torneo)
 
-        if not torneo_id:
-            torneo_id = str(uuid.uuid4())
-            torneo['torneo_id'] = torneo_id
-            self.guardar(torneo)
-
-        # Asegurar que existe la fila en la tabla torneos (idempotente)
         if _USE_SUPABASE:
             try:
                 self._sb.table('torneos').upsert({
-                    'id':      torneo_id,
-                    'nombre':  torneo.get('nombre', 'Torneo'),
-                    'tipo':    torneo.get('tipo_torneo', 'fin1'),
-                    'estado':  torneo.get('fase', 'inscripcion'),
+                    'id':     torneo_id,
+                    'nombre': torneo.get('nombre', 'Torneo'),
+                    'tipo':   torneo.get('tipo_torneo', 'fin1'),
+                    'estado': torneo.get('fase', 'inscripcion'),
                 }, on_conflict='id').execute()
             except Exception as e:
                 logger.warning('No se pudo sincronizar torneo_id con tabla torneos: %s', e)
@@ -208,17 +276,56 @@ class TorneoStorage:
         return torneo_id
 
     def get_fase(self) -> str:
-        """Devuelve la fase actual del torneo ('inscripcion' | 'torneo')."""
+        """Devuelve la fase actual del torneo ('inscripcion' | 'torneo' | 'espera')."""
         torneo = self.cargar()
-        return torneo.get('fase', 'inscripcion')
+        return torneo.get('fase', 'espera')
 
     def set_fase(self, nueva_fase: str) -> None:
         """Cambia la fase del torneo. Valida que sea un valor permitido."""
-        if nueva_fase not in ('inscripcion', 'torneo'):
+        if nueva_fase not in ('inscripcion', 'torneo', 'espera'):
             raise ValueError(f"Fase inválida: {nueva_fase}")
         torneo = self.cargar()
         torneo['fase'] = nueva_fase
-        self.guardar(torneo)
+        self.guardar_con_version(torneo)
+
+    def transicion_a_espera(self, ultimo_torneo_id: str) -> None:
+        """Transiciona a estado 'espera' tras archivar un torneo."""
+        torneo = self.cargar()
+        self._reset_campos_torneo(torneo)
+        torneo['fase'] = 'espera'
+        torneo['nombre'] = ''
+        torneo['tipo_torneo'] = 'fin1'
+        torneo['ultimo_torneo_id'] = ultimo_torneo_id
+        self._guardar_sin_version(torneo)
+
+    def get_ultimo_torneo_id(self) -> Optional[str]:
+        """Devuelve el ID del último torneo archivado (usado en estado 'espera')."""
+        torneo = self.cargar()
+        return torneo.get('ultimo_torneo_id')
+
+    def set_proximo_torneo(self, fecha: str, nombre: str, tipo_torneo: str = 'fin1',
+                           categorias: list = None, descripcion: str = '') -> None:
+        """Guarda la info del próximo torneo y la aplica directamente al blob activo.
+
+        El nombre y tipo_torneo se guardan en el blob del torneo activo para que
+        sobrevivan la transición a estado inscripcion (limpiar() los preserva).
+        """
+        torneo = self.cargar()
+        torneo['nombre'] = nombre
+        torneo['tipo_torneo'] = tipo_torneo
+        torneo['proximo_torneo'] = {
+            'fecha': fecha,
+            'nombre': nombre,
+            'tipo_torneo': tipo_torneo,
+            'categorias': categorias or [],
+            'descripcion': descripcion,
+        }
+        self.guardar_con_version(torneo)
+
+    def get_proximo_torneo(self) -> Optional[Dict]:
+        """Devuelve la info del próximo torneo, o None si no está configurado."""
+        torneo = self.cargar()
+        return torneo.get('proximo_torneo')
 
     def get_tipo_torneo(self) -> str:
         """Devuelve el tipo de torneo activo ('fin1' o 'fin2')."""
@@ -229,7 +336,7 @@ class TorneoStorage:
         """Cambia el tipo de torneo activo."""
         torneo = self.cargar()
         torneo['tipo_torneo'] = tipo
-        self.guardar(torneo)
+        self.guardar_con_version(torneo)
 
 
     def actualizar_nombre(self, nuevo_nombre: str) -> bool:
@@ -237,7 +344,7 @@ class TorneoStorage:
         try:
             torneo = self.cargar()
             torneo['nombre'] = nuevo_nombre
-            self.guardar(torneo)
+            self.guardar_con_version(torneo)
             return True
         except Exception as e:
             logger.error('Error al actualizar nombre: %s', e)

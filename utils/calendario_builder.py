@@ -116,7 +116,9 @@ class CalendarioBuilder:
                             'grupo_id': grupo.id,
                             'grupo_letra': grupo_letra,
                             'pareja1': p1.nombre,
-                            'pareja2': p2.nombre
+                            'pareja2': p2.nombre,
+                            'pareja1_id': p1.id,
+                            'pareja2_id': p2.id
                         }
                         calendario[dia][hora][cancha_idx] = partido
                         hora_idx += 1

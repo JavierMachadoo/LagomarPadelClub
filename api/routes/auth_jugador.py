@@ -14,6 +14,7 @@ El callback OAuth vive en main.py: GET /auth/callback
 import hashlib
 import base64
 import logging
+import re
 import secrets
 import time
 from urllib.parse import urlparse
@@ -84,6 +85,8 @@ def register():
         return jsonify({"error": "La contraseña debe tener al menos 8 caracteres"}), 400
     if not telefono:
         return jsonify({"error": "El teléfono es obligatorio"}), 400
+    if not re.match(r'^\d{9}$', telefono):
+        return jsonify({"error": "El teléfono debe tener exactamente 9 dígitos numéricos"}), 400
 
     error_len = validar_longitud({
         'Nombre':    (nombre, MAX_NOMBRE),
@@ -394,6 +397,11 @@ def google_oauth():
     """
     verifier, challenge = _pkce_verifier_y_challenge()
     session['pkce_verifier'] = verifier
+
+    # Preservar next_url para recuperarlo en el callback post-OAuth
+    next_url = request.args.get('next', '').strip()
+    if next_url and next_url.startswith('/') and 'token=' in next_url:
+        session['oauth_next'] = next_url
 
     # La URL de callback debe coincidir con la configurada en Supabase Dashboard
     # → Authentication → URL Configuration → Redirect URLs

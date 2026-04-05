@@ -333,7 +333,7 @@ def login():
                 'timestamp': int(time.time()),
             }
             token = jwt_handler.generar_token(token_data, expiration_hours=token_exp_hours)
-            redirect_to = next_url if _es_redirect_seguro(next_url) else '/grupos'
+            redirect_to = next_url if _es_redirect_seguro(next_url) else '/inicio'
             response = make_response(jsonify({
                 "message":  "Login exitoso",
                 "nombre":   f"{nombre} {apellido}".strip(),

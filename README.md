@@ -178,3 +178,87 @@ Tras ejecutar el algoritmo, el sistema entrega:
 - **Historial perpetuo:** cada torneo queda archivado y consultable, base para un futuro sistema de ranking
 - **Identidad real de jugadores:** ambos integrantes de cada pareja tienen cuenta propia — elimina homónimos y permite ranking individual preciso
 - **Continuidad entre torneos:** el estado `espera` mantiene visibles los resultados del último torneo mientras se prepara el siguiente
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|------|------------|
+| Backend | Python 3.13 + Flask 3 + Gunicorn |
+| Base de datos | Supabase (PostgreSQL) |
+| Autenticación | Supabase Auth — email/contraseña + Google OAuth |
+| Frontend | Jinja2 + Bootstrap 5 + Vanilla JS |
+| Auth en cliente | JWT en cookie HttpOnly (2h de expiración) |
+| Deploy | Railway (São Paulo) |
+
+---
+
+## Desarrollo local
+
+### Requisitos
+
+- Python 3.13
+- Una cuenta de Supabase (free tier alcanza)
+
+### Setup
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/JavierMachadoo/Algoritmo-Torneos.git
+cd Algoritmo-Torneos
+
+# 2. Instalar dependencias
+pip install -r requirements.txt
+
+# 3. Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tus credenciales de Supabase y la clave secreta JWT
+
+# 4. Correr la app
+python main.py
+```
+
+La app corre en `http://localhost:5000`.
+
+### Variables de entorno requeridas
+
+| Variable | Descripción |
+|----------|-------------|
+| `SECRET_KEY` | Clave para firmar JWTs (cualquier string largo y aleatorio) |
+| `ADMIN_USERNAME` | Usuario del panel administrador |
+| `ADMIN_PASSWORD` | Contraseña del panel administrador |
+| `SUPABASE_URL` | URL del proyecto Supabase |
+| `SUPABASE_ANON_KEY` | Clave anon de Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (requerida para bypassar RLS) |
+| `DEBUG` | `True` en desarrollo, `False` en producción |
+
+### Comandos útiles
+
+```bash
+# Correr tests
+pytest
+
+# Tests con cobertura
+pytest --cov=core --cov=utils --cov-report=term-missing
+
+# Generar datos de prueba
+python generar_datos_prueba.py
+
+# Correr con Gunicorn (simula producción)
+gunicorn main:app --config gunicorn.conf.py
+```
+
+### Estructura del proyecto
+
+```
+├── core/          # Algoritmo de agrupación, modelos de dominio
+├── api/routes/    # Blueprints Flask (REST API)
+├── services/      # Lógica de negocio
+├── utils/         # Storage, JWT, CSV processor, validaciones
+├── web/           # Templates Jinja2 y assets estáticos
+├── config/        # Settings, categorías, franjas horarias
+└── tests/         # Tests unitarios e integración
+```
+
+Para información sobre el despliegue en producción, ver [DESPLIEGUE.md](DESPLIEGUE.md).

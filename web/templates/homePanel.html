@@ -222,22 +222,33 @@
     </div>
 
     <!-- Botón de Acción Principal -->
-    {% if fase_torneo != 'torneo' %}
+    {% if resultado %}
     <div class="row justify-content-center mb-4">
         <div class="col-lg-8">
             <div class="action-bar">
-                {% if resultado %}
                 <a href="{{ url_for('dashboard') }}" class="btn-ver-resultados">
                     <i class="bi bi-trophy me-2"></i>Ver Grupos Generados
                 </a>
+                {% if fase_torneo != 'torneo' %}
                 <button class="btn-generar-grupos" style="font-size:1rem; padding:0.875rem 1.75rem; min-width:auto;" onclick="generarGruposManual()">
                     <i class="bi bi-arrow-clockwise me-2"></i>Regenerar Grupos
                 </button>
-                {% else %}
+                {% if parejas %}
+                <button class="btn-limpiar" onclick="limpiarDatos()">
+                    <i class="bi bi-trash me-2"></i>Limpiar Datos
+                </button>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% elif fase_torneo != 'torneo' %}
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-8">
+            <div class="action-bar">
                 <button class="btn-generar-grupos" onclick="generarGruposManual()">
                     <i class="bi bi-people-fill me-2"></i>Generar Grupos
                 </button>
-                {% endif %}
                 {% if parejas %}
                 <button class="btn-limpiar" onclick="limpiarDatos()">
                     <i class="bi bi-trash me-2"></i>Limpiar Datos

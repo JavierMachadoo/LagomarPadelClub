@@ -814,13 +814,25 @@ function renderFinalesCalendar(data) {
         html || '<div class="empty-state"><i class="bi bi-calendar-x"></i><h3>Sin partidos programados</h3><p>El calendario de finales se publicará pronto.</p></div>';
 }
 
-// Cargar al hacer clic en el tab finales
+// Polling de finales — se activa mientras el tab está visible
+let _pollingFinalesTimer = null;
+function iniciarPollingFinales() {
+    detenerPollingFinales();
+    _pollingFinalesTimer = setInterval(cargarFinalesCalendar, 30000);
+}
+function detenerPollingFinales() {
+    if (_pollingFinalesTimer) { clearInterval(_pollingFinalesTimer); _pollingFinalesTimer = null; }
+}
+
+// Cargar al hacer clic en el tab finales — siempre refresca para mostrar resultados nuevos
 document.getElementById('tab-finales').addEventListener('shown.bs.tab', function () {
-    const content = document.getElementById('finales-calendar-content');
-    if (!content.dataset.loaded) {
-        cargarFinalesCalendar();
-        content.dataset.loaded = '1';
-    }
+    cargarFinalesCalendar();
+    iniciarPollingFinales();
+});
+
+// Detener polling al salir del tab finales
+document.getElementById('tab-finales').addEventListener('hidden.bs.tab', function () {
+    detenerPollingFinales();
 });
 
 // Si el tab de finales ya está activo al cargar (no hay fase de grupos)
@@ -828,7 +840,7 @@ document.getElementById('tab-finales').addEventListener('shown.bs.tab', function
     const panelFinales = document.getElementById('panel-finales');
     if (panelFinales && panelFinales.classList.contains('active')) {
         cargarFinalesCalendar();
-        document.getElementById('finales-calendar-content').dataset.loaded = '1';
+        iniciarPollingFinales();
     }
 })();
 

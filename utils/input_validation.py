@@ -1,7 +1,7 @@
 """Validación de longitud de inputs — defensa contra payloads gigantes."""
 
 MAX_NOMBRE = 100
-MAX_TELEFONO = 20
+MAX_TELEFONO = 9
 MAX_CATEGORIA = 30
 MAX_EMAIL = 254
 MAX_PASSWORD = 128

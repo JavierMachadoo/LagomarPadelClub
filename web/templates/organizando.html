@@ -135,9 +135,15 @@
 
         {% if es_jugador and fase_torneo == 'inscripcion' %}
         <div class="mt-2">
+            {% if ya_inscripto %}
+            <a href="{{ url_for('inscripcion.pagina_inscripcion') }}" class="btn btn-success rounded-pill px-4 py-2 fw-bold">
+                <i class="bi bi-check-circle-fill me-2"></i>Inscripto
+            </a>
+            {% else %}
             <a href="{{ url_for('inscripcion.pagina_inscripcion') }}" class="btn btn-success rounded-pill px-4 py-2 fw-bold">
                 <i class="bi bi-pencil-square me-2"></i>Inscribirme al torneo
             </a>
+            {% endif %}
         </div>
         {% elif not es_autenticado %}
         <div class="mt-2">

@@ -76,7 +76,7 @@ def register():
     password     = data.get("password", "")
     nombre       = data.get("nombre", "").strip()
     apellido     = data.get("apellido", "").strip()
-    telefono     = data.get("telefono", "").strip()
+    telefono     = data.get("telefono", "").strip().replace(' ', '')
     invite_token = data.get("invite_token", "").strip() or request.args.get("invite_token", "").strip() or ""
 
     if not all([email, password, nombre, apellido]):

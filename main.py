@@ -562,17 +562,21 @@ def crear_app():
             # (puede pasar la primera vez que entra con Google)
             sb_admin = get_supabase_admin()
 
-            perfil = sb_admin.table('jugadores').select('id,nombre,apellido').eq('id', user.id).execute()
+            perfil = sb_admin.table('jugadores').select('id,nombre,apellido').eq('id', str(user.id)).execute()
             if not perfil.data:
                 meta = user.user_metadata or {}
                 nombre   = meta.get('given_name') or meta.get('name', 'Jugador').split()[0]
                 apellido = meta.get('family_name') or (meta.get('name', '').split()[-1] if ' ' in meta.get('name', '') else '')
-                sb_admin.table('jugadores').insert({
-                    'id':       user.id,
-                    'nombre':   nombre,
-                    'apellido': apellido,
-                }).execute()
-                logger.info("Perfil creado para jugador OAuth: %s", user.id)
+                try:
+                    sb_admin.table('jugadores').insert({
+                        'id':       str(user.id),
+                        'nombre':   nombre,
+                        'apellido': apellido,
+                    }).execute()
+                    logger.info("Perfil creado para jugador OAuth: %s", user.id)
+                except Exception as insert_err:
+                    logger.error("Error al crear perfil OAuth para %s: %s", user.id, insert_err)
+                    raise
             else:
                 nombre   = perfil.data[0].get('nombre', '')
                 apellido = perfil.data[0].get('apellido', '')

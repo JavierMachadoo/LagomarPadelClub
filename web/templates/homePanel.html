@@ -222,7 +222,7 @@
     </div>
 
     <!-- Botón de Acción Principal -->
-    {% if parejas %}
+    {% if fase_torneo != 'torneo' %}
     <div class="row justify-content-center mb-4">
         <div class="col-lg-8">
             <div class="action-bar">
@@ -230,10 +230,19 @@
                 <a href="{{ url_for('dashboard') }}" class="btn-ver-resultados">
                     <i class="bi bi-trophy me-2"></i>Ver Grupos Generados
                 </a>
+                <button class="btn-generar-grupos" style="font-size:1rem; padding:0.875rem 1.75rem; min-width:auto;" onclick="generarGruposManual()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Regenerar Grupos
+                </button>
+                {% else %}
+                <button class="btn-generar-grupos" onclick="generarGruposManual()">
+                    <i class="bi bi-people-fill me-2"></i>Generar Grupos
+                </button>
                 {% endif %}
+                {% if parejas %}
                 <button class="btn-limpiar" onclick="limpiarDatos()">
                     <i class="bi bi-trash me-2"></i>Limpiar Datos
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -1159,8 +1168,8 @@ document.getElementById('formCargarCSV').addEventListener('submit', function(e) 
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Si hay suficientes parejas, ejecutar algoritmo automáticamente sin mostrar toast intermedio
-            if (data.parejas && data.parejas.length >= 3) {
+            // Si hay parejas, ejecutar algoritmo automáticamente sin mostrar toast intermedio
+            if (data.parejas && data.parejas.length >= 1) {
                 ejecutarAlgoritmoAutomatico();
             } else {
                 Toast.success(data.mensaje);
@@ -1303,6 +1312,15 @@ function confirmarLimpiarDatos() {
 // ==================== EJECUTAR ALGORITMO ====================
 function ejecutarAlgoritmoAutomatico() {
     // Se ejecuta automáticamente después de cargar el CSV
+    _ejecutarAlgoritmo('/dashboard');
+}
+
+function generarGruposManual() {
+    // Se ejecuta desde los botones manuales — recarga /admin para mostrar estado actualizado
+    _ejecutarAlgoritmo('/admin');
+}
+
+function _ejecutarAlgoritmo(redirectUrl) {
     const modalLoading = new bootstrap.Modal(document.getElementById('loadingModal'));
     modalLoading.show();
 
@@ -1318,7 +1336,7 @@ function ejecutarAlgoritmoAutomatico() {
         modalLoading.hide();
         if (data.success) {
             Toast.success(data.mensaje);
-            setTimeout(() => window.location.href = '/dashboard', 800);
+            setTimeout(() => window.location.href = redirectUrl, 800);
         } else {
             Toast.error(data.error || 'Error al ejecutar algoritmo');
             setTimeout(() => location.reload(), 500);

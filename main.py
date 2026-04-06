@@ -22,6 +22,7 @@ from config import (
     TIPOS_TORNEO
 )
 from config.settings import BASE_DIR, DEBUG, SUPABASE_SERVICE_ROLE_KEY
+from utils.supabase_client import get_supabase_admin, get_supabase_anon
 from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
@@ -38,15 +39,13 @@ from services import grupo_service
 def _jugador_ya_inscripto(jugador_id: str, torneo_id: str) -> bool:
     """Verifica si el jugador ya tiene inscripción activa en el torneo (como Player A o B)."""
     try:
-        from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-        from supabase import create_client
-        if not SUPABASE_SERVICE_ROLE_KEY or not jugador_id:
+        if not jugador_id:
             return False
-        sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-        resp1 = sb.table('inscripciones').select('id').eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).execute()
+        sb = get_supabase_admin()
+        resp1 = sb.table('inscripciones').select('id').eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).limit(1).execute()
         if resp1.data:
             return True
-        resp2 = sb.table('inscripciones').select('id').eq('torneo_id', torneo_id).eq('jugador2_id', jugador_id).execute()
+        resp2 = sb.table('inscripciones').select('id').eq('torneo_id', torneo_id).eq('jugador2_id', jugador_id).limit(1).execute()
         return bool(resp2.data)
     except Exception:
         return False
@@ -477,15 +476,12 @@ def crear_app():
         2. OAuth Google (Supabase manda ?code=XXX tras autenticación con Google)
            → Intercambiamos code + PKCE verifier por access_token y seteamos cookie JWT.
         """
-        from config.settings import SUPABASE_URL, SUPABASE_ANON_KEY
-        from supabase import create_client
-
         # ── 1. Confirmación de email ──────────────────────────────────────────
         token_hash = request.args.get('token_hash')
         if token_hash:
             otp_type = request.args.get('type', 'email')
             try:
-                sb = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+                sb = get_supabase_anon()
                 auth_response = sb.auth.verify_otp({'token_hash': token_hash, 'type': otp_type})
 
                 if not auth_response.session:
@@ -494,7 +490,7 @@ def crear_app():
                 user      = auth_response.user
                 jwt_token = auth_response.session.access_token
 
-                sb_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+                sb_admin = get_supabase_admin()
                 perfil   = sb_admin.table('jugadores').select('nombre,apellido,telefono').eq('id', user.id).single().execute()
                 nombre   = ''
                 apellido = ''
@@ -534,7 +530,7 @@ def crear_app():
             return redirect(url_for('login'))
 
         try:
-            sb = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+            sb = get_supabase_anon()
             auth_response = sb.auth.exchange_code_for_session({
                 'auth_code':     code,
                 'code_verifier': verifier,
@@ -549,11 +545,7 @@ def crear_app():
 
             # Si el jugador no tiene perfil en la tabla jugadores, lo creamos
             # (puede pasar la primera vez que entra con Google)
-            if not SUPABASE_SERVICE_ROLE_KEY:
-                logger.error("SUPABASE_SERVICE_ROLE_KEY no está configurada o está vacía")
-                raise RuntimeError("Configuración inválida del servicio de autenticación")
-
-            sb_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+            sb_admin = get_supabase_admin()
 
             perfil = sb_admin.table('jugadores').select('id,nombre,apellido').eq('id', user.id).execute()
             if not perfil.data:

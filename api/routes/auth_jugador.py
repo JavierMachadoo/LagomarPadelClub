@@ -361,6 +361,7 @@ def login():
 
 
 @auth_jugador_bp.route("/exchange-token", methods=["POST"])
+@limiter.limit("5/minute")
 def exchange_token():
     """
     Recibe un access_token de Supabase desde el cliente (leído del hash de la URL

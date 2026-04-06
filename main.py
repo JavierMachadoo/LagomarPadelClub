@@ -532,7 +532,12 @@ def crear_app():
         code     = request.args.get('code')
         verifier = session.pop('pkce_verifier', None)
 
-        if not code or not verifier:
+        if code and not verifier:
+            # OAuth iniciado pero verifier expiró/se perdió (ej: cambio de tab)
+            flash('Error al autenticar con Google. Intentá de nuevo.', 'error')
+            return redirect(url_for('login'))
+
+        if not code:
             # ── 3. Flujo implicit/fragment ────────────────────────────────────
             # Supabase verificó el email y redirigió con access_token en el hash
             # de la URL (#access_token=...). El servidor no puede leer fragmentos.

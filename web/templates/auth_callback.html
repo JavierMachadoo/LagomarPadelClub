@@ -49,9 +49,16 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ access_token: accessToken }),
             })
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-                window.location.href = data.redirect || '/';
+            .then(function (res) {
+                return res.json().then(function (data) {
+                    if (!res.ok) {
+                        document.getElementById('status').textContent =
+                            data.error || 'Error al verificar la cuenta.';
+                        setTimeout(function () { window.location.href = '/login'; }, 3000);
+                    } else {
+                        window.location.href = data.redirect || '/';
+                    }
+                });
             })
             .catch(function () {
                 window.location.href = '/login';

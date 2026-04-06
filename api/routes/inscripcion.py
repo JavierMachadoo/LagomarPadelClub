@@ -430,7 +430,7 @@ def crear_inscripcion():
 
     data = request.get_json(silent=True) or {}
     integrante1 = data.get('integrante1', '').strip()
-    telefono = data.get('telefono', '').strip()
+    telefono = data.get('telefono', '').strip().replace(' ', '')
     categoria = data.get('categoria', '').strip()
     franjas = data.get('franjas', [])
     jugador2_id = data.get('jugador2_id', '').strip() or None
@@ -462,6 +462,20 @@ def crear_inscripcion():
 
     try:
         sb = _get_supabase_admin()
+
+        # Garantizar que el jugador tiene perfil en la tabla jugadores.
+        # Puede faltar si el INSERT en jugadores falló durante el registro
+        # (auth.users creado pero jugadores vacío → FK violation al inscribirse).
+        perfil_propio = sb.table('jugadores').select('id').eq('id', jugador_id).execute()
+        if not perfil_propio.data:
+            jugador_data = _get_jugador_data() or {}
+            sb.table('jugadores').insert({
+                'id':       jugador_id,
+                'nombre':   jugador_data.get('nombre', ''),
+                'apellido': jugador_data.get('apellido', ''),
+                'telefono': telefono or jugador_data.get('telefono') or None,
+            }).execute()
+            logger.warning('Perfil faltante auto-creado para jugador %s', jugador_id)
 
         # Validar que jugador2 existe y no está ya inscrito
         integrante2 = ''

@@ -3,11 +3,12 @@ import logging
 
 from core import Pareja, Grupo, PosicionGrupo, FixtureGenerator, FixtureFinales
 from utils.torneo_storage import storage, ConflictError
-from utils.calendario_finales_builder import CalendarioFinalesBuilder
 from utils.api_helpers import (
     obtener_datos_desde_token,
     verificar_autenticacion_api
 )
+from services import ServiceError
+from services import fixture_service
 
 calendario_bp = Blueprint('calendario', __name__, url_prefix='/api')
 logger = logging.getLogger(__name__)
@@ -178,29 +179,42 @@ def marcar_ganador():
 def obtener_calendario_finales():
     """Obtiene el calendario de finales del domingo con los partidos asignados."""
     try:
-        fixtures = storage.cargar().get('fixtures', {})
+        torneo = storage.cargar()
 
-        if not fixtures:
-            calendario_base = CalendarioFinalesBuilder.generar_calendario_base()
+        try:
+            calendario_nuevo, _ = fixture_service.obtener_calendario(torneo)
+            calendario = _convertir_calendario_a_formato_legacy(calendario_nuevo)
             return jsonify({
                 'success': True,
-                'calendario': calendario_base,
+                'calendario': calendario,
+                'tiene_datos': bool(calendario)
+            })
+        except ServiceError:
+            return jsonify({
+                'success': True,
+                'calendario': {},
                 'tiene_datos': False
             })
-
-        calendario = CalendarioFinalesBuilder.poblar_calendario_con_fixtures(fixtures)
-
-        return jsonify({
-            'success': True,
-            'calendario': calendario,
-            'tiene_datos': True
-        })
 
     except Exception as e:
         logger.error(f"Error al generar calendario de finales: {str(e)}", exc_info=True)
         return jsonify({
             'error': 'Error al generar el calendario de finales. Por favor, intenta nuevamente.'
         }), 500
+
+
+def _convertir_calendario_a_formato_legacy(calendario_nuevo: dict) -> dict:
+    """Convierte {cancha_1: [...], cancha_2: [...]} al formato {hora: {1: slot, 2: slot}}
+    que espera renderFinalesCalendar() en el frontend."""
+    resultado = {}
+    for cancha_idx, key in enumerate(['cancha_1', 'cancha_2'], 1):
+        for partido in (calendario_nuevo.get(key) or []):
+            hora = partido.get('hora_inicio')
+            if hora:
+                if hora not in resultado:
+                    resultado[hora] = {1: None, 2: None}
+                resultado[hora][cancha_idx] = partido
+    return resultado
 
 
 @calendario_bp.route('/obtener-calendario', methods=['GET'])

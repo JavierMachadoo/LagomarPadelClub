@@ -51,7 +51,7 @@
                                     style="border-radius:30px; background:var(--brand-green); color:var(--brand-black); border:none;"
                                     id="btnAbrirInscripciones"
                                     {% if not proximo_torneo or not proximo_torneo.nombre or not proximo_torneo.fecha %}disabled{% endif %}
-                                    onclick="abrirInscripciones()">
+                                    data-bs-toggle="modal" data-bs-target="#modalAbrirInscripciones">
                                 <i class="bi bi-door-open me-2"></i>Abrir Inscripciones
                             </button>
                             {% elif fase_torneo == 'inscripcion' %}
@@ -580,6 +580,31 @@
 </div>
 
 <!-- Modales de Confirmación -->
+<!-- Modal: Confirmar Abrir Inscripciones -->
+<div class="modal fade" id="modalAbrirInscripciones" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-door-open text-success me-2"></i>
+                    Abrir Inscripciones
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">¿Abrir el período de inscripciones para este torneo?</p>
+                <p class="text-muted small mb-0">Los jugadores podrán inscribirse y registrarse.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="abrirInscripciones()">
+                    <i class="bi bi-door-open me-1"></i>Sí, abrir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Confirmar Limpiar Datos -->
 <div class="modal fade" id="modalConfirmarLimpiar" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">

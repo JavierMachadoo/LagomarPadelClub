@@ -183,8 +183,13 @@
             font-size: 0.9rem;
         }
         .alert-success {
-            background: rgba(44, 195, 116, 0.15);
+            background: rgba(44, 195, 116, 0.12);
             color: var(--brand-green);
+            border: 1px solid rgba(44, 195, 116, 0.35) !important;
+            font-size: 1.05rem;
+            font-weight: 600;
+            padding: 1.1rem 1.25rem;
+            text-align: center;
         }
         .alert-danger {
             background: rgba(239, 68, 68, 0.15);
@@ -400,7 +405,7 @@
                 const json = await res.json();
 
                 if (res.ok) {
-                    mostrarMensaje(json.message, 'success');
+                    mostrarMensaje('✅ ' + json.message, 'success');
                     form.reset();
                 } else {
                     mostrarMensaje(json.error || 'Error al registrar', 'danger');

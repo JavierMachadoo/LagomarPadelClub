@@ -253,6 +253,13 @@
         </div>
 
         <div class="login-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="alert alert-{{ 'danger' if messages[0][0] == 'error' else messages[0][0] }} mb-3">
+                {{ messages[0][1] }}
+            </div>
+            {% endif %}
+            {% endwith %}
             <div id="msg-login" class="alert" style="display:none"></div>
 
             <!-- Botón Google -->

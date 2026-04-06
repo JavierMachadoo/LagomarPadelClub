@@ -597,7 +597,7 @@
             </div>
             <div class="modal-footer border-0">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" onclick="abrirInscripciones()">
+                <button type="button" class="btn btn-success" onclick="ejecutarAbrirInscripciones()">
                     <i class="bi bi-door-open me-1"></i>Sí, abrir
                 </button>
             </div>
@@ -1652,27 +1652,22 @@ async function guardarProximoTorneo() {
     }
 }
 
-async function abrirInscripciones() {
-    _confirmCallback = async function () {
-        try {
-            const resp = await fetch('/api/admin/abrir-inscripciones', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const data = await resp.json();
-            if (resp.ok && data.ok) {
-                Toast.success('¡Inscripciones abiertas!');
-                setTimeout(() => location.reload(), 800);
-            } else {
-                Toast.error(data.error || 'Error al abrir inscripciones');
-            }
-        } catch (e) {
-            Toast.error('Error de conexión');
+async function ejecutarAbrirInscripciones() {
+    try {
+        const resp = await fetch('/api/admin/abrir-inscripciones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('¡Inscripciones abiertas!');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Toast.error(data.error || 'Error al abrir inscripciones');
         }
-    };
-    document.getElementById('modalFaseTitulo').textContent = 'Abrir Inscripciones';
-    document.getElementById('modalFaseDescripcion').textContent = '¿Abrís el período de inscripciones para este torneo?';
-    new bootstrap.Modal(document.getElementById('modalCambioFase')).show();
+    } catch (e) {
+        Toast.error('Error de conexión');
+    }
 }
 
 // ── Inscripciones (panel admin) ─────────────────────────────────────────────

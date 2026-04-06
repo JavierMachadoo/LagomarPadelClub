@@ -278,6 +278,30 @@
 
 </div>
 </div>
+
+<!-- Modal: Confirmar cancelar inscripción -->
+<div class="modal fade" id="modalCancelarInscripcion" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-x-circle text-danger me-2"></i>Cancelar inscripción
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">¿Cancelar tu inscripción?</p>
+                <p class="text-muted small mb-0">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Volver</button>
+                <button type="button" class="btn btn-danger" onclick="ejecutarCancelarInscripcion()">
+                    <i class="bi bi-x-circle me-1"></i>Sí, cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -558,8 +582,11 @@ document.getElementById('formInscripcion')?.addEventListener('submit', async fun
 });
 
 // ── Cancelar inscripción ────────────────────────────────────────────────────
-async function cancelarInscripcion() {
-    if (!confirm('¿Cancelar tu inscripción? Esta acción no se puede deshacer.')) return;
+function cancelarInscripcion() {
+    new bootstrap.Modal(document.getElementById('modalCancelarInscripcion')).show();
+}
+
+async function ejecutarCancelarInscripcion() {
     try {
         const resp = await fetch('/api/inscripcion', { method: 'DELETE' });
         const data = await resp.json();

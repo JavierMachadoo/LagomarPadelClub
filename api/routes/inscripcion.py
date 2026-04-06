@@ -473,7 +473,7 @@ def crear_inscripcion():
                 'id':       jugador_id,
                 'nombre':   jugador_data.get('nombre', ''),
                 'apellido': jugador_data.get('apellido', ''),
-                'telefono': jugador_data.get('telefono') or None,
+                'telefono': telefono or jugador_data.get('telefono') or None,
             }).execute()
             logger.warning('Perfil faltante auto-creado para jugador %s', jugador_id)
 

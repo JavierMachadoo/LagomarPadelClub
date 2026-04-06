@@ -3,7 +3,6 @@ import logging
 
 from core import Pareja, Grupo, PosicionGrupo, FixtureGenerator, FixtureFinales
 from utils.torneo_storage import storage, ConflictError
-from utils.calendario_finales_builder import CalendarioFinalesBuilder
 from utils.api_helpers import (
     obtener_datos_desde_token,
     verificar_autenticacion_api

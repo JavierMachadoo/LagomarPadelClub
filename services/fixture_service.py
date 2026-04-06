@@ -163,9 +163,11 @@ def regenerar_fixture_categoria(torneo: dict, categoria: str, grupos_data: list)
 
     # Sincronizar calendario_finales para que el calendario público refleje las parejas clasificadas
     if torneo.get('calendario_finales') and torneo.get('fixtures_finales'):
-        torneo['calendario_finales'] = GeneradorCalendarioFinales.sincronizar_parejas(
-            torneo['calendario_finales'], torneo['fixtures_finales']
-        )
+        fixtures_validos = {k: v for k, v in torneo['fixtures_finales'].items() if v is not None}
+        if fixtures_validos:
+            torneo['calendario_finales'] = GeneradorCalendarioFinales.sincronizar_parejas(
+                torneo['calendario_finales'], fixtures_validos
+            )
 
     storage.guardar_con_version(torneo)
     logger.info('Fixtures regenerados para categoría %s', categoria)

@@ -143,7 +143,12 @@ def crear_app():
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 
-        # Rutas privadas: redirigir si no es admin
+        # Rutas accesibles por jugadores autenticados (no admin)
+        rutas_jugador = ['/dashboard']
+        if g.es_jugador and any(request.path.startswith(r) for r in rutas_jugador):
+            return
+
+        # Resto: solo admin
         if not g.es_admin:
             return redirect(url_for('login'))
     
@@ -213,6 +218,8 @@ def crear_app():
         resultado = datos.get('resultado_algoritmo')
 
         if not resultado:
+            if g.es_jugador:
+                return redirect(url_for('inicio'))
             flash('Primero debes generar los grupos', 'warning')
             return redirect(url_for('admin_panel'))
 
@@ -525,9 +532,17 @@ def crear_app():
         code     = request.args.get('code')
         verifier = session.pop('pkce_verifier', None)
 
-        if not code or not verifier:
-            flash('Error en la autenticación con Google. Intenta de nuevo.', 'error')
+        if code and not verifier:
+            # OAuth iniciado pero verifier expiró/se perdió (ej: cambio de tab)
+            flash('Error al autenticar con Google. Intentá de nuevo.', 'error')
             return redirect(url_for('login'))
+
+        if not code:
+            # ── 3. Flujo implicit/fragment ────────────────────────────────────
+            # Supabase verificó el email y redirigió con access_token en el hash
+            # de la URL (#access_token=...). El servidor no puede leer fragmentos.
+            # Renderizar una página que lo procese client-side y llame a exchange-token.
+            return render_template('auth_callback.html')
 
         try:
             sb = get_supabase_anon()

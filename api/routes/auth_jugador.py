@@ -336,7 +336,7 @@ def login():
                 'timestamp': int(time.time()),
             }
             token = jwt_handler.generar_token(token_data, expiration_hours=token_exp_hours)
-            redirect_to = next_url if _es_redirect_seguro(next_url) else '/inicio'
+            redirect_to = next_url if _es_redirect_seguro(next_url) else '/dashboard'
             response = make_response(jsonify({
                 "message":  "Login exitoso",
                 "nombre":   f"{nombre} {apellido}".strip(),
@@ -347,6 +347,9 @@ def login():
             return response
 
     except Exception as e:
+        err_str = str(e).lower()
+        if 'email not confirmed' in err_str or 'not confirmed' in err_str:
+            return jsonify({"error": "Necesitás confirmar tu email antes de ingresar. Revisá tu casilla."}), 401
         logger.debug("Supabase login falló (%s), intentando fallback admin", e)
 
     # ── 2. Fallback: credenciales admin del .env ──────────────────────────────
@@ -355,6 +358,57 @@ def login():
         return fallback
 
     return jsonify({"error": "Credenciales incorrectas"}), 401
+
+
+@auth_jugador_bp.route("/exchange-token", methods=["POST"])
+@limiter.limit("5/minute")
+def exchange_token():
+    """
+    Recibe un access_token de Supabase desde el cliente (leído del hash de la URL
+    tras la confirmación de email en flujo implicit) y crea la cookie JWT del servidor.
+    """
+    data = request.get_json(silent=True) or {}
+    access_token = data.get("access_token", "").strip()
+
+    if not access_token:
+        return jsonify({"error": "Token requerido"}), 400
+
+    try:
+        sb_admin = _get_supabase_admin()
+        user_response = sb_admin.auth.get_user(access_token)
+
+        if not user_response.user:
+            return jsonify({"error": "Token inválido"}), 401
+
+        user = user_response.user
+        perfil = sb_admin.table("jugadores").select("nombre,apellido,telefono").eq("id", str(user.id)).single().execute()
+        nombre   = ""
+        apellido = ""
+        telefono = ""
+        if perfil.data:
+            nombre   = perfil.data.get("nombre", "")
+            apellido = perfil.data.get("apellido", "")
+            telefono = perfil.data.get("telefono") or ""
+
+        jwt_handler = current_app.jwt_handler
+        token_data = {
+            "authenticated": True,
+            "role":          "jugador",
+            "user_id":       str(user.id),
+            "nombre":        nombre,
+            "apellido":      apellido,
+            "telefono":      telefono,
+            "timestamp":     int(time.time()),
+        }
+        token = jwt_handler.generar_token(token_data, expiration_hours=2)
+        response = make_response(jsonify({"redirect": "/dashboard"}), 200)
+        response.set_cookie("token", token, httponly=True, samesite="Lax", max_age=60 * 60 * 2, secure=not current_app.debug)
+        logger.info("Sesión creada via exchange-token para jugador: %s", user.id)
+        return response
+
+    except Exception as e:
+        logger.error("Error en exchange-token: %s", e)
+        return jsonify({"error": "El enlace expiró o es inválido. Intentá registrarte de nuevo."}), 401
 
 
 @auth_jugador_bp.route("/logout", methods=["POST"])

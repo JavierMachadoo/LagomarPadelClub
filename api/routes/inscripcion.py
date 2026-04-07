@@ -161,6 +161,71 @@ def _auto_asignar_en_grupos(inscripcion: dict) -> None:
     logger.info('Inscripción completada y torneo guardado con resultado actualizado')
 
 
+def _auto_eliminar_de_grupos(inscripcion_id: str) -> None:
+    """Elimina la pareja con este inscripcion_id de torneo['parejas'] y de resultado_algoritmo.
+    Busca por inscripcion_id (UUID string) y por id entero como fallback.
+    No-op silencioso si no se encuentra. Nunca propaga excepciones."""
+    from ._helpers import recalcular_estadisticas, regenerar_calendario
+
+    try:
+        torneo = storage.cargar()
+        int_id = _uuid_to_int_id(inscripcion_id)
+        modificado = False
+
+        def _es_la_pareja(p: dict) -> bool:
+            return (str(p.get('inscripcion_id', '')) == str(inscripcion_id)
+                    or p.get('id') == int_id)
+
+        # 1. Eliminar de lista plana
+        parejas = torneo.get('parejas', [])
+        nueva_lista = [p for p in parejas if not _es_la_pareja(p)]
+        if len(nueva_lista) < len(parejas):
+            torneo['parejas'] = nueva_lista
+            modificado = True
+
+        # 2. Eliminar de resultado_algoritmo (siempre, aunque no estuviera en lista plana)
+        resultado = torneo.get('resultado_algoritmo')
+        if resultado:
+            eliminado_de_grupo = False
+            for cat_grupos in resultado.get('grupos_por_categoria', {}).values():
+                for grupo in cat_grupos:
+                    grupo_parejas = grupo.get('parejas', [])
+                    nueva_grupo_parejas = [p for p in grupo_parejas if not _es_la_pareja(p)]
+                    if len(nueva_grupo_parejas) < len(grupo_parejas):
+                        grupo['parejas'] = nueva_grupo_parejas
+                        grupo['partidos'] = []
+                        grupo['resultados'] = {}
+                        grupo['resultados_completos'] = False
+                        eliminado_de_grupo = True
+                        modificado = True
+
+            sin_asignar = resultado.get('parejas_sin_asignar', [])
+            nueva_sin_asignar = [p for p in sin_asignar if not _es_la_pareja(p)]
+            if len(nueva_sin_asignar) < len(sin_asignar):
+                resultado['parejas_sin_asignar'] = nueva_sin_asignar
+                modificado = True
+
+            if modificado:
+                try:
+                    recalcular_estadisticas(resultado)
+                except Exception:
+                    pass
+                try:
+                    regenerar_calendario(resultado)
+                except Exception:
+                    pass
+
+        if not modificado:
+            logger.info('_auto_eliminar_de_grupos: inscripcion_id %s no encontrada en storage', inscripcion_id)
+            return
+
+        storage.guardar_con_version(torneo)
+        logger.info('_auto_eliminar_de_grupos: pareja con inscripcion_id %s eliminada del storage', inscripcion_id)
+
+    except Exception as e:
+        logger.error('Error en _auto_eliminar_de_grupos: %s', e, exc_info=True)
+
+
 # ── Helpers de invitación ─────────────────────────────────────────────────────
 
 INVITACION_EXPIRACION_HORAS = 48
@@ -310,63 +375,6 @@ def _ejecutar_aceptar_invitacion(sb, token: str, jugador_id: str, torneo_id: str
             logger.error('Error en auto-asignación post-aceptar: %s', e, exc_info=True)
 
     return True, None
-
-
-# ── API: buscar jugadores por teléfono (GET /api/jugadores/buscar) ───────────
-
-@inscripcion_bp.route('/api/jugadores/buscar', methods=['GET'])
-def buscar_jugadores():
-    """Busca jugadores registrados por teléfono (últimos dígitos).
-    Devuelve nombre + teléfono enmascarado. Excluye al buscador y ya inscritos."""
-    autenticado, error = verificar_autenticacion_api(roles_permitidos=['jugador', 'admin'])
-    if not autenticado:
-        return error
-
-    telefono_query = request.args.get('telefono', '').strip()
-    if len(telefono_query) < 4:
-        return jsonify({'error': 'Ingresá al menos 4 dígitos del teléfono'}), 400
-
-    jugador_id = _get_jugador_id()
-    torneo_id = storage.get_torneo_id()
-
-    try:
-        sb = _get_supabase_admin()
-
-        # Buscar jugadores cuyo teléfono contenga los dígitos buscados
-        resp = sb.table('jugadores').select('id, nombre, apellido, telefono').ilike('telefono', f'%{telefono_query}%').execute()
-
-        if not resp.data:
-            return jsonify({'jugadores': []})
-
-        # Obtener IDs de jugadores ya inscritos en este torneo
-        inscritos_resp = sb.table('inscripciones').select('jugador_id, jugador2_id').eq('torneo_id', torneo_id).execute()
-        ids_inscritos = set()
-        for ins in (inscritos_resp.data or []):
-            if ins.get('jugador_id'):
-                ids_inscritos.add(ins['jugador_id'])
-            if ins.get('jugador2_id'):
-                ids_inscritos.add(ins['jugador2_id'])
-
-        resultados = []
-        for j in resp.data:
-            # Excluir al buscador y a jugadores ya inscritos
-            if j['id'] == jugador_id or j['id'] in ids_inscritos:
-                continue
-            # Enmascarar teléfono: mostrar solo últimos 3 dígitos
-            tel = j.get('telefono') or ''
-            tel_parcial = f"***{tel[-3:]}" if len(tel) >= 3 else '***'
-            resultados.append({
-                'id':              j['id'],
-                'nombre':          j['nombre'],
-                'apellido':        j['apellido'],
-                'telefono_parcial': tel_parcial,
-            })
-
-        return jsonify({'jugadores': resultados})
-
-    except Exception as e:
-        logger.error('Error al buscar jugadores: %s', e)
-        return jsonify({'error': 'Error al buscar jugadores'}), 500
 
 
 # ── Página del formulario (GET /inscripcion) ──────────────────────────────────
@@ -596,8 +604,18 @@ def cancelar_inscripcion():
     torneo_id = storage.get_torneo_id()
     try:
         sb = _get_supabase_admin()
-        sb.table('inscripciones').delete().eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).execute()
-        logger.info('Inscripción cancelada: jugador=%s', jugador_id)
+        # Buscar como jugador1 o jugador2 para soportar Player B
+        resp = (sb.table('inscripciones').select('id')
+                .eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).execute())
+        if not resp.data:
+            resp = (sb.table('inscripciones').select('id')
+                    .eq('torneo_id', torneo_id).eq('jugador2_id', jugador_id).execute())
+        if not resp.data:
+            return jsonify({'error': 'No se encontró inscripción activa'}), 404
+        inscripcion_id = resp.data[0]['id']
+        sb.table('inscripciones').delete().eq('id', inscripcion_id).execute()
+        _auto_eliminar_de_grupos(inscripcion_id)
+        logger.info('Inscripción cancelada: jugador=%s, inscripcion=%s', jugador_id, inscripcion_id)
         return jsonify({'ok': True})
     except Exception as e:
         logger.error('Error al cancelar inscripción: %s', e)
@@ -879,6 +897,7 @@ def rechazar_invitacion(inscripcion_id):
 
         # Eliminar la inscripción (se cancela por rechazo)
         sb.table('inscripciones').delete().eq('id', inscripcion_id).execute()
+        _auto_eliminar_de_grupos(inscripcion_id)
 
         logger.info('Invitación rechazada: inscripcion=%s, jugador2=%s', inscripcion_id, jugador_id)
 
@@ -1027,26 +1046,3 @@ def listar_inscripciones():
         return jsonify({'error': 'Error al cargar inscripciones'}), 500
 
 
-# ── API Admin: cambiar estado (PATCH /api/admin/inscripciones/<id>/estado) ────
-
-@inscripcion_bp.route('/api/admin/inscripciones/<inscripcion_id>/estado', methods=['PATCH'])
-def cambiar_estado_inscripcion(inscripcion_id):
-    """Cambia el estado de una inscripción (confirmado / rechazado). Solo admin."""
-    autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
-    if not autenticado:
-        return error
-
-    data = request.get_json(silent=True) or {}
-    nuevo_estado = data.get('estado')
-    if nuevo_estado not in ('confirmado', 'rechazado', 'pendiente', 'pendiente_companero', 'cancelada'):
-        return jsonify({'error': 'Estado inválido'}), 400
-
-    try:
-        sb = _get_supabase_admin()
-        resp = sb.table('inscripciones').update({'estado': nuevo_estado}).eq('id', inscripcion_id).execute()
-        if not resp.data:
-            return jsonify({'error': 'Inscripción no encontrada'}), 404
-        return jsonify({'ok': True, 'inscripcion': resp.data[0]})
-    except Exception as e:
-        logger.error('Error al cambiar estado de inscripción: %s', e)
-        return jsonify({'error': 'Error al actualizar'}), 500

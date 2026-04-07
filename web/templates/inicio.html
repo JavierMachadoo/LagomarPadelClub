@@ -400,9 +400,12 @@
 
     <div class="hero-lpc-content">
         <div class="hero-lpc-eyebrow">
-            {% if resultado %}
+            {% if fase_torneo == 'torneo' %}
                 <span class="dot-live"></span>
                 <span>Torneo en curso</span>
+            {% elif fase_torneo == 'inscripcion' %}
+                <span class="dot-idle"></span>
+                <span>Inscripciones abiertas</span>
             {% else %}
                 <span class="dot-idle"></span>
                 <span>Próximamente</span>
@@ -415,17 +418,33 @@
         </h1>
 
         <p class="hero-lpc-sub">
-            Seguí en tiempo real los grupos, resultados y el bracket de finales.
+            {% if fase_torneo == 'torneo' %}
+                Seguí en tiempo real los grupos, resultados y el bracket de finales.
+            {% elif fase_torneo == 'inscripcion' %}
+                Las inscripciones están abiertas. Anotate con tu pareja para el próximo torneo.
+            {% else %}
+                Seguí en tiempo real los grupos, resultados y el bracket de finales.
+            {% endif %}
         </p>
 
         <div class="hero-lpc-actions">
-            {% if resultado %}
+            {% if fase_torneo == 'torneo' %}
             <a href="{{ url_for('grupos_publico') }}" class="btn-hero-taupe">
                 <i class="bi bi-grid-3x3-gap-fill"></i> Ver Grupos
             </a>
             <a href="{{ url_for('cuadro_publico') }}" class="btn-hero-ghost">
                 <i class="bi bi-trophy-fill"></i> Ver Finales
             </a>
+            {% elif fase_torneo == 'inscripcion' %}
+                {% if es_autenticado %}
+                <a href="{{ url_for('inscripcion.pagina_inscripcion') }}" class="btn-hero-taupe">
+                    <i class="bi bi-pencil-square"></i> Inscribirme
+                </a>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="btn-hero-taupe">
+                    <i class="bi bi-person-fill"></i> Ingresar para inscribirme
+                </a>
+                {% endif %}
             {% else %}
             <span class="btn-hero-ghost" style="cursor:default; opacity:0.5;">
                 <i class="bi bi-hourglass-split"></i> Grupos en preparación

@@ -377,63 +377,6 @@ def _ejecutar_aceptar_invitacion(sb, token: str, jugador_id: str, torneo_id: str
     return True, None
 
 
-# ── API: buscar jugadores por teléfono (GET /api/jugadores/buscar) ───────────
-
-@inscripcion_bp.route('/api/jugadores/buscar', methods=['GET'])
-def buscar_jugadores():
-    """Busca jugadores registrados por teléfono (últimos dígitos).
-    Devuelve nombre + teléfono enmascarado. Excluye al buscador y ya inscritos."""
-    autenticado, error = verificar_autenticacion_api(roles_permitidos=['jugador', 'admin'])
-    if not autenticado:
-        return error
-
-    telefono_query = request.args.get('telefono', '').strip()
-    if len(telefono_query) < 4:
-        return jsonify({'error': 'Ingresá al menos 4 dígitos del teléfono'}), 400
-
-    jugador_id = _get_jugador_id()
-    torneo_id = storage.get_torneo_id()
-
-    try:
-        sb = _get_supabase_admin()
-
-        # Buscar jugadores cuyo teléfono contenga los dígitos buscados
-        resp = sb.table('jugadores').select('id, nombre, apellido, telefono').ilike('telefono', f'%{telefono_query}%').execute()
-
-        if not resp.data:
-            return jsonify({'jugadores': []})
-
-        # Obtener IDs de jugadores ya inscritos en este torneo
-        inscritos_resp = sb.table('inscripciones').select('jugador_id, jugador2_id').eq('torneo_id', torneo_id).execute()
-        ids_inscritos = set()
-        for ins in (inscritos_resp.data or []):
-            if ins.get('jugador_id'):
-                ids_inscritos.add(ins['jugador_id'])
-            if ins.get('jugador2_id'):
-                ids_inscritos.add(ins['jugador2_id'])
-
-        resultados = []
-        for j in resp.data:
-            # Excluir al buscador y a jugadores ya inscritos
-            if j['id'] == jugador_id or j['id'] in ids_inscritos:
-                continue
-            # Enmascarar teléfono: mostrar solo últimos 3 dígitos
-            tel = j.get('telefono') or ''
-            tel_parcial = f"***{tel[-3:]}" if len(tel) >= 3 else '***'
-            resultados.append({
-                'id':              j['id'],
-                'nombre':          j['nombre'],
-                'apellido':        j['apellido'],
-                'telefono_parcial': tel_parcial,
-            })
-
-        return jsonify({'jugadores': resultados})
-
-    except Exception as e:
-        logger.error('Error al buscar jugadores: %s', e)
-        return jsonify({'error': 'Error al buscar jugadores'}), 500
-
-
 # ── Página del formulario (GET /inscripcion) ──────────────────────────────────
 
 @inscripcion_bp.route('/inscripcion')
@@ -1103,28 +1046,3 @@ def listar_inscripciones():
         return jsonify({'error': 'Error al cargar inscripciones'}), 500
 
 
-# ── API Admin: cambiar estado (PATCH /api/admin/inscripciones/<id>/estado) ────
-
-@inscripcion_bp.route('/api/admin/inscripciones/<inscripcion_id>/estado', methods=['PATCH'])
-def cambiar_estado_inscripcion(inscripcion_id):
-    """Cambia el estado de una inscripción (confirmado / rechazado). Solo admin."""
-    autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
-    if not autenticado:
-        return error
-
-    data = request.get_json(silent=True) or {}
-    nuevo_estado = data.get('estado')
-    if nuevo_estado not in ('confirmado', 'rechazado', 'pendiente', 'pendiente_companero', 'cancelada'):
-        return jsonify({'error': 'Estado inválido'}), 400
-
-    try:
-        sb = _get_supabase_admin()
-        resp = sb.table('inscripciones').update({'estado': nuevo_estado}).eq('id', inscripcion_id).execute()
-        if not resp.data:
-            return jsonify({'error': 'Inscripción no encontrada'}), 404
-        if nuevo_estado in ('rechazado', 'cancelada'):
-            _auto_eliminar_de_grupos(inscripcion_id)
-        return jsonify({'ok': True, 'inscripcion': resp.data[0]})
-    except Exception as e:
-        logger.error('Error al cambiar estado de inscripción: %s', e)
-        return jsonify({'error': 'Error al actualizar'}), 500

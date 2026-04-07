@@ -193,21 +193,6 @@ def obtener_franjas_disponibles():
     return jsonify({'success': True, 'disponibilidad': disponibilidad, 'num_canchas': NUM_CANCHAS_DEFAULT})
 
 
-@api_bp.route('/limpiar-datos', methods=['POST'])
-def limpiar_datos():
-    try:
-        torneo = storage.cargar()
-        parejas_a_mantener = [p for p in torneo.get('parejas', []) if p.get('inscripcion_id')]
-        torneo['parejas'] = parejas_a_mantener
-        torneo['resultado_algoritmo'] = None
-        torneo['fixtures_finales'] = {}
-        storage.guardar_con_version(torneo)
-    except ConflictError as e:
-        return jsonify({'error': str(e)}), 409
-    datos_limpios = {'parejas': parejas_a_mantener, 'resultado_algoritmo': None}
-    return crear_respuesta_con_token_actualizado({'success': True, 'mensaje': 'Datos CSV limpiados'}, datos_limpios)
-
-
 @api_bp.route('/cambiar-tipo-torneo', methods=['POST'])
 def cambiar_tipo_torneo():
     data = request.json or {}

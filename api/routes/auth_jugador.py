@@ -85,8 +85,8 @@ def register():
         return jsonify({"error": "La contraseña debe tener al menos 8 caracteres"}), 400
     if not telefono:
         return jsonify({"error": "El teléfono es obligatorio"}), 400
-    if not re.match(r'^\d{9}$', telefono):
-        return jsonify({"error": "El teléfono debe tener exactamente 9 dígitos numéricos"}), 400
+    if not re.match(r'^\d{6,20}$', telefono):
+        return jsonify({"error": "El teléfono debe tener entre 6 y 20 dígitos numéricos"}), 400
 
     error_len = validar_longitud({
         'Nombre':    (nombre, MAX_NOMBRE),

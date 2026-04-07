@@ -489,12 +489,13 @@
                     <div class="parejas-mobile-list d-none">
                         <div id="parejasCardsContainer">
                             {% for pareja in parejas %}
+                            {% set cat_slug = pareja.categoria|lower|replace('á','a')|replace('é','e')|replace('í','i')|replace('ó','o')|replace('ú','u')|replace('ü','u')|replace('ñ','n') %}
                             <div class="pareja-row-mobile" data-id="{{ pareja.id }}">
-                                <div class="pareja-row-accent {{ pareja.categoria|lower }}"></div>
+                                <div class="pareja-row-accent {{ cat_slug }}"></div>
                                 <div class="pareja-row-content">
                                     <div class="pareja-row-nombre">{{ pareja.nombre }}</div>
                                     <div class="pareja-row-meta">
-                                        <span class="badge bg-{{ pareja.categoria|lower }}">{{ pareja.categoria }}</span>
+                                        <span class="badge bg-{{ cat_slug }}">{{ pareja.categoria }}</span>
                                         <span class="meta-text"><i class="bi bi-telephone-fill"></i> {{ pareja.telefono }}</span>
                                         <span class="meta-text"><i class="bi bi-clock-fill"></i> {{ pareja.franjas_disponibles|length }}</span>
                                         {% if resultado and not pareja.esta_asignada %}
@@ -1357,7 +1358,7 @@ function renderizarTablaParejas(parejas) {
             tr.setAttribute('data-id', pareja.id);
             tr.setAttribute('data-categoria', pareja.categoria);
             
-            const categoriaClass = pareja.categoria.toLowerCase();
+            const categoriaClass = normalizeSlug(pareja.categoria);
             
             tr.innerHTML = `
                 <td>${index + 1}</td>
@@ -1389,7 +1390,7 @@ function renderizarTablaParejas(parejas) {
     if (mobileContainer) {
         mobileContainer.innerHTML = '';
         parejasOrdenadas.forEach((pareja) => {
-            const categoriaClass = pareja.categoria.toLowerCase();
+            const categoriaClass = normalizeSlug(pareja.categoria);
 
             let alertBadge = '';
             if (tieneResultado) {
@@ -1459,6 +1460,13 @@ function actualizarHeader(parejas) {
     }
     
     header.innerHTML = headerHTML;
+}
+
+function normalizeSlug(str) {
+    return (str || '').toLowerCase()
+        .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
+        .replace(/ó/g, 'o').replace(/ú/g, 'u').replace(/ü/g, 'u')
+        .replace(/ñ/g, 'n');
 }
 
 function escapeHtml(text) {
@@ -1620,17 +1628,17 @@ async function cargarInscripciones() {
 
         const mobileCards = lista.map(i => {
             const estadoBadge = ESTADOS_BADGE[i.estado] || 'bg-secondary';
-            const nombre2 = i.integrante2 ? `<div class="insc-row-nombre-2">${i.integrante2}</div>` : '';
+            const nombre2 = i.integrante2 ? `<div class="insc-row-nombre-2">${escapeHtml(i.integrante2)}</div>` : '';
             return `
             <div class="insc-row-mobile">
                 <div class="insc-row-accent ${i.estado || ''}"></div>
                 <div class="insc-row-content">
-                    <div class="insc-row-nombre">${i.integrante1 || ''}</div>
+                    <div class="insc-row-nombre">${escapeHtml(i.integrante1 || '')}</div>
                     ${nombre2}
                     <div class="insc-row-meta">
-                        <span class="badge ${estadoBadge}">${i.estado}</span>
-                        <span class="badge bg-primary">${i.categoria || ''}</span>
-                        ${i.telefono ? `<span class="meta-text"><i class="bi bi-telephone"></i> ${i.telefono}</span>` : ''}
+                        <span class="badge ${estadoBadge}">${escapeHtml(i.estado)}</span>
+                        <span class="badge bg-primary">${escapeHtml(i.categoria || '')}</span>
+                        ${i.telefono ? `<span class="meta-text"><i class="bi bi-telephone"></i> ${escapeHtml(i.telefono)}</span>` : ''}
                     </div>
                 </div>
             </div>`;
@@ -1638,12 +1646,12 @@ async function cargarInscripciones() {
 
         const rows = lista.map(i => `
             <tr>
-                <td><strong>${i.integrante1}</strong><br><small class="text-muted">${i.integrante2}</small></td>
-                <td>${i.categoria}</td>
-                <td><small>${(i.franjas_disponibles || []).join(', ')}</small></td>
-                <td>${i.telefono || '—'}</td>
+                <td><strong>${escapeHtml(i.integrante1)}</strong><br><small class="text-muted">${escapeHtml(i.integrante2)}</small></td>
+                <td>${escapeHtml(i.categoria)}</td>
+                <td><small>${(i.franjas_disponibles || []).map(escapeHtml).join(', ')}</small></td>
+                <td>${escapeHtml(i.telefono || '—')}</td>
                 <td>
-                    <span class="badge ${ESTADOS_BADGE[i.estado] || 'bg-secondary'}">${i.estado}</span>
+                    <span class="badge ${ESTADOS_BADGE[i.estado] || 'bg-secondary'}">${escapeHtml(i.estado)}</span>
                 </td>
                 <td></td>
             </tr>`).join('');

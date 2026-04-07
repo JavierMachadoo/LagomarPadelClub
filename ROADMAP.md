@@ -29,17 +29,6 @@ P3 — Nice to have, evaluar según demanda real
 
 ---
 
-### 2. Validar `telefono_query` antes del ILIKE
-
-**Problema**: Búsqueda de jugadores por teléfono pasa input del usuario directo a un ILIKE sin validación.
-**Fix**: Agregar regex antes de la query en `api/routes/inscripcion.py`
-```python
-import re
-if not re.match(r'^\d{4,20}$', telefono_query):
-    return jsonify({'error': 'Teléfono inválido'}), 400
-```
-**Esfuerzo**: 2 min
-
 ---
 
 ### 3. Tokens legacy sin campo `role` no deben asumir admin

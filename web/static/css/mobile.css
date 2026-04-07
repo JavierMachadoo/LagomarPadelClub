@@ -386,7 +386,53 @@
     .pareja-card-mobile:active {
         transform: scale(0.98);
     }
-    
+
+    /* === Inscripciones Mobile Cards === */
+    .inscripciones-mobile-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .inscripcion-card-mobile {
+        background: white;
+        border-radius: 15px;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+        transition: transform 0.1s ease;
+    }
+
+    .inscripcion-card-mobile:active {
+        transform: scale(0.98);
+    }
+
+    .inscripcion-card-header {
+        padding: 0.875rem 1rem;
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .inscripcion-card-body {
+        padding: 0.875rem 1rem;
+    }
+
+    .inscripcion-card-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .inscripcion-card-actions .btn {
+        flex: 1;
+        font-size: 0.8rem;
+    }
+
     .pareja-card-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 0.875rem 1rem;

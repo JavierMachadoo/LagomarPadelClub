@@ -1729,6 +1729,33 @@ async function cargarInscripciones() {
             return;
         }
 
+        const mobileCards = lista.map(i => {
+            const estadoBadge = ESTADOS_BADGE[i.estado] || 'bg-secondary';
+            const franjas = (i.franjas_disponibles || []).join(', ') || 'Sin especificar';
+            const btnConfirmar = i.estado !== 'confirmado' ?
+                `<button class="btn btn-success btn-sm" onclick="cambiarEstadoInscripcion('${i.id}', 'confirmado')"><i class="bi bi-check-circle"></i> Confirmar</button>` : '';
+            const btnRechazar = i.estado !== 'rechazado' ?
+                `<button class="btn btn-danger btn-sm" onclick="cambiarEstadoInscripcion('${i.id}', 'rechazado')"><i class="bi bi-x-circle"></i> Rechazar</button>` : '';
+            return `
+            <div class="inscripcion-card-mobile">
+                <div class="inscripcion-card-header">
+                    <div>
+                        <strong>${i.integrante1 || ''}</strong>
+                        ${i.integrante2 ? `<br><small>${i.integrante2}</small>` : ''}
+                    </div>
+                    <span class="badge ${estadoBadge}">${i.estado}</span>
+                </div>
+                <div class="inscripcion-card-body">
+                    <div class="mb-1"><span class="badge bg-primary">${i.categoria || ''}</span></div>
+                    <div class="text-muted small mb-1"><i class="bi bi-clock"></i> ${franjas}</div>
+                    ${i.telefono ? `<div class="text-muted small"><i class="bi bi-telephone"></i> ${i.telefono}</div>` : ''}
+                    <div class="inscripcion-card-actions">
+                        ${btnConfirmar}${btnRechazar}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
         const rows = lista.map(i => `
             <tr>
                 <td><strong>${i.integrante1}</strong><br><small class="text-muted">${i.integrante2}</small></td>
@@ -1745,16 +1772,19 @@ async function cargarInscripciones() {
             </tr>`).join('');
 
         container.innerHTML = `
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Pareja</th><th>Categoría</th><th>Franjas</th>
-                            <th>Teléfono</th><th>Estado</th><th></th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
+            <div class="inscripciones-mobile-list d-md-none">${mobileCards}</div>
+            <div class="d-none d-md-block">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Pareja</th><th>Categoría</th><th>Franjas</th>
+                                <th>Teléfono</th><th>Estado</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
             </div>`;
     } catch (e) {
         container.innerHTML = '<p class="text-danger">Error de conexión.</p>';

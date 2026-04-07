@@ -161,6 +161,71 @@ def _auto_asignar_en_grupos(inscripcion: dict) -> None:
     logger.info('Inscripción completada y torneo guardado con resultado actualizado')
 
 
+def _auto_eliminar_de_grupos(inscripcion_id: str) -> None:
+    """Elimina la pareja con este inscripcion_id de torneo['parejas'] y de resultado_algoritmo.
+    Busca por inscripcion_id (UUID string) y por id entero como fallback.
+    No-op silencioso si no se encuentra. Nunca propaga excepciones."""
+    from ._helpers import recalcular_estadisticas, regenerar_calendario
+
+    try:
+        torneo = storage.cargar()
+        int_id = _uuid_to_int_id(inscripcion_id)
+        modificado = False
+
+        def _es_la_pareja(p: dict) -> bool:
+            return (str(p.get('inscripcion_id', '')) == str(inscripcion_id)
+                    or p.get('id') == int_id)
+
+        # 1. Eliminar de lista plana
+        parejas = torneo.get('parejas', [])
+        nueva_lista = [p for p in parejas if not _es_la_pareja(p)]
+        if len(nueva_lista) < len(parejas):
+            torneo['parejas'] = nueva_lista
+            modificado = True
+
+        # 2. Eliminar de resultado_algoritmo (siempre, aunque no estuviera en lista plana)
+        resultado = torneo.get('resultado_algoritmo')
+        if resultado:
+            eliminado_de_grupo = False
+            for cat_grupos in resultado.get('grupos_por_categoria', {}).values():
+                for grupo in cat_grupos:
+                    grupo_parejas = grupo.get('parejas', [])
+                    nueva_grupo_parejas = [p for p in grupo_parejas if not _es_la_pareja(p)]
+                    if len(nueva_grupo_parejas) < len(grupo_parejas):
+                        grupo['parejas'] = nueva_grupo_parejas
+                        grupo['partidos'] = []
+                        grupo['resultados'] = {}
+                        grupo['resultados_completos'] = False
+                        eliminado_de_grupo = True
+                        modificado = True
+
+            sin_asignar = resultado.get('parejas_sin_asignar', [])
+            nueva_sin_asignar = [p for p in sin_asignar if not _es_la_pareja(p)]
+            if len(nueva_sin_asignar) < len(sin_asignar):
+                resultado['parejas_sin_asignar'] = nueva_sin_asignar
+                modificado = True
+
+            if modificado:
+                try:
+                    recalcular_estadisticas(resultado)
+                except Exception:
+                    pass
+                try:
+                    regenerar_calendario(resultado)
+                except Exception:
+                    pass
+
+        if not modificado:
+            logger.info('_auto_eliminar_de_grupos: inscripcion_id %s no encontrada en storage', inscripcion_id)
+            return
+
+        storage.guardar_con_version(torneo)
+        logger.info('_auto_eliminar_de_grupos: pareja con inscripcion_id %s eliminada del storage', inscripcion_id)
+
+    except Exception as e:
+        logger.error('Error en _auto_eliminar_de_grupos: %s', e, exc_info=True)
+
+
 # ── Helpers de invitación ─────────────────────────────────────────────────────
 
 INVITACION_EXPIRACION_HORAS = 48
@@ -596,8 +661,18 @@ def cancelar_inscripcion():
     torneo_id = storage.get_torneo_id()
     try:
         sb = _get_supabase_admin()
-        sb.table('inscripciones').delete().eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).execute()
-        logger.info('Inscripción cancelada: jugador=%s', jugador_id)
+        # Buscar como jugador1 o jugador2 para soportar Player B
+        resp = (sb.table('inscripciones').select('id')
+                .eq('torneo_id', torneo_id).eq('jugador_id', jugador_id).execute())
+        if not resp.data:
+            resp = (sb.table('inscripciones').select('id')
+                    .eq('torneo_id', torneo_id).eq('jugador2_id', jugador_id).execute())
+        if not resp.data:
+            return jsonify({'error': 'No se encontró inscripción activa'}), 404
+        inscripcion_id = resp.data[0]['id']
+        sb.table('inscripciones').delete().eq('id', inscripcion_id).execute()
+        _auto_eliminar_de_grupos(inscripcion_id)
+        logger.info('Inscripción cancelada: jugador=%s, inscripcion=%s', jugador_id, inscripcion_id)
         return jsonify({'ok': True})
     except Exception as e:
         logger.error('Error al cancelar inscripción: %s', e)
@@ -879,6 +954,7 @@ def rechazar_invitacion(inscripcion_id):
 
         # Eliminar la inscripción (se cancela por rechazo)
         sb.table('inscripciones').delete().eq('id', inscripcion_id).execute()
+        _auto_eliminar_de_grupos(inscripcion_id)
 
         logger.info('Invitación rechazada: inscripcion=%s, jugador2=%s', inscripcion_id, jugador_id)
 
@@ -1046,6 +1122,8 @@ def cambiar_estado_inscripcion(inscripcion_id):
         resp = sb.table('inscripciones').update({'estado': nuevo_estado}).eq('id', inscripcion_id).execute()
         if not resp.data:
             return jsonify({'error': 'Inscripción no encontrada'}), 404
+        if nuevo_estado in ('rechazado', 'cancelada'):
+            _auto_eliminar_de_grupos(inscripcion_id)
         return jsonify({'ok': True, 'inscripcion': resp.data[0]})
     except Exception as e:
         logger.error('Error al cambiar estado de inscripción: %s', e)

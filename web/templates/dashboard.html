@@ -87,6 +87,19 @@
                         <small class="d-block" style="font-size: 0.85rem;">Grupos por Categoría</small>
                     </button>
                 </li>
+                {% if es_admin %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="domingo-tab" data-bs-toggle="pill"
+                            data-bs-target="#domingo-main" type="button" role="tab"
+                            aria-controls="domingo-main" aria-selected="false"
+                            style="padding: 0.7rem 4rem; font-size: 1.1rem;"
+                            onclick="inicializarCalendarioDomingo()">
+                        <i class="bi bi-calendar2-week-fill me-2" style="font-size: 1.3rem;"></i>
+                        <strong>DOMINGO</strong>
+                        <small class="d-block" style="font-size: 0.85rem;">Gestión de Finales</small>
+                    </button>
+                </li>
+                {% endif %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="finales-tab" data-bs-toggle="pill"
                             data-bs-target="#finales-main" type="button" role="tab"
@@ -672,10 +685,10 @@
         <div class="tab-pane fade" id="series-main" role="tabpanel">
             <div class="row justify-content-center">
                 <div class="col-lg-10">
-                    {% set cat_id_map = {'Cuarta': 'cuarta', 'Quinta': 'quinta', 'Sexta': 'sexta', 'Séptima': 'septima', 'Tercera': 'tercera'} %}
-                    {% set cat_border_map = {'Cuarta': '#90EE90', 'Quinta': '#FFD700', 'Sexta': '#87CEEB', 'Séptima': '#DDA0DD', 'Tercera': '#FFB6C1'} %}
-                    {% set cat_bg_map = {'Cuarta': '#f0fff0', 'Quinta': '#fffef0', 'Sexta': '#f0f8ff', 'Séptima': '#fff0ff', 'Tercera': '#fff0f5'} %}
-                    {% set cat_emoji_map = {'Cuarta': '🟢', 'Quinta': '🟡', 'Sexta': '🔵', 'Séptima': '🟣', 'Tercera': '🔴'} %}
+                    {% set cat_id_map = {'Cuarta': 'cuarta', 'Quinta': 'quinta', 'Sexta': 'sexta', 'Séptima': 'septima', 'Tercera': 'tercera', 'Octava': 'octava'} %}
+                    {% set cat_border_map = {'Cuarta': '#90EE90', 'Quinta': '#FFD700', 'Sexta': '#87CEEB', 'Séptima': '#DDA0DD', 'Tercera': '#fd7e14', 'Octava': '#dc3545'} %}
+                    {% set cat_bg_map = {'Cuarta': '#f0fff0', 'Quinta': '#fffef0', 'Sexta': '#f0f8ff', 'Séptima': '#fff0ff', 'Tercera': '#fff3e0', 'Octava': '#fce4e6'} %}
+                    {% set cat_emoji_map = {'Cuarta': '🟢', 'Quinta': '🟡', 'Sexta': '🔵', 'Séptima': '🟣', 'Tercera': '🟠', 'Octava': '🔴'} %}
 
                     <!-- Sub-tabs para categorías del torneo activo -->
                     <ul class="nav nav-tabs mb-4" id="seriesCategoriasTabs" role="tablist">
@@ -707,11 +720,12 @@
         <div class="tab-pane fade" id="finales-main" role="tabpanel">
             <!-- Selector de Categoría -->
             {%- set cat_meta = {
-                'Tercera': {'abrev': '3era', 'css': 'tercera', 'emoji': '🔴'},
+                'Tercera': {'abrev': '3era', 'css': 'tercera', 'emoji': '🟠'},
                 'Cuarta':  {'abrev': '4ta',  'css': 'cuarta',  'emoji': '🟢'},
                 'Quinta':  {'abrev': '5ta',  'css': 'quinta',  'emoji': '🟡'},
                 'Sexta':   {'abrev': '6ta',  'css': 'sexta',   'emoji': '🔵'},
-                'Séptima': {'abrev': '7ma',  'css': 'septima', 'emoji': '🟣'}
+                'Séptima': {'abrev': '7ma',  'css': 'septima', 'emoji': '🟣'},
+                'Octava':  {'abrev': '8va',  'css': 'octava',  'emoji': '🔴'}
             } %}
             <div class="categorias-selector" id="categoriasSelector">
                 {% for cat_nombre in categorias %}
@@ -733,6 +747,33 @@
                 </div>
             </div>
         </div>
+
+        {% if es_admin %}
+        <!-- TAB 4: CALENDARIO DOMINGO (solo admin) -->
+        <div class="tab-pane fade" id="domingo-main" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h4 class="mb-0"><i class="bi bi-calendar2-week-fill me-2 text-primary"></i>Calendario del Domingo</h4>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="cargarCalendarioDomingo()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="restablecerCalendarioDomingo()">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Restablecer automático
+                    </button>
+                </div>
+            </div>
+            <p class="text-muted small mb-3">
+                <i class="bi bi-info-circle me-1"></i>
+                Arrastrá las cards para cambiar el horario o la cancha de un partido. Si el slot destino ya tiene un partido, se intercambian automáticamente.
+            </p>
+            <div id="calendarioDomingoContainer">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2 text-muted">Cargando calendario...</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -1449,15 +1490,17 @@
         'Quinta': 'partido-quinta',
         'Sexta': 'partido-sexta',
         'Séptima': 'partido-septima',
-        'Tercera': 'partido-tercera'
+        'Tercera': 'partido-tercera',
+        'Octava': 'partido-octava'
     } %}
-    
+
     {% set emoji_categoria = {
         'Cuarta': '🟢',
         'Quinta': '🟡',
         'Sexta': '🔵',
         'Séptima': '🟣',
-        'Tercera': '🔴'
+        'Tercera': '🟠',
+        'Octava': '🔴'
     } %}
     
     <div class="partido-bloque-simple {{ clase_categoria[partido.categoria] }}">
@@ -1493,9 +1536,12 @@
 <script>
 // Variables renderizadas por Jinja2 -- deben permanecer en el template
 const CATEGORIAS_TORNEO_FINALES = {{ categorias | tojson }};
-const CATS_ACTIVAS_FINALES = CATEGORIAS_TORNEO_FINALES.map(c => ({ "Tercera": "3era", "Cuarta": "4ta", "Quinta": "5ta", "Sexta": "6ta", "Séptima": "7ma" })[c]).filter(Boolean);
+const CATS_ACTIVAS_FINALES = CATEGORIAS_TORNEO_FINALES.map(c => ({ "Tercera": "3era", "Cuarta": "4ta", "Quinta": "5ta", "Sexta": "6ta", "Séptima": "7ma", "Octava": "8va" })[c]).filter(Boolean);
 </script>
 <script src="{{ url_for('static', filename='js/dashboard-grupos.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard-resultados.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard-finales.js') }}"></script>
+{% if es_admin %}
+<script src="{{ url_for('static', filename='js/dashboard-domingo.js') }}"></script>
+{% endif %}
 {% endblock %}

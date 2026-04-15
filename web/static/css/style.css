@@ -4,7 +4,8 @@
     --quinta-color: #ffc107;
     --sexta-color: #17a2b8;
     --septima-color: #9b7fed;
-    --tercera-color: #e83e8c;
+    --tercera-color: #fd7e14;
+    --octava-color: #dc3545;
 }
 
 /* Navbar Mejorado */
@@ -294,8 +295,13 @@ footer {
 }
 
 .partido-tercera {
-    background-color: #fce4ec;
-    border-left-color: #e83e8c;
+    background-color: #fff3e0;
+    border-left-color: #fd7e14;
+}
+
+.partido-octava {
+    background-color: #fce4e6;
+    border-left-color: #dc3545;
 }
 
 .badge-categoria {

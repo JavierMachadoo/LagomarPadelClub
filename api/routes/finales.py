@@ -116,3 +116,30 @@ def obtener_calendario():
     except Exception as e:
         logger.error('Error al generar calendario: %s', e, exc_info=True)
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
+@finales_bp.route('/calendario/partido/<partido_id>', methods=['PUT'])
+def mover_partido_calendario(partido_id):
+    data = request.get_json()
+    nueva_hora = data.get('nueva_hora')
+    nueva_cancha = data.get('nueva_cancha')
+
+    if not nueva_hora or nueva_cancha is None:
+        return jsonify({'success': False, 'message': 'nueva_hora y nueva_cancha son requeridos'}), 400
+
+    try:
+        nueva_cancha = int(nueva_cancha)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'nueva_cancha debe ser 1 o 2'}), 400
+
+    try:
+        torneo = storage.cargar()
+        calendario = fixture_service.mover_partido_calendario(torneo, partido_id, nueva_hora, nueva_cancha)
+        return jsonify({'success': True, 'calendario': calendario})
+    except ServiceError as e:
+        return jsonify({'success': False, 'message': e.message}), e.status_code
+    except ConflictError as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
+    except Exception as e:
+        logger.error('Error al mover partido %s: %s', partido_id, e, exc_info=True)
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500

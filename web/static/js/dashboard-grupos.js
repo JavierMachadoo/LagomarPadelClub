@@ -4,7 +4,8 @@ const CATEGORIA_CONFIG = {
     'Quinta':  { clase: 'partido-quinta',  emoji: '🟡', border: '#ffc107', bg: '#fff3cd' },
     'Sexta':   { clase: 'partido-sexta',   emoji: '🔵', border: '#17a2b8', bg: '#d1ecf1' },
     'Séptima': { clase: 'partido-septima', emoji: '🟣', border: '#9b7fed', bg: '#e7e3ff' },
-    'Tercera': { clase: 'partido-tercera', emoji: '🔴', border: '#e83e8c', bg: '#fce4ef' },
+    'Tercera': { clase: 'partido-tercera', emoji: '🟠', border: '#fd7e14', bg: '#fff3e0' },
+    'Octava':  { clase: 'partido-octava',  emoji: '🔴', border: '#dc3545', bg: '#fce4e6' },
 };
 const CATEGORIA_DEFAULT = { clase: '', emoji: '⚪', border: '#6c757d', bg: '#f8f9fa' };
 

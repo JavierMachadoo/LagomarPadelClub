@@ -102,7 +102,8 @@
     .categoria-btn-quinta { color: #ffc107; }
     .categoria-btn-sexta { color: #17a2b8; }
     .categoria-btn-septima { color: #9b7fed; }
-    .categoria-btn-tercera { color: #e83e8c; }
+    .categoria-btn-tercera { color: #fd7e14; }
+    .categoria-btn-octava  { color: #dc3545; }
     
     .categoria-btn .categoria-emoji {
         font-size: 2rem;
@@ -517,6 +518,8 @@
     .partido-quinta { border-left-color: #ffc107; }
     .partido-sexta { border-left-color: #17a2b8; }
     .partido-septima { border-left-color: #9b7fed; }
+    .partido-tercera { border-left-color: #fd7e14; }
+    .partido-octava { border-left-color: #dc3545; }
     
     .partido-hora {
         font-weight: 700;
@@ -644,11 +647,12 @@
                     
                     <!-- Selector de Categoría -->
                     {%- set cat_meta = {
-                        'Tercera': {'abrev': '3era', 'css': 'tercera', 'emoji': '🔴'},
+                        'Tercera': {'abrev': '3era', 'css': 'tercera', 'emoji': '🟠'},
                         'Cuarta':  {'abrev': '4ta',  'css': 'cuarta',  'emoji': '🟢'},
                         'Quinta':  {'abrev': '5ta',  'css': 'quinta',  'emoji': '🟡'},
                         'Sexta':   {'abrev': '6ta',  'css': 'sexta',   'emoji': '🔵'},
-                        'Séptima': {'abrev': '7ma',  'css': 'septima', 'emoji': '🟣'}
+                        'Séptima': {'abrev': '7ma',  'css': 'septima', 'emoji': '🟣'},
+                        'Octava':  {'abrev': '8va',  'css': 'octava',  'emoji': '🔴'}
                     } %}
                     <div class="categorias-selector" id="categoriasSelector">
                         {% for cat_nombre in categorias %}
@@ -808,7 +812,8 @@ const CAT_MAP = {
     'Cuarta':  '4ta',
     'Quinta':  '5ta',
     'Sexta':   '6ta',
-    'Séptima': '7ma'
+    'Séptima': '7ma',
+    'Octava':  '8va'
 };
 const CATEGORIAS_TORNEO = {{ categorias | tojson }};
 const CATS_ACTIVAS = CATEGORIAS_TORNEO.map(c => CAT_MAP[c]).filter(Boolean);
@@ -871,6 +876,7 @@ async function cargarFixtures(silencioso = false) {
             if (data.fixtures['Quinta'])  fixtures['5ta']  = data.fixtures['Quinta'];
             if (data.fixtures['Sexta'])   fixtures['6ta']  = data.fixtures['Sexta'];
             if (data.fixtures['Séptima']) fixtures['7ma']  = data.fixtures['Séptima'];
+            if (data.fixtures['Octava'])  fixtures['8va']  = data.fixtures['Octava'];
             
             // Si no hay mapeo, usar los datos tal cual (por si ya vienen con el nombre correcto)
             if (Object.keys(fixtures).length === 0) {

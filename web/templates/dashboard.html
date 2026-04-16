@@ -339,6 +339,9 @@
                                 {% endfor %}
                             </select>
                             <small class="text-muted">Si cambias la categoría, la pareja se moverá a "No Asignadas"</small>
+                            <small id="editarCategoriaHint" class="text-danger d-block mt-1" style="display:none!important;">
+                                <i class="bi bi-lock-fill"></i> No se puede cambiar la categoría: la pareja ya tiene resultados cargados
+                            </small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Franjas Horarias Disponibles *</label>

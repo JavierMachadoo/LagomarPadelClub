@@ -11,7 +11,7 @@ function showToast(message, type = 'info') {
 // CATEGORIAS_TORNEO_FINALES y CATS_ACTIVAS_FINALES se definen en el inline script del HTML
 // con Jinja2 y se asumen disponibles como globales al momento de ejecutar este archivo.
 const CAT_MAP_FINALES = {
-    'Tercera': '3era', 'Cuarta': '4ta', 'Quinta': '5ta', 'Sexta': '6ta', 'Séptima': '7ma'
+    'Tercera': '3era', 'Cuarta': '4ta', 'Quinta': '5ta', 'Sexta': '6ta', 'Séptima': '7ma', 'Octava': '8va'
 };
 
 let currentCategoria = (typeof CATS_ACTIVAS_FINALES !== 'undefined' ? CATS_ACTIVAS_FINALES[0] : null) || '3era';
@@ -72,6 +72,7 @@ async function cargarFixtures(silencioso = false) {
             if (data.fixtures['Quinta'])  fixtures['5ta']  = data.fixtures['Quinta'];
             if (data.fixtures['Sexta'])   fixtures['6ta']  = data.fixtures['Sexta'];
             if (data.fixtures['Séptima']) fixtures['7ma']  = data.fixtures['Séptima'];
+            if (data.fixtures['Octava'])  fixtures['8va']  = data.fixtures['Octava'];
             if (Object.keys(fixtures).length === 0) fixtures = data.fixtures;
             actualizarDetallesCategorias();
             cambiarCategoria(currentCategoria || CATS_ACTIVAS_FINALES[0]);

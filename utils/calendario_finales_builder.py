@@ -78,7 +78,7 @@ class GeneradorCalendarioFinales:
     HORA_FIN = 22     # hasta 22:00 máximo
 
     # Orden de categorías: la peor categoría juega primero
-    ORDEN_CATEGORIAS = ["Séptima", "Sexta", "Quinta", "Cuarta", "Tercera"]
+    ORDEN_CATEGORIAS = ["Octava", "Séptima", "Sexta", "Quinta", "Cuarta", "Tercera"]
 
     # Orden de fases en que se programan los partidos
     ORDEN_FASES_PROGRAMACION = ["octavos", "cuartos", "semifinales", "final"]

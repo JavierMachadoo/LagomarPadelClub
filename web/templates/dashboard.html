@@ -875,10 +875,11 @@
         <div class="row g-3">
                     {% for grupo in grupos %}
                     <div class="col-md-3">
-                        <div class="card h-100 shadow-sm grupo-card" 
+                        <div class="card h-100 shadow-sm grupo-card"
                              style="border-top: 4px solid {{ border_color }};"
                              data-grupo-id="{{ grupo.id }}"
-                             data-categoria="{{ categoria }}">
+                             data-categoria="{{ categoria }}"
+                             data-tiene-resultados="{{ 'true' if grupo.resultados else 'false' }}">
                             <div class="card-header text-white text-center position-relative" style="background: linear-gradient(135deg, {{ border_color }} 0%, {{ border_color }}dd 100%);">
                                 <h5 class="mb-0 fw-bold">
                                     {% if loop.index == 1 %}GRUPO A
@@ -888,6 +889,12 @@
                                     {% else %}GRUPO {{ loop.index }}
                                     {% endif %}
                                 </h5>
+                                {% if grupo.resultados %}
+                                <span class="badge bg-warning text-dark mt-1"
+                                      title="Este grupo tiene resultados ingresados. No se pueden intercambiar parejas.">
+                                    <i class="bi bi-lock-fill"></i> Resultados ingresados
+                                </span>
+                                {% endif %}
                                 <button class="btn btn-sm btn-light position-absolute top-50 end-0 translate-middle-y me-2" 
                                         data-grupo-id="{{ grupo.id }}"
                                         data-categoria="{{ categoria }}"
@@ -952,8 +959,9 @@
                                         {% set tooltip = 'Esta pareja no eligió este día' %}
                                     {% endif %}
                                     
-                                    <div class="pareja-slot mb-2 p-2 bg-white rounded border {{ border_class }}" 
-                                         draggable="true"
+                                    <div class="pareja-slot mb-2 p-2 bg-white rounded border {{ border_class }}"
+                                         draggable="{{ 'false' if grupo.resultados else 'true' }}"
+                                         {% if grupo.resultados %}style="opacity: 0.75; cursor: not-allowed;"{% endif %}
                                          data-pareja-id="{{ pareja.id }}"
                                          data-pareja-nombre="{{ pareja.nombre }}"
                                          data-grupo-origen="{{ grupo.id }}"
@@ -1310,10 +1318,11 @@
         <div class="row g-3">
             {% for grupo in grupos %}
             <div class="col-md-3">
-                <div class="card h-100 shadow-sm grupo-card" 
+                <div class="card h-100 shadow-sm grupo-card"
                      style="border-top: 4px solid {{ border_color }};"
                      data-grupo-id="{{ grupo.id }}"
-                     data-categoria="{{ categoria }}">
+                     data-categoria="{{ categoria }}"
+                     data-tiene-resultados="{{ 'true' if grupo.resultados else 'false' }}">
                     <div class="card-header text-white text-center position-relative" style="background: linear-gradient(135deg, {{ border_color }} 0%, {{ border_color }}dd 100%);">
                         <h5 class="mb-0 fw-bold">
                             {% if loop.index == 1 %}GRUPO A
@@ -1323,6 +1332,12 @@
                             {% else %}GRUPO {{ loop.index }}
                             {% endif %}
                         </h5>
+                        {% if grupo.resultados %}
+                        <span class="badge bg-warning text-dark mt-1"
+                              title="Este grupo tiene resultados ingresados. No se pueden intercambiar parejas.">
+                            <i class="bi bi-lock-fill"></i> Resultados ingresados
+                        </span>
+                        {% endif %}
                         <button class="btn btn-sm btn-light position-absolute top-50 end-0 translate-middle-y me-2" 
                                 data-grupo-id="{{ grupo.id }}"
                                 data-categoria="{{ categoria }}"
@@ -1387,8 +1402,9 @@
                                 {% set tooltip = 'Esta pareja no eligió este día' %}
                             {% endif %}
                             
-                            <div class="pareja-slot mb-2 p-2 bg-white rounded border {{ border_class }}" 
-                                 draggable="true"
+                            <div class="pareja-slot mb-2 p-2 bg-white rounded border {{ border_class }}"
+                                 draggable="{{ 'false' if grupo.resultados else 'true' }}"
+                                 {% if grupo.resultados %}style="opacity: 0.75; cursor: not-allowed;"{% endif %}
                                  data-pareja-id="{{ pareja.id }}"
                                  data-pareja-nombre="{{ pareja.nombre }}"
                                  data-grupo-origen="{{ grupo.id }}"

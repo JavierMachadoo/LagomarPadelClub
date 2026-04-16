@@ -61,9 +61,6 @@ def obtener_resultado_algoritmo():
 
 @grupos_bp.route('/intercambiar-pareja', methods=['POST'])
 def intercambiar_pareja():
-    if storage.get_fase() == 'torneo':
-        return jsonify({'error': 'El torneo ya está activo. No se pueden modificar los grupos.'}), 403
-
     data = request.json
     datos_actuales = obtener_datos_desde_token()
     resultado = datos_actuales.get('resultado_algoritmo')

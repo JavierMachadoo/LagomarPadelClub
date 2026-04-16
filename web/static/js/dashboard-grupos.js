@@ -76,7 +76,15 @@ function dropEnSlot(event) {
     // Si es intercambio entre slots
     const grupoOrigen = draggedPareja.grupoOrigen;
 
-    // Permitir reordenar dentro del mismo grupo
+    // Verificar si algún grupo involucrado tiene resultados registrados
+    const cardDestino = document.querySelector(`.grupo-card[data-grupo-id="${grupoDestino}"]`);
+    const cardOrigen = document.querySelector(`.grupo-card[data-grupo-id="${grupoOrigen}"]`);
+    if (cardDestino?.dataset.tieneResultados === 'true' || cardOrigen?.dataset.tieneResultados === 'true') {
+        Toast.error('No se puede intercambiar: el grupo tiene resultados ingresados.');
+        draggedPareja = null;
+        return;
+    }
+
     intercambiarParejaEnSlot(draggedPareja.parejaId, grupoOrigen, grupoDestino, slotDestino);
     draggedPareja = null;
 }
@@ -135,9 +143,11 @@ function intercambiarParejaEnSlot(parejaId, grupoOrigen, grupoDestino, slotDesti
             const categoriaActual = obtenerCategoriaActual();
             actualizarCategoria(categoriaActual);
         } else {
+            Toast.error(data.error || 'No se pudo intercambiar la pareja.');
         }
     })
     .catch(error => {
+        Toast.error('Error de conexión al intercambiar parejas.');
     });
 }
 

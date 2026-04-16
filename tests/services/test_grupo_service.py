@@ -199,6 +199,26 @@ class TestIntercambiarPareja:
             intercambiar_pareja(resultado, pareja_id=9999, grupo_origen_id=g1['id'], grupo_destino_id=g2['id'], slot_destino=0)
         assert exc.value.status_code == 400
 
+    def test_origen_con_resultados_lanza_error(self):
+        resultado = self._resultado_dos_grupos()
+        g1 = resultado['grupos_por_categoria']['Cuarta'][0]
+        g2 = resultado['grupos_por_categoria']['Cuarta'][1]
+        g1['resultados'] = {'0_1': {'sets': [{'local': 6, 'visitante': 3}]}}
+        pareja_id = g1['parejas'][0]['id']
+        with pytest.raises(ServiceError) as exc:
+            intercambiar_pareja(resultado, pareja_id, g1['id'], g2['id'], slot_destino=0)
+        assert exc.value.status_code == 400
+
+    def test_destino_con_resultados_lanza_error(self):
+        resultado = self._resultado_dos_grupos()
+        g1 = resultado['grupos_por_categoria']['Cuarta'][0]
+        g2 = resultado['grupos_por_categoria']['Cuarta'][1]
+        g2['resultados'] = {'0_1': {'sets': [{'local': 6, 'visitante': 3}]}}
+        pareja_id = g1['parejas'][0]['id']
+        with pytest.raises(ServiceError) as exc:
+            intercambiar_pareja(resultado, pareja_id, g1['id'], g2['id'], slot_destino=0)
+        assert exc.value.status_code == 400
+
 
 # ── agregar_pareja ────────────────────────────────────────────────────────────
 

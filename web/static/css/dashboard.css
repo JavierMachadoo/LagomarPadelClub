@@ -71,8 +71,11 @@
 .categoria-septima::before { background: #9b7fed; }
 .categoria-septima .categoria-icon { background: linear-gradient(135deg, #9b7fed, #7c3aed); }
 
-.categoria-tercera::before { background: #e83e8c; }
-.categoria-tercera .categoria-icon { background: linear-gradient(135deg, #e83e8c, #c2185b); }
+.categoria-tercera::before { background: #fd7e14; }
+.categoria-tercera .categoria-icon { background: linear-gradient(135deg, #fd7e14, #e55a00); }
+
+.categoria-octava::before { background: #dc3545; }
+.categoria-octava .categoria-icon { background: linear-gradient(135deg, #dc3545, #b02a37); }
 
 .categoria-icon {
     width: 70px;
@@ -294,8 +297,14 @@
 
 #series-tercera-tab.active,
 #finales-tercera-tab.active {
-    background: linear-gradient(135deg, #e83e8c, #c2185b);
-    border-bottom-color: #e83e8c;
+    background: linear-gradient(135deg, #fd7e14, #e55a00);
+    border-bottom-color: #fd7e14;
+}
+
+#series-octava-tab.active,
+#finales-octava-tab.active {
+    background: linear-gradient(135deg, #dc3545, #b02a37);
+    border-bottom-color: #dc3545;
 }
 
 /* Sección de Calendario */
@@ -400,8 +409,12 @@
     border-left-color: #9b7fed;
 }
 .partido-tercera {
-    background-color: #fce4ec;
-    border-left-color: #e83e8c;
+    background-color: #fff3e0;
+    border-left-color: #fd7e14;
+}
+.partido-octava {
+    background-color: #fce4e6;
+    border-left-color: #dc3545;
 }
 .pareja-item {
     cursor: grab;
@@ -426,6 +439,20 @@
     transform: scale(1.02);
     box-shadow: 0 0 20px rgba(255, 193, 7, 0.5);
     transition: all 0.2s;
+}
+
+/* Calendario Domingo (admin) */
+.droppable-cell {
+    transition: background 0.15s;
+    vertical-align: top;
+    min-width: 200px;
+}
+.droppable-cell.drag-over-domingo {
+    background-color: #e3f2fd !important;
+    outline: 2px dashed #0d6efd;
+}
+.partido-card-domingo:active {
+    cursor: grabbing;
 }
 .grupo-card {
     transition: all 0.2s;
@@ -637,7 +664,8 @@
 .categoria-btn-quinta  { color: #ffc107; }
 .categoria-btn-sexta   { color: #17a2b8; }
 .categoria-btn-septima { color: #9b7fed; }
-.categoria-btn-tercera { color: #e83e8c; }
+.categoria-btn-tercera { color: #fd7e14; }
+.categoria-btn-octava  { color: #dc3545; }
 .categoria-btn .categoria-emoji { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
 .categoria-btn .categoria-nombre { font-size: 1.3rem; font-weight: 700; margin: 0; }
 .categoria-btn .categoria-fases { font-size: 0.85rem; opacity: 0.7; margin-top: 0.25rem; }

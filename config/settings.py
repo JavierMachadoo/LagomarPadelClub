@@ -47,7 +47,7 @@ FRANJAS_HORARIAS = [
     "Sábado 19:00"       # Sábado 19:00 a 22:00
 ]
 
-CATEGORIAS = ["Tercera", "Cuarta", "Quinta", "Sexta", "Séptima"]
+CATEGORIAS = ["Tercera", "Cuarta", "Quinta", "Sexta", "Séptima", "Octava"]
 
 # Mapa de franjas a horas que ocupan (para detección de conflictos de cancha)
 FRANJAS_A_HORAS_MAP = {
@@ -61,8 +61,8 @@ FRANJAS_A_HORAS_MAP = {
 
 # Tipos de torneo: define qué categorías se juegan cada fin de semana
 TIPOS_TORNEO = {
-    "fin1": ["Tercera", "Quinta", "Séptima"],   # 1er fin de semana
-    "fin2": ["Cuarta", "Sexta"],                 # 2do fin de semana
+    "fin1": ["Tercera", "Quinta", "Séptima"],         # 1er fin de semana
+    "fin2": ["Cuarta", "Sexta", "Octava"],             # 2do fin de semana
 }
 
 COLORES_CATEGORIA = {
@@ -70,7 +70,8 @@ COLORES_CATEGORIA = {
     "Quinta": "#ffc107",
     "Sexta": "#007bff",
     "Séptima": "#6f42c1",
-    "Tercera": "#dc3545"
+    "Tercera": "#fd7e14",
+    "Octava": "#dc3545",
 }
 
 EMOJI_CATEGORIA = {
@@ -78,7 +79,8 @@ EMOJI_CATEGORIA = {
     "Quinta": "🟡",
     "Sexta": "🔵",
     "Séptima": "🟣",
-    "Tercera": "🔴"
+    "Tercera": "🟠",
+    "Octava": "🔴",
 }
 
 NUM_CANCHAS_DEFAULT = 2

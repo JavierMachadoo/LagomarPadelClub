@@ -313,6 +313,103 @@ def obtener_calendario(torneo: dict) -> tuple[dict, dict]:
     return calendario, resumen
 
 
+# ==================== CALENDARIO (ADMIN) ====================
+
+def mover_partido_calendario(torneo: dict, partido_id: str, nueva_hora: str, nueva_cancha: int) -> dict:
+    """Mueve o intercambia un partido en el calendario del domingo.
+
+    Si el slot destino está vacío → mueve el partido.
+    Si el slot destino está ocupado → intercambia los dos partidos (swap).
+
+    Args:
+        torneo: dict del torneo cargado
+        partido_id: ID del partido a mover
+        nueva_hora: hora destino en formato "HH:00"
+        nueva_cancha: número de cancha destino (1 o 2)
+
+    Returns:
+        calendario_finales actualizado
+
+    Raises:
+        ServiceError si no hay calendario o no se encuentra el partido.
+    """
+    calendario = torneo.get('calendario_finales')
+    if not calendario:
+        raise ServiceError('No hay calendario disponible', 404)
+
+    if nueva_cancha not in (1, 2):
+        raise ServiceError('Número de cancha inválido', 400)
+
+    # Buscar partido origen
+    partido_origen = None
+    idx_origen = None
+    cancha_origen_key = None
+    for cancha_key in ['cancha_1', 'cancha_2']:
+        for i, p in enumerate(calendario.get(cancha_key, [])):
+            if p.get('partido_id') == partido_id:
+                partido_origen = p
+                idx_origen = i
+                cancha_origen_key = cancha_key
+                break
+        if partido_origen:
+            break
+
+    if not partido_origen:
+        raise ServiceError(f'Partido {partido_id} no encontrado en el calendario', 404)
+
+    cancha_destino_key = f'cancha_{nueva_cancha}'
+    hora_origen = partido_origen['hora_inicio']
+    cancha_num_origen = 1 if cancha_origen_key == 'cancha_1' else 2
+
+    # Verificar que no se mueve al mismo slot
+    if hora_origen == nueva_hora and cancha_num_origen == nueva_cancha:
+        return calendario
+
+    # Buscar si hay partido en el slot destino
+    partido_destino = None
+    idx_destino = None
+    for i, p in enumerate(calendario.get(cancha_destino_key, [])):
+        if p.get('hora_inicio') == nueva_hora:
+            partido_destino = p
+            idx_destino = i
+            break
+
+    if partido_destino:
+        # Swap: ambos partidos intercambian slots
+        hora_fin_origen = f"{int(hora_origen.split(':')[0]) + 1:02d}:00"
+        hora_fin_destino = f"{int(nueva_hora.split(':')[0]) + 1:02d}:00"
+
+        partido_destino['hora_inicio'] = hora_origen
+        partido_destino['hora_fin'] = hora_fin_origen
+        partido_destino['cancha'] = cancha_num_origen
+        calendario[cancha_origen_key][idx_origen] = partido_destino
+
+        partido_origen['hora_inicio'] = nueva_hora
+        partido_origen['hora_fin'] = hora_fin_destino
+        partido_origen['cancha'] = nueva_cancha
+        calendario[cancha_destino_key][idx_destino] = partido_origen
+    else:
+        # Move: mover al slot libre y mantener orden cronológico
+        partido_origen['hora_inicio'] = nueva_hora
+        partido_origen['hora_fin'] = f"{int(nueva_hora.split(':')[0]) + 1:02d}:00"
+        partido_origen['cancha'] = nueva_cancha
+
+        calendario[cancha_origen_key].pop(idx_origen)
+
+        lista_destino = calendario.get(cancha_destino_key, [])
+        lista_destino.append(partido_origen)
+        lista_destino.sort(key=lambda x: x['hora_inicio'])
+        calendario[cancha_destino_key] = lista_destino
+
+    torneo['calendario_finales'] = calendario
+    try:
+        storage.guardar_con_version(torneo)
+    except ConflictError:
+        raise
+
+    return calendario
+
+
 # ==================== GENERACIÓN AL ACTIVAR TORNEO ====================
 
 def generar_al_activar_torneo(torneo: dict) -> None:

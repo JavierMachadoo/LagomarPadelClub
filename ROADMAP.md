@@ -1,7 +1,7 @@
 # Roadmap de Mejoras — Algoritmo Torneos
 
 Mejoras ordenadas por impacto en la experiencia del usuario real.
-Actualizado: 2026-04-07.
+Actualizado: 2026-04-15.
 
 ---
 
@@ -47,6 +47,39 @@ if role == 'admin':
 
 ## P1 — Alta prioridad (primer torneo)
 
+### 2. Categoría Octava — Completar implementación end-to-end
+
+**Estado**: Parcialmente implementada en `config/settings.py`, CSS y templates. Hay gaps que la dejan incompleta.
+
+**Gaps confirmados**:
+- `api/routes/parejas.py:143` — lista hardcodeada `['Cuarta', 'Quinta', 'Sexta', 'Séptima', 'Tercera']` excluye Octava de las estadísticas. Fix: importar `CATEGORIAS` y usarlo en lugar de la lista.
+- `web/static/css/dashboard.css` — verificar si existe `.categoria-octava` (la clase de ícono con gradiente). `.partido-octava` y `.categoria-btn-octava` sí existen.
+
+**Alcance**: Audit completo de todos los puntos de la cadena — config → modelo → algoritmo → storage → templates → CSS — y cierre de todos los gaps. Verificar que Octava aparece correctamente en `/grupos`, `/finales`, `/calendario`, `/dashboard` y estadísticas de admin.
+
+**Archivos críticos**: `api/routes/parejas.py:143`, `web/static/css/dashboard.css:62-76`, `web/templates/grupos_publico.html`, `web/templates/finales.html`
+
+**Esfuerzo**: Bajo (2-3h)
+
+---
+
+### 3. Franja horaria preferida del jugador
+
+**Descripción**: El jugador elige 1 franja preferida al inscribirse online. El algoritmo le da un soft bonus (+0.5 pts de compatibilidad) cuando puede asignarlo a esa franja, sin garantizarlo. Es opcional — si no elige, el sistema funciona igual que antes.
+
+**Alcance**:
+- Nuevo campo `franja_preferida: Optional[str] = None` en el modelo `Pareja` (`core/models.py`) con serialización `to_dict`/`from_dict`
+- Soft bonus `SCORE_FRANJA_PREFERENCIA = 0.5` en `_calcular_compatibilidad` y `_elegir_franja` (`core/algoritmo.py`)
+- Aceptar y validar `franja_preferida` en la API de inscripción — debe ser una de las franjas disponibles del jugador (`api/routes/inscripcion.py`)
+- UI dinámica en el formulario de inscripción web: dropdown que se repopula con JS según las franjas disponibles que el jugador marcó (`web/templates/inscripcion.html` + `web/static/js/app.js`)
+- Evaluar si la tabla `inscripciones` en Supabase requiere una migration para agregar la columna (depende de si usa columnas explícitas o JSONB)
+
+**Archivos críticos**: `core/models.py:116-170`, `core/algoritmo.py:8-12,189-225`, `api/routes/inscripcion.py:73-97`, `web/templates/inscripcion.html`, `web/static/js/app.js`
+
+**Esfuerzo**: Medio (4-6h)
+
+---
+
 ### 4. Feedback claro cuando la invitación expiró
 
 **Problema**: Cuando un jugador sigue el link de invitación vencido (48h), probablemente ve un error genérico. Para alguien no técnico, eso es frustrante y confuso.
@@ -82,14 +115,6 @@ if role == 'admin':
 **Descripción**: Acumular puntos por posición en cada torneo. Requiere diseño de sistema de puntos, persistencia y UI de tabla de posiciones.
 **Dependencia**: Al menos 2-3 torneos archivados para que tenga sentido.
 **Esfuerzo**: Alto (semana de trabajo).
-
----
-
-### 22. Logs de auditoría de acciones admin
-
-**Descripción**: Registrar qué hizo el admin (generó grupos, modificó resultados, archivó torneo) con timestamp.
-**Útil para**: Debug de problemas post-torneo, especialmente si hay quejas sobre resultados.
-**Esfuerzo**: Medio.
 
 ---
 

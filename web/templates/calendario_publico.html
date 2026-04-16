@@ -5,11 +5,12 @@
 {% block extra_css %}
 <style>
     :root {
-        --cat-tercera: #ef4444;
+        --cat-tercera: #fd7e14;
         --cat-cuarta: #22c55e;
         --cat-quinta: #eab308;
         --cat-sexta: #3b82f6;
         --cat-septima: #a855f7;
+        --cat-octava: #dc3545;
     }
 
     .cal-page {
@@ -270,11 +271,13 @@
     .partido-card[data-cat="Quinta"]   { border-top-color: var(--cat-quinta); }
     .partido-card[data-cat="Sexta"]    { border-top-color: var(--cat-sexta); }
     .partido-card[data-cat="Séptima"] { border-top-color: var(--cat-septima); }
-    .partido-card[data-cat="Tercera"]  .partido-body { background-color: rgba(239,68,68,0.08); }
+    .partido-card[data-cat="Octava"]   { border-top-color: var(--cat-octava); }
+    .partido-card[data-cat="Tercera"]  .partido-body { background-color: rgba(253,126,20,0.08); }
     .partido-card[data-cat="Cuarta"]   .partido-body { background-color: rgba(34,197,94,0.08); }
     .partido-card[data-cat="Quinta"]   .partido-body { background-color: rgba(234,179,8,0.08); }
     .partido-card[data-cat="Sexta"]    .partido-body { background-color: rgba(59,130,246,0.08); }
     .partido-card[data-cat="Séptima"] .partido-body { background-color: rgba(168,85,247,0.08); }
+    .partido-card[data-cat="Octava"]   .partido-body { background-color: rgba(220,53,69,0.08); }
 
     /* ── Separador descanso ── */
     .fase-break-sep { display: flex; align-items: center; gap: 0.75rem; margin: 1.75rem 0 1.25rem; }
@@ -348,11 +351,11 @@
                             data-bs-toggle="tab" data-bs-target="#panel-grupos"
                             type="button" role="tab">
                         <i class="bi bi-grid-3x3-gap me-1"></i>Fase de Grupos
-                        <span class="phase-badge">{{ count_grupos.n }}</span>
                     </button>
                 </li>
                 {% endif %}
-                <li class="nav-item" role="presentation">
+                {# TEMP: tab Fases Finales oculto hasta publicar horarios #}
+                <li class="nav-item" role="presentation" style="display:none">
                     <button class="nav-link {% if not dias_fase_grupos %}active{% endif %}" id="tab-finales"
                             data-bs-toggle="tab" data-bs-target="#panel-finales"
                             type="button" role="tab">
@@ -404,7 +407,7 @@
                             {% set partido = canchas[idx] if idx < canchas|length else None %}
                             <div class="match-slot">
                                 {% if partido %}
-                                {% set bg_cat = {'Tercera':'#ef4444','Cuarta':'#22c55e','Quinta':'#eab308','Sexta':'#3b82f6','Séptima':'#a855f7'}.get(partido.categoria,'#6b7280') %}
+                                {% set bg_cat = {'Tercera':'#fd7e14','Cuarta':'#22c55e','Quinta':'#eab308','Sexta':'#3b82f6','Séptima':'#a855f7','Octava':'#dc3545'}.get(partido.categoria,'#6b7280') %}
                                 {% set res = partido.get('resultado') %}
                                 {% set inv = partido.get('resultado_invertido', false) %}
                                 <div class="partido-card" data-cat="{{ partido.categoria }}"
@@ -479,7 +482,7 @@
 
         {# ── FASES FINALES ── #}
         <div class="tab-pane fade {% if not dias_fase_grupos %}show active{% endif %}"
-             id="panel-finales" role="tabpanel">
+             id="panel-finales" role="tabpanel" style="display:none !important">
             <div class="dia-sticky">
                 <div class="dia-sticky-top-row">
                     <div class="dia-sticky-label">Domingo</div>
@@ -609,8 +612,8 @@ const _cfg = JSON.parse(document.getElementById('cal-config').textContent);
 const emojisMap = _cfg.emojis || {};
 
 const coloresCat = {
-    'Tercera': '#ef4444', 'Cuarta': '#22c55e', 'Quinta': '#eab308',
-    'Sexta': '#3b82f6', 'Séptima': '#a855f7'
+    'Tercera': '#fd7e14', 'Cuarta': '#22c55e', 'Quinta': '#eab308',
+    'Sexta': '#3b82f6', 'Séptima': '#a855f7', 'Octava': '#dc3545'
 };
 
 // ── Cargar Fases Finales desde API ──

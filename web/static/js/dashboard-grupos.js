@@ -1903,6 +1903,13 @@ function inicializarDragAndDrop() {
         if (draggedPareja.esNoAsignada) {
             asignarParejaNoAsignadaASlot(draggedPareja.parejaId, grupoDestino, slotDestino, draggedPareja.categoria);
         } else {
+            const cardDestino = document.querySelector(`.grupo-card[data-grupo-id="${grupoDestino}"]`);
+            const cardOrigen  = document.querySelector(`.grupo-card[data-grupo-id="${draggedPareja.grupoOrigen}"]`);
+            if (cardDestino?.dataset.tieneResultados === 'true' || cardOrigen?.dataset.tieneResultados === 'true') {
+                Toast.error('No se puede intercambiar: el grupo tiene resultados ingresados.');
+                draggedPareja = null;
+                return;
+            }
             intercambiarParejaEnSlot(draggedPareja.parejaId, draggedPareja.grupoOrigen, grupoDestino, slotDestino);
         }
         draggedPareja = null;

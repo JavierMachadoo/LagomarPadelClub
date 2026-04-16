@@ -354,7 +354,8 @@
                     </button>
                 </li>
                 {% endif %}
-                <li class="nav-item" role="presentation">
+                {# TEMP: tab Fases Finales oculto hasta publicar horarios #}
+                <li class="nav-item" role="presentation" style="display:none">
                     <button class="nav-link {% if not dias_fase_grupos %}active{% endif %}" id="tab-finales"
                             data-bs-toggle="tab" data-bs-target="#panel-finales"
                             type="button" role="tab">
@@ -481,7 +482,7 @@
 
         {# ── FASES FINALES ── #}
         <div class="tab-pane fade {% if not dias_fase_grupos %}show active{% endif %}"
-             id="panel-finales" role="tabpanel">
+             id="panel-finales" role="tabpanel" style="display:none !important">
             <div class="dia-sticky">
                 <div class="dia-sticky-top-row">
                     <div class="dia-sticky-label">Domingo</div>

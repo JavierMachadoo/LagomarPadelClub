@@ -92,10 +92,9 @@ def intercambiar_pareja():
 
 @grupos_bp.route('/asignar-pareja-a-grupo', methods=['POST'])
 def asignar_pareja_a_grupo():
-    if storage.get_fase() == 'torneo':
-        return jsonify({'error': 'El torneo ya está activo. No se pueden modificar los grupos.'}), 403
-
     data = request.json
+    if storage.get_fase() == 'torneo' and data.get('pareja_a_remover_id'):
+        return jsonify({'error': 'El torneo ya está activo. No se puede reemplazar parejas en grupos.'}), 403
     pareja_id = data.get('pareja_id')
     grupo_id = data.get('grupo_id')
     categoria = data.get('categoria')

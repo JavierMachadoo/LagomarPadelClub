@@ -230,6 +230,13 @@ def asignar_pareja_a_grupo(
     if not grupo_encontrado:
         raise ServiceError('Grupo no encontrado', 404)
 
+    if _tiene_resultados(grupo_encontrado):
+        parejas_sin_asignar.append(pareja_a_asignar)
+        raise ServiceError(
+            'No se puede asignar: el grupo de destino ya tiene resultados ingresados.',
+            400,
+        )
+
     if pareja_a_remover_id:
         pareja_removida = None
         for idx, p in enumerate(grupo_encontrado['parejas']):

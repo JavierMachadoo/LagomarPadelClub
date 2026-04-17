@@ -106,6 +106,11 @@ def _cargar_inscripciones_supabase() -> list:
 
 # ==================== GESTIÓN DE GRUPOS ====================
 
+def _tiene_resultados(grupo_dict: dict) -> bool:
+    """Retorna True si el grupo tiene al menos un resultado registrado (parcial o completo)."""
+    return bool(grupo_dict.get('resultados', {}))
+
+
 def intercambiar_pareja(
     resultado: dict,
     pareja_id: int,
@@ -121,8 +126,29 @@ def intercambiar_pareja(
         (mensaje, estadisticas)
 
     Raises:
-        ServiceError si no se encuentra la pareja o los grupos.
+        ServiceError si no se encuentra la pareja o los grupos, o si algún
+        grupo involucrado ya tiene resultados registrados.
     """
+    # Pre-scan: validar antes de mutar cualquier dato
+    _grupo_origen_pre = None
+    _grupo_destino_pre = None
+    for _cat, _grupos in resultado['grupos_por_categoria'].items():
+        for _g in _grupos:
+            if _g['id'] == grupo_origen_id:
+                _grupo_origen_pre = _g
+            if _g['id'] == grupo_destino_id:
+                _grupo_destino_pre = _g
+
+    if _grupo_origen_pre and _tiene_resultados(_grupo_origen_pre):
+        raise ServiceError(
+            'No se puede intercambiar: el grupo de origen ya tiene resultados ingresados.'
+        )
+    if (_grupo_destino_pre and grupo_destino_id != grupo_origen_id
+            and _tiene_resultados(_grupo_destino_pre)):
+        raise ServiceError(
+            'No se puede intercambiar: el grupo de destino ya tiene resultados ingresados.'
+        )
+
     pareja_movida = None
     grupo_origen_obj = None
     grupo_destino_obj = None

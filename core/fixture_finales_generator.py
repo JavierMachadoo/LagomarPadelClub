@@ -301,8 +301,8 @@ class GeneradorFixtureFinales:
     # ------------------------------------------------------------------
     #
     # Estructura:
-    #   C.1: 2°A vs 2°B
-    #   C.2: 3er mejor 1° vs 2°C
+    #   C.1: 2° del grupo del 2do mejor 1° vs 2° del grupo del 3er mejor 1°
+    #   C.2: 3er mejor 1° vs 2° del grupo del mejor 1°
     #   S.1: Mejor 1° (directo) vs Ganador C.1
     #   S.2: 2do mejor 1° (directo) vs Ganador C.2
     #   F:   Ganador S.1 vs Ganador S.2
@@ -326,24 +326,31 @@ class GeneradorFixtureFinales:
         def _pareja_o_none(entry):
             return entry['pareja'] if entry else None
 
+        # Mapear grupo_id → 2° de ese grupo para asignar por ranking del 1°
+        segundo_por_grupo = {s['grupo_id']: s for s in segundos}
+
+        segundo_de_mejor1 = segundo_por_grupo.get(mejor1['grupo_id']) if mejor1 else None
+        segundo_de_segundo1 = segundo_por_grupo.get(segundo1['grupo_id']) if segundo1 else None
+        segundo_de_tercer1 = segundo_por_grupo.get(tercer1['grupo_id']) if tercer1 else None
+
         # --- Cuartos (2 partidos) ---
-        # C.1: 2°A vs 2°B (primeros dos segundos por orden de grupo)
+        # C.1: 2° del grupo del 2do mejor 1° vs 2° del grupo del 3er mejor 1°
         c1 = PartidoFinal(id=f"{categoria}_cuartos_1", fase=FaseFinal.CUARTOS, numero_partido=1)
-        c1.pareja1 = segundos[0]['pareja'] if len(segundos) > 0 else None
-        c1.pareja2 = segundos[1]['pareja'] if len(segundos) > 1 else None
-        c1.slot1_info = f"2° {segundos[0]['grupo_id']}" if len(segundos) > 0 else "2° Grupo A"
-        c1.slot2_info = f"2° {segundos[1]['grupo_id']}" if len(segundos) > 1 else "2° Grupo B"
+        c1.pareja1 = _pareja_o_none(segundo_de_segundo1)
+        c1.pareja2 = _pareja_o_none(segundo_de_tercer1)
+        c1.slot1_info = f"2° {segundo1['grupo_id']}" if segundo1 else "2° Grupo 2do mejor 1°"
+        c1.slot2_info = f"2° {tercer1['grupo_id']}" if tercer1 else "2° Grupo 3er mejor 1°"
         fixture.cuartos.append(c1)
 
-        # C.2: 3er mejor 1° vs 2°C (tercer segundo por orden de grupo)
+        # C.2: 3er mejor 1° vs 2° del grupo del mejor 1°
         c2 = PartidoFinal(id=f"{categoria}_cuartos_2", fase=FaseFinal.CUARTOS, numero_partido=2)
         c2.pareja1 = _pareja_o_none(tercer1)
-        c2.pareja2 = segundos[2]['pareja'] if len(segundos) > 2 else None
+        c2.pareja2 = _pareja_o_none(segundo_de_mejor1)
         c2.slot1_info = (
             f"3er mejor 1° ({tercer1['grupo_id']})" if tercer1 else "3er mejor 1°"
         )
         c2.slot2_info = (
-            f"2° {segundos[2]['grupo_id']}" if len(segundos) > 2 else "2° Grupo C"
+            f"2° {mejor1['grupo_id']}" if mejor1 else "2° Grupo mejor 1°"
         )
         fixture.cuartos.append(c2)
 

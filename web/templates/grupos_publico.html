@@ -10,14 +10,12 @@
 {% set sets = partido.sets if partido.sets is defined else [] %}
 {% set info = cal.get(partido.id) if cal and partido.id is defined else none %}
 <div class="bk-match {{ 'tiene-ganador' if partido.tiene_ganador else '' }}">
-{# TEMP: cancha/horario oculto hasta publicar horarios de fases finales
 {% if info %}
 <div class="bk-match-head">
     <span class="bk-match-cancha"><i class="bi bi-geo-alt-fill"></i> Cancha {{ info.cancha }}</span>
     <span class="bk-match-hora"><i class="bi bi-clock"></i> {{ info.hora_inicio }}</span>
 </div>
 {% endif %}
-#}
     <div class="bk-team {{ 'winner' if ganador and p1 and ganador.id == p1.id else '' }} {{ 'tbd' if not p1 else '' }}">
         <span class="bk-team-name">{{ p1.nombre if p1 else (partido.slot1_info or 'Por definir') }}</span>
         {% if ganador and p1 and ganador.id == p1.id %}

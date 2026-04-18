@@ -129,6 +129,11 @@ function renderizarCardPartido(partido) {
         .replace('Cuartos de Final', 'Cuartos')
         .replace('Semifinal', 'Semis');
 
+    const parts = partido.partido_id ? partido.partido_id.split('_') : [];
+    const lastPart = parts[parts.length - 1];
+    const numPartido = (!isNaN(lastPart) && lastPart !== '') ? ` ${lastPart}` : '';
+    const faseConNumero = `${faseCorta}${numPartido}`;
+
     return `
         <div class="partido-card-domingo"
              draggable="true"
@@ -140,7 +145,7 @@ function renderizarCardPartido(partido) {
              style="border-left: 4px solid ${style.border}; background: ${style.bg}; border-radius: 8px; padding: 0.5rem 0.75rem; cursor: grab; user-select: none;">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <span style="font-size:0.75rem; font-weight:600; color:${style.border};">
-                    ${style.emoji} ${partido.categoria} — ${faseCorta}
+                    ${style.emoji} ${partido.categoria} — ${faseConNumero}
                 </span>
                 <i class="bi bi-grip-vertical text-muted" style="font-size:0.85rem;"></i>
             </div>

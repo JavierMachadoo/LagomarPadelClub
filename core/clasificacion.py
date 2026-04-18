@@ -70,7 +70,16 @@ class CalculadorClasificacion:
             estadisticas_dict[p1_id].sets_perdidos += resultado.sets_pareja2
             estadisticas_dict[p2_id].sets_ganados += resultado.sets_pareja2
             estadisticas_dict[p2_id].sets_perdidos += resultado.sets_pareja1
-            
+
+            # Super tiebreak: cuenta como set extra para el ganador, no suma games
+            if resultado.tiebreak_pareja1 is not None and resultado.tiebreak_pareja2 is not None:
+                if resultado.tiebreak_pareja1 > resultado.tiebreak_pareja2:
+                    estadisticas_dict[p1_id].sets_ganados += 1
+                    estadisticas_dict[p2_id].sets_perdidos += 1
+                else:
+                    estadisticas_dict[p2_id].sets_ganados += 1
+                    estadisticas_dict[p1_id].sets_perdidos += 1
+
             # Actualizar games
             games_p1 = resultado.total_games_pareja(p1_id)
             games_p2 = resultado.total_games_pareja(p2_id)
@@ -93,8 +102,8 @@ class CalculadorClasificacion:
             estadisticas,
             key=lambda e: (
                 e.partidos_ganados,      # 1° criterio: partidos ganados
-                e.sets_ganados,          # 2° criterio: sets ganados
-                e.games_ganados          # 3° criterio: games ganados
+                e.diferencia_sets,       # 2° criterio: diferencia de sets
+                e.diferencia_games       # 3° criterio: diferencia de games
             ),
             reverse=True
         )
@@ -138,8 +147,8 @@ class CalculadorClasificacion:
             clasificados,
             key=lambda c: (
                 c['estadisticas'].partidos_ganados,
-                c['estadisticas'].sets_ganados,
-                c['estadisticas'].games_ganados,
+                c['estadisticas'].diferencia_sets,
+                c['estadisticas'].diferencia_games,
             ),
             reverse=True,
         )

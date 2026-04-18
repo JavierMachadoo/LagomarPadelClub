@@ -239,10 +239,10 @@ class GeneradorFixtureFinales:
     # ------------------------------------------------------------------
     #
     # Cruces clásicos evitando mismo grupo hasta la final:
-    #   C.1: 1°A vs 2°C
-    #   C.2: 1°D vs 2°B
-    #   C.3: 1°B vs 2°D
-    #   C.4: 1°C vs 2°A
+    #   C.1: 1°A vs 2°D
+    #   C.2: 1°B vs 2°C
+    #   C.3: 1°C vs 2°B
+    #   C.4: 1°D vs 2°A
 
     @staticmethod
     def _generar_4_grupos(categoria: str, clasificados: Dict) -> FixtureFinales:
@@ -251,12 +251,21 @@ class GeneradorFixtureFinales:
         primeros = clasificados[1]
         segundos = clasificados[2]
 
-        slots = [
-            {'p1': (primeros, 0), 'p2': (segundos, 2), 'info1': '1° Grupo A', 'info2': '2° Grupo C'},
-            {'p1': (primeros, 3), 'p2': (segundos, 1), 'info1': '1° Grupo D', 'info2': '2° Grupo B'},
-            {'p1': (primeros, 1), 'p2': (segundos, 3), 'info1': '1° Grupo B', 'info2': '2° Grupo D'},
-            {'p1': (primeros, 2), 'p2': (segundos, 0), 'info1': '1° Grupo C', 'info2': '2° Grupo A'},
-        ]
+        # PARCHE torneo actual: Séptima usa cruces distintos — sacar cuando se defina regla general
+        if categoria.lower().replace('é', 'e') == 'septima':
+            slots = [
+                {'p1': (primeros, 0), 'p2': (segundos, 2), 'info1': '1° Grupo A', 'info2': '2° Grupo C'},
+                {'p1': (primeros, 3), 'p2': (segundos, 1), 'info1': '1° Grupo D', 'info2': '2° Grupo B'},
+                {'p1': (primeros, 1), 'p2': (segundos, 3), 'info1': '1° Grupo B', 'info2': '2° Grupo D'},
+                {'p1': (primeros, 2), 'p2': (segundos, 0), 'info1': '1° Grupo C', 'info2': '2° Grupo A'},
+            ]
+        else:
+            slots = [
+                {'p1': (primeros, 0), 'p2': (segundos, 3), 'info1': '1° Grupo A', 'info2': '2° Grupo D'},
+                {'p1': (primeros, 1), 'p2': (segundos, 2), 'info1': '1° Grupo B', 'info2': '2° Grupo C'},
+                {'p1': (primeros, 2), 'p2': (segundos, 1), 'info1': '1° Grupo C', 'info2': '2° Grupo B'},
+                {'p1': (primeros, 3), 'p2': (segundos, 0), 'info1': '1° Grupo D', 'info2': '2° Grupo A'},
+            ]
 
         for i, s in enumerate(slots):
             partido = PartidoFinal(

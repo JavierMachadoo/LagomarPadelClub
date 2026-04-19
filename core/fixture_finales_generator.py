@@ -156,9 +156,7 @@ class GeneradorFixtureFinales:
             return lista[idx]['pareja'] if idx < len(lista) else None
 
         def _info_o_vacio(lista, idx, label):
-            if idx < len(lista):
-                return f"{label} (2° {lista[idx]['grupo_id']})"
-            return label
+            return label if idx < len(lista) else label
 
         of1 = PartidoFinal(id=f"{categoria}_octavos_1", fase=FaseFinal.OCTAVOS, numero_partido=1)
         of1.pareja1 = _pareja_o_none(segundos_octavos, 0)
@@ -179,29 +177,21 @@ class GeneradorFixtureFinales:
         c1 = PartidoFinal(id=f"{categoria}_cuartos_1", fase=FaseFinal.CUARTOS, numero_partido=1)
         c1.pareja1 = _pareja_o_none(top3_primeros, 0)
         c1.pareja2 = mejor_segundo['pareja'] if mejor_segundo else None
-        c1.slot1_info = (
-            f"1° {top3_primeros[0]['grupo_id']}" if top3_primeros else "1° Grupo (C.1)"
-        )
-        c1.slot2_info = (
-            f"Mejor 2° ({mejor_segundo['grupo_id']})" if mejor_segundo else "Mejor 2° (directo)"
-        )
+        c1.slot1_info = "Mejor 1°"
+        c1.slot2_info = "Mejor 2°"
         fixture.cuartos.append(c1)
 
         # C.2: 2do mejor 1° vs Ganador OF.1
         c2 = PartidoFinal(id=f"{categoria}_cuartos_2", fase=FaseFinal.CUARTOS, numero_partido=2)
         c2.pareja1 = _pareja_o_none(top3_primeros, 1)
-        c2.slot1_info = (
-            f"1° {top3_primeros[1]['grupo_id']}" if len(top3_primeros) > 1 else "1° Grupo (C.2)"
-        )
+        c2.slot1_info = "2do mejor 1°"
         c2.slot2_info = "Ganador OF.1"
         fixture.cuartos.append(c2)
 
         # C.3: 3er mejor 1° vs Ganador OF.2
         c3 = PartidoFinal(id=f"{categoria}_cuartos_3", fase=FaseFinal.CUARTOS, numero_partido=3)
         c3.pareja1 = _pareja_o_none(top3_primeros, 2)
-        c3.slot1_info = (
-            f"1° {top3_primeros[2]['grupo_id']}" if len(top3_primeros) > 2 else "1° Grupo (C.3)"
-        )
+        c3.slot1_info = "3er mejor 1°"
         c3.slot2_info = "Ganador OF.2"
         fixture.cuartos.append(c3)
 
@@ -209,12 +199,8 @@ class GeneradorFixtureFinales:
         c4 = PartidoFinal(id=f"{categoria}_cuartos_4", fase=FaseFinal.CUARTOS, numero_partido=4)
         c4.pareja1 = _pareja_o_none(bottom2_primeros, 0)
         c4.pareja2 = _pareja_o_none(bottom2_primeros, 1)
-        c4.slot1_info = (
-            f"1° {bottom2_primeros[0]['grupo_id']}" if bottom2_primeros else "1° Grupo (C.4)"
-        )
-        c4.slot2_info = (
-            f"1° {bottom2_primeros[1]['grupo_id']}" if len(bottom2_primeros) > 1 else "1° Grupo (C.4)"
-        )
+        c4.slot1_info = "4to mejor 1°"
+        c4.slot2_info = "5to mejor 1°"
         fixture.cuartos.append(c4)
 
         # --- Semifinales ---
@@ -338,36 +324,28 @@ class GeneradorFixtureFinales:
         c1 = PartidoFinal(id=f"{categoria}_cuartos_1", fase=FaseFinal.CUARTOS, numero_partido=1)
         c1.pareja1 = _pareja_o_none(segundo_de_segundo1)
         c1.pareja2 = _pareja_o_none(segundo_de_tercer1)
-        c1.slot1_info = f"2° {segundo1['grupo_id']}" if segundo1 else "2° Grupo 2do mejor 1°"
-        c1.slot2_info = f"2° {tercer1['grupo_id']}" if tercer1 else "2° Grupo 3er mejor 1°"
+        c1.slot1_info = "2° del 2do mejor 1°"
+        c1.slot2_info = "2° del 3er mejor 1°"
         fixture.cuartos.append(c1)
 
         # C.2: 3er mejor 1° vs 2° del grupo del mejor 1°
         c2 = PartidoFinal(id=f"{categoria}_cuartos_2", fase=FaseFinal.CUARTOS, numero_partido=2)
         c2.pareja1 = _pareja_o_none(tercer1)
         c2.pareja2 = _pareja_o_none(segundo_de_mejor1)
-        c2.slot1_info = (
-            f"3er mejor 1° ({tercer1['grupo_id']})" if tercer1 else "3er mejor 1°"
-        )
-        c2.slot2_info = (
-            f"2° {mejor1['grupo_id']}" if mejor1 else "2° Grupo mejor 1°"
-        )
+        c2.slot1_info = "3er mejor 1°"
+        c2.slot2_info = "2° del mejor 1°"
         fixture.cuartos.append(c2)
 
         # --- Semifinales (los 2 mejores primeros esperan directo) ---
         s1 = PartidoFinal(id=f"{categoria}_semi_1", fase=FaseFinal.SEMIFINAL, numero_partido=1)
         s1.pareja1 = _pareja_o_none(mejor1)
-        s1.slot1_info = (
-            f"Mejor 1° ({mejor1['grupo_id']}) — pasa directo" if mejor1 else "Mejor 1° (directo)"
-        )
+        s1.slot1_info = "Mejor 1° — pasa directo"
         s1.slot2_info = "Ganador Cuartos 1"
         fixture.semifinales.append(s1)
 
         s2 = PartidoFinal(id=f"{categoria}_semi_2", fase=FaseFinal.SEMIFINAL, numero_partido=2)
         s2.pareja1 = _pareja_o_none(segundo1)
-        s2.slot1_info = (
-            f"2° mejor 1° ({segundo1['grupo_id']}) — pasa directo" if segundo1 else "2° mejor 1° (directo)"
-        )
+        s2.slot1_info = "2do mejor 1° — pasa directo"
         s2.slot2_info = "Ganador Cuartos 2"
         fixture.semifinales.append(s2)
 

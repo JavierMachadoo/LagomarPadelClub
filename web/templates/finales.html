@@ -840,7 +840,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const card = e.target.closest('[data-open-partido]');
             if (!card) return;
             const datos = _partidosFinalesData[card.dataset.openPartido];
-            if (datos) abrirModalResultadoFinal(card.dataset.openPartido, datos.categoria, datos.p1, datos.p2);
+            if (datos) abrirModalResultadoFinal(card.dataset.openPartido, datos.categoria, datos.p1, datos.p2, datos.sets);
         });
     }
 });
@@ -1187,12 +1187,12 @@ function renderizarPartidoITF(partido, categoria, tieneSiguienteRonda = false, i
     
     // Click para abrir modal de resultado — datos en mapa, no en onclick inline (XSS)
     let clickHandler = '';
-    if (partido.pareja1 && partido.pareja2 && !ganador) {
-        _partidosFinalesData[partido.id] = { categoria, p1: pareja1Nombre, p2: pareja2Nombre };
+    if (partido.pareja1 && partido.pareja2) {
+        _partidosFinalesData[partido.id] = { categoria, p1: pareja1Nombre, p2: pareja2Nombre, sets: partido.sets || [] };
         clickHandler = `data-open-partido="${partido.id}"`;
     }
 
-    const cursorStyle = partido.pareja1 && partido.pareja2 && !ganador ? 'cursor: pointer;' : 'cursor: default;';
+    const cursorStyle = partido.pareja1 && partido.pareja2 ? 'cursor: pointer;' : 'cursor: default;';
 
     const horarioInfo = calendarioIndex[partido.id]
         ? `<div class="match-schedule-info">
@@ -1405,24 +1405,32 @@ function verificarNecesidadTiebreak() {
     }
 }
 
-// Abrir modal para ingresar resultado de final
-function abrirModalResultadoFinal(partidoId, categoria, pareja1Nombre, pareja2Nombre) {
+// Abrir modal para ingresar/editar resultado de final
+function abrirModalResultadoFinal(partidoId, categoria, pareja1Nombre, pareja2Nombre, setsExistentes = []) {
     // Guardar datos en el modal
     document.getElementById('resultadoPartidoId').value = partidoId;
     document.getElementById('resultadoCategoria').value = categoria;
     document.getElementById('resultadoFinalPareja1').textContent = pareja1Nombre;
     document.getElementById('resultadoFinalPareja2').textContent = pareja2Nombre;
-    
-    // Limpiar sets
-    document.getElementById('gamesSet1P1').value = '';
-    document.getElementById('gamesSet1P2').value = '';
-    document.getElementById('gamesSet2P1').value = '';
-    document.getElementById('gamesSet2P2').value = '';
-    document.getElementById('tiebreakP1').value = '';
-    document.getElementById('tiebreakP2').value = '';
-    
-    // Ocultar tiebreak inicialmente
-    document.getElementById('tiebreakCardFinal').style.display = 'none';
+
+    const esEdicion = setsExistentes && setsExistentes.length > 0;
+    document.querySelector('#modalResultadoFinal .modal-title').innerHTML =
+        `<i class="bi bi-${esEdicion ? 'pencil-fill' : 'trophy-fill'} me-2"></i> ${esEdicion ? 'Editar resultado' : 'Resultado del Partido'}`;
+
+    // Pre-llenar o limpiar sets
+    const set1 = setsExistentes[0] || {};
+    const set2 = setsExistentes[1] || {};
+    const tie  = setsExistentes[2] || {};
+    document.getElementById('gamesSet1P1').value = set1.pareja1 ?? '';
+    document.getElementById('gamesSet1P2').value = set1.pareja2 ?? '';
+    document.getElementById('gamesSet2P1').value = set2.pareja1 ?? '';
+    document.getElementById('gamesSet2P2').value = set2.pareja2 ?? '';
+    document.getElementById('tiebreakP1').value = tie.pareja1 ?? '';
+    document.getElementById('tiebreakP2').value = tie.pareja2 ?? '';
+
+    // Mostrar tiebreak si el partido existente lo tuvo (1-1 en sets)
+    document.getElementById('tiebreakCardFinal').style.display =
+        (tie.pareja1 !== undefined || tie.pareja2 !== undefined) ? 'block' : 'none';
     
     // Agregar listeners para detectar automáticamente cuando se necesita tie-break
     // Y para limitar los valores de los sets normales a máximo 6
@@ -1524,29 +1532,27 @@ async function guardarResultadoFinal() {
 }
 
 // Regenerar fixtures
-async function regenerarFixtures() {
-    if (!confirm('¿Estás seguro de regenerar las llaves? Esto actualizará las parejas clasificadas basándose en las posiciones actuales de los grupos.')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/finales/fixtures/regenerar', {
-            method: 'POST'
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('Llaves regeneradas correctamente', 'success');
-            await cargarFixtures();
-            cargarCalendarioIndex(); // actualizar chips de cancha/hora para el nuevo calendario
-        } else {
-            showToast('Error al regenerar: ' + data.message, 'danger');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Error de conexión', 'danger');
-    }
+function regenerarFixtures() {
+    Confirmar.show(
+        '¿Regenerar las llaves? Esto actualizará las parejas clasificadas basándose en las posiciones actuales de los grupos.',
+        async () => {
+            try {
+                const response = await fetch('/api/finales/fixtures/regenerar', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Llaves regeneradas correctamente', 'success');
+                    await cargarFixtures();
+                    cargarCalendarioIndex();
+                } else {
+                    showToast('Error al regenerar: ' + data.message, 'danger');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error de conexión', 'danger');
+            }
+        },
+        { titulo: 'Regenerar llaves', textoOk: 'Regenerar', claseOk: 'btn-warning text-dark' }
+    );
 }
 
 // Construir índice partido_id → { cancha, hora_inicio } para chips en el bracket

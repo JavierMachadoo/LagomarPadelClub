@@ -397,6 +397,31 @@ def editar_grupo(
     regenerar_calendario(resultado_data)
 
 
+def eliminar_grupo(resultado_data: dict, grupo_id: int, categoria: str) -> None:
+    """Elimina un grupo vacío (sin parejas) de una categoría.
+
+    Raises:
+        ServiceError si el grupo no existe, tiene parejas, o tiene resultados.
+    """
+    grupos_dict = resultado_data['grupos_por_categoria']
+    grupos = grupos_dict.get(categoria, [])
+
+    grupo = next((g for g in grupos if g['id'] == grupo_id), None)
+    if not grupo:
+        raise ServiceError('Grupo no encontrado', 404)
+    if grupo.get('parejas'):
+        raise ServiceError('No se puede eliminar un grupo que tiene parejas asignadas', 400)
+    if grupo.get('resultados'):
+        raise ServiceError('No se puede eliminar un grupo que tiene resultados ingresados', 400)
+
+    grupos_dict[categoria] = [g for g in grupos if g['id'] != grupo_id]
+
+    partidos_por_grupo = resultado_data.get('partidos_por_grupo', {})
+    partidos_por_grupo.pop(str(grupo_id), None)
+
+    regenerar_calendario(resultado_data)
+
+
 # ==================== GESTIÓN DE PAREJAS ====================
 
 def agregar_pareja(

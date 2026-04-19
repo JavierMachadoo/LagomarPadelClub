@@ -162,6 +162,37 @@ def crear_grupo_manual():
     )
 
 
+@grupos_bp.route('/eliminar-grupo', methods=['DELETE'])
+def eliminar_grupo():
+    if storage.get_fase() == 'torneo':
+        return jsonify({'error': 'El torneo ya está activo. No se pueden eliminar grupos.'}), 403
+
+    data = request.json
+    grupo_id = data.get('grupo_id')
+    categoria = data.get('categoria')
+
+    if not all([grupo_id, categoria]):
+        return jsonify({'error': 'Faltan parámetros requeridos'}), 400
+
+    datos_actuales = obtener_datos_desde_token()
+    resultado_data = datos_actuales.get('resultado_algoritmo')
+    if not resultado_data:
+        return jsonify({'error': 'No hay resultados del algoritmo'}), 404
+
+    try:
+        grupo_service.eliminar_grupo(resultado_data, grupo_id, categoria)
+    except ServiceError as e:
+        return jsonify({'error': e.message}), e.status_code
+
+    datos_actuales['resultado_algoritmo'] = resultado_data
+    sincronizar_con_storage_y_token(datos_actuales)
+
+    return crear_respuesta_con_token_actualizado(
+        {'success': True, 'mensaje': '✓ Grupo eliminado correctamente'},
+        datos_actuales,
+    )
+
+
 @grupos_bp.route('/editar-grupo', methods=['POST'])
 def editar_grupo():
     if storage.get_fase() == 'torneo':

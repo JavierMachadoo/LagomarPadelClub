@@ -710,6 +710,29 @@ function confirmarCrearGrupo() {
     });
 }
 
+function eliminarGrupoVacio(button) {
+    const grupoId = parseInt(button.getAttribute('data-grupo-id'));
+    const categoria = button.getAttribute('data-categoria');
+
+    if (!confirm(`¿Eliminar el grupo vacío de ${categoria}? Esta acción no se puede deshacer.`)) return;
+
+    fetch('/api/eliminar-grupo', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grupo_id: grupoId, categoria }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            Toast.success(data.mensaje || 'Grupo eliminado');
+            setTimeout(() => window.location.reload(), 300);
+        } else {
+            Toast.error('Error: ' + data.error);
+        }
+    })
+    .catch(() => Toast.error('Error al eliminar el grupo'));
+}
+
 function abrirModalEditarGrupo(button) {
     const grupoId = button.getAttribute('data-grupo-id');
     const categoria = button.getAttribute('data-categoria');

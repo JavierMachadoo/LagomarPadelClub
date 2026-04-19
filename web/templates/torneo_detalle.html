@@ -1,336 +1,1106 @@
 {% extends "base.html" %}
 
-{% block title %}{{ torneo.nombre }} - Historial{% endblock %}
+{% block title %}{{ torneo.nombre }} — Historial{% endblock %}
+
+{# ── Macro: partido de finales (read-only, datos de torneo archivado)
+     ganador es un dict {nombre, id, ...} serializado desde Pareja.to_dict()
+     sets es una lista de dicts {pareja1: score, pareja2: score}
+#}
+{% macro render_partido(partido) %}
+{% set p1_nombre = partido.pareja1.nombre if partido.pareja1 else '' %}
+{% set p2_nombre = partido.pareja2.nombre if partido.pareja2 else '' %}
+{% set ganador_nombre = partido.ganador.nombre if partido.ganador else '' %}
+{% set tiene_ganador = ganador_nombre != '' %}
+{% set sets = partido.sets if partido.sets is defined else [] %}
+<div class="bk-match {{ 'tiene-ganador' if tiene_ganador else '' }}">
+    <div class="bk-team {{ 'winner' if tiene_ganador and p1_nombre and ganador_nombre == p1_nombre else '' }} {{ 'tbd' if not partido.pareja1 else '' }}">
+        <span class="bk-team-name">{{ p1_nombre or (partido.slot1_info or 'Por definir') }}</span>
+        {% if tiene_ganador and p1_nombre and ganador_nombre == p1_nombre %}
+        <i class="bi bi-check-lg bk-winner-icon"></i>
+        {% endif %}
+        {% if sets %}
+        <span class="bk-sets">{% for s in sets %}<span class="bk-set">{{ s.pareja1 }}</span>{% endfor %}</span>
+        {% endif %}
+    </div>
+    <div class="bk-team {{ 'winner' if tiene_ganador and p2_nombre and ganador_nombre == p2_nombre else '' }} {{ 'tbd' if not partido.pareja2 else '' }}">
+        <span class="bk-team-name">{{ p2_nombre or (partido.slot2_info or 'Por definir') }}</span>
+        {% if tiene_ganador and p2_nombre and ganador_nombre == p2_nombre %}
+        <i class="bi bi-check-lg bk-winner-icon"></i>
+        {% endif %}
+        {% if sets %}
+        <span class="bk-sets">{% for s in sets %}<span class="bk-set">{{ s.pareja2 }}</span>{% endfor %}</span>
+        {% endif %}
+    </div>
+    {% if not tiene_ganador and (partido.slot1_info or partido.slot2_info) %}
+    <div class="bk-slot-info">{{ partido.slot1_info or '—' }} vs {{ partido.slot2_info or '—' }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% block extra_css %}
+<style>
+    /* ─────────────────────────────────────────
+       PAGE SHELL
+    ───────────────────────────────────────── */
+    .gp-page {
+        background: #fff;
+        min-height: 100vh;
+        padding: 3rem 0 6rem;
+    }
+
+    /* ─────────────────────────────────────────
+       BACK BUTTON
+    ───────────────────────────────────────── */
+    .gp-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #777;
+        text-decoration: none;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 9999px;
+        padding: 0.4rem 1.1rem;
+        background: #fff;
+        transition: color 0.2s, border-color 0.2s;
+        margin-bottom: 2rem;
+    }
+    .gp-back:hover {
+        color: var(--brand-black, #1D1A0C);
+        border-color: #ccc;
+    }
+
+    /* ─────────────────────────────────────────
+       PAGE HERO
+    ───────────────────────────────────────── */
+    .gp-hero {
+        margin-bottom: 2.5rem;
+    }
+    .gp-hero .overline {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--brand-taupe, #c5a48e);
+        margin-bottom: 0.4rem;
+    }
+    .gp-hero h1 {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 700;
+        color: var(--brand-black, #1D1A0C);
+        margin: 0;
+        line-height: 1.05;
+        letter-spacing: -0.01em;
+    }
+    .gp-hero .gp-hero-meta {
+        font-size: 0.82rem;
+        color: #9ca3af;
+        margin-top: 0.4rem;
+    }
+    .gp-hero .accent-line {
+        display: block;
+        width: 48px;
+        height: 3px;
+        background: var(--brand-green, #2CC374);
+        margin-top: 0.9rem;
+        border-radius: 2px;
+    }
+
+    /* ─────────────────────────────────────────
+       CATEGORY PILLS SELECTOR
+    ───────────────────────────────────────── */
+    .gp-cats {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: nowrap;
+        align-items: center;
+        padding: 4px 4px 2rem 4px;
+        margin: -4px -4px 2rem -4px;
+        border-bottom: 1px solid var(--brand-border, #e8e4df);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .gp-cats::-webkit-scrollbar { display: none; }
+    .gp-cats-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #bbb;
+        margin-right: 0.25rem;
+        flex-shrink: 0;
+    }
+    .gp-cat-pill {
+        padding: 0.45rem 1.2rem;
+        border-radius: 9999px;
+        border: 1.5px solid var(--brand-border, #e8e4df);
+        background: #fff;
+        color: #777;
+        font-weight: 500;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.15s;
+        white-space: nowrap;
+        line-height: 1;
+    }
+    .gp-cat-pill:hover {
+        border-color: var(--brand-taupe, #c5a48e);
+        color: var(--brand-black, #1D1A0C);
+        transform: translateY(-1px);
+    }
+    .gp-cat-pill.active {
+        background: var(--brand-black, #1D1A0C);
+        border-color: var(--brand-black, #1D1A0C);
+        color: #fff;
+    }
+
+    /* ─────────────────────────────────────────
+       PANELS
+    ───────────────────────────────────────── */
+    .gp-panel { display: none; }
+    .gp-panel.active { display: block; }
+
+    /* ─────────────────────────────────────────
+       GROUP BLOCK
+    ───────────────────────────────────────── */
+    .gp-group {
+        background: #fff;
+        border: 1px solid var(--brand-border, #e8e4df);
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+        margin-left: 0.75rem;
+        margin-right: 0.75rem;
+        position: relative;
+    }
+
+    .gp-group-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.1rem 1.5rem 1.1rem 1.25rem;
+        background: var(--brand-black, #1D1A0C);
+        position: relative;
+        overflow: hidden;
+    }
+    .gp-group-head::before {
+        content: attr(data-letra);
+        position: absolute;
+        right: -0.1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-size: 5rem;
+        font-weight: 900;
+        color: rgba(255,255,255,0.05);
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
+        letter-spacing: -0.03em;
+    }
+    .gp-group-title {
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+    }
+    .gp-letter-badge {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--brand-green, #2CC374);
+        line-height: 1;
+    }
+    .gp-group-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.45);
+    }
+    .gp-group-franja {
+        font-size: 0.78rem;
+        color: rgba(255,255,255,0.4);
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex-shrink: 0;
+        z-index: 1;
+    }
+    .gp-group-franja i { font-size: 0.7rem; }
+
+    /* ─────────────────────────────────────────
+       STANDINGS TABLE
+    ───────────────────────────────────────── */
+    .gp-standings-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .gp-standings {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+    }
+    .gp-standings thead tr {
+        border-bottom: 2px solid var(--brand-border, #e8e4df);
+    }
+    .gp-standings thead th {
+        background: #faf9f7;
+        color: #b0aca6;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 0.6rem 0.8rem;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .gp-standings thead th.col-club { text-align: left; padding-left: 1.25rem; }
+    .gp-standings thead th.col-pts {
+        color: var(--brand-black, #1D1A0C);
+        font-size: 0.7rem;
+    }
+    .gp-standings tbody tr {
+        border-bottom: 1px solid #f2efeb;
+        transition: background 0.12s;
+    }
+    .gp-standings tbody tr:last-child { border-bottom: none; }
+    .gp-standings tbody tr:hover { background: #fdfcfa; }
+    .gp-standings tbody tr.is-leader {
+        border-left: 3px solid var(--brand-green, #2CC374);
+    }
+    .gp-standings tbody tr.is-leader td.col-club-td {
+        font-weight: 700;
+        color: var(--brand-black, #1D1A0C);
+    }
+    .gp-standings tbody td {
+        padding: 0.8rem 0.8rem;
+        text-align: center;
+        color: #555;
+        vertical-align: middle;
+    }
+    .gp-standings tbody td.col-pos {
+        text-align: center;
+        width: 2.5rem;
+        color: #ccc;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+    .gp-standings tbody td.col-club-td {
+        text-align: left;
+        padding-left: 1.25rem;
+        font-weight: 500;
+        color: var(--brand-black, #1D1A0C);
+        min-width: 140px;
+    }
+    .gp-standings tbody td.col-pts-td {
+        font-weight: 800;
+        font-size: 1rem;
+        color: var(--brand-black, #1D1A0C);
+    }
+    .gp-standings th.col-sep,
+    .gp-standings td.col-sep {
+        border-left: 1px solid var(--brand-border, #e8e4df);
+    }
+    .gp-standings th.col-pts,
+    .gp-standings td.col-pts-td {
+        border-left: 1px solid var(--brand-border, #e8e4df);
+    }
+
+    .gp-legend {
+        padding: 0.45rem 1.25rem;
+        border-top: 1px solid var(--brand-border, #DCE8D3);
+        background: #faf9f7;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.2rem 0.9rem;
+        font-size: 0.68rem;
+        color: #aaa;
+    }
+    .gp-legend span { white-space: nowrap; }
+    .gp-legend strong { color: #666; font-weight: 700; }
+
+    /* ─────────────────────────────────────────
+       BRACKET
+    ───────────────────────────────────────── */
+    .bk-section {
+        background: var(--brand-bg, #F5F8F3);
+        border: 1px solid var(--brand-border, #DCE8D3);
+        border-radius: 10px;
+        padding: 1.5rem 1.25rem;
+        margin-bottom: 2.5rem;
+    }
+    .bk-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: var(--brand-border) transparent;
+    }
+    .bk-wrapper::-webkit-scrollbar { height: 6px; }
+    .bk-wrapper::-webkit-scrollbar-track { background: transparent; }
+    .bk-wrapper::-webkit-scrollbar-thumb {
+        background: var(--brand-border);
+        border-radius: 3px;
+    }
+    .bk-row {
+        display: flex;
+        gap: 2rem;
+        align-items: stretch;
+        min-width: max-content;
+        padding: 0.5rem 0;
+    }
+    .bk-col {
+        display: flex;
+        flex-direction: column;
+        min-width: 210px;
+    }
+    .bk-col-label {
+        font-size: 0.68rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: #999;
+        padding: 0 0 0.45rem 0;
+        border-bottom: 2px solid var(--brand-green, #2E9B0E);
+        margin-bottom: 0.9rem;
+        white-space: nowrap;
+    }
+    .bk-col-label.bk-final {
+        color: var(--brand-green, #2E9B0E);
+    }
+    .bk-col-cards {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        justify-content: center;
+    }
+    .bk-grupo + .bk-grupo { margin-top: 0.75rem; }
+
+    .bk-grupo {
+        background: #fff;
+        border: 1.5px solid var(--brand-border, #DCE8D3);
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        transition: box-shadow 0.2s;
+    }
+    .bk-grupo:hover { box-shadow: 0 3px 14px rgba(0,0,0,0.07); }
+    .bk-grupo-head {
+        background: var(--brand-black, #111);
+        color: #fff;
+        padding: 0.55rem 0.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .bk-grupo-serie {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--brand-green, #2E9B0E);
+    }
+    .bk-grupo-horario {
+        font-size: 0.68rem;
+        color: rgba(255,255,255,0.45);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .bk-grupo-teams { padding: 0; }
+    .bk-grupo-team {
+        padding: 0.4rem 0.85rem;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--brand-black, #111);
+        border-top: 1px solid #f0ede8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .bk-grupo-team:first-child { border-top: none; }
+
+    .bk-match {
+        background: #fff;
+        border-radius: 10px;
+        border: 1.5px solid #e5e7eb;
+        overflow: hidden;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        transition: box-shadow 0.2s;
+    }
+    .bk-match:hover { box-shadow: 0 3px 14px rgba(0,0,0,0.07); }
+    .bk-match.tiene-ganador { border-color: var(--brand-green, #2E9B0E); }
+    .bk-team {
+        display: flex;
+        align-items: center;
+        padding: 0.55rem 0.85rem;
+        border-bottom: 1px solid #f0f0f0;
+        gap: 0.4rem;
+    }
+    .bk-team:last-of-type { border-bottom: none; }
+    .bk-team.winner { background: #f0fdf4; }
+    .bk-team.tbd { opacity: 0.4; }
+    .bk-team-name {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--brand-black, #111);
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .bk-team.winner .bk-team-name {
+        font-weight: 700;
+        color: var(--brand-green-dark, #246B08);
+    }
+    .bk-team.tbd .bk-team-name {
+        font-style: italic;
+        color: #aaa;
+    }
+    .bk-winner-icon {
+        color: var(--brand-green, #2E9B0E);
+        font-size: 0.82rem;
+        flex-shrink: 0;
+    }
+    .bk-slot-info {
+        font-size: 0.63rem;
+        color: #aaa;
+        padding: 0.2rem 0.85rem;
+        background: #fafafa;
+        border-top: 1px solid #f0f0f0;
+        text-align: center;
+    }
+    .bk-sets {
+        display: flex;
+        gap: 0.2rem;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+    .bk-set {
+        font-size: 0.72rem;
+        font-weight: 700;
+        min-width: 18px;
+        text-align: center;
+        color: #555;
+        padding: 0 2px;
+    }
+    .bk-team.winner .bk-set {
+        color: var(--brand-green-dark, #246B08);
+    }
+
+    /* ─────────────────────────────────────────
+       MATCH RESULTS (debajo de standings)
+    ───────────────────────────────────────── */
+    .gp-matches-head {
+        padding: 0.55rem 1.25rem;
+        border-top: 1px solid var(--brand-border, #e8e4df);
+        background: #faf9f7;
+        font-size: 0.67rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #c0bbb5;
+    }
+    .gp-match {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.65rem 1.25rem;
+        border-top: 1px solid #f4f1ed;
+        font-size: 0.85rem;
+    }
+    .gp-match:first-of-type { border-top: none; }
+    .gp-match .m-team {
+        font-weight: 500;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .gp-match .m-team.right { text-align: right; }
+    .gp-match .m-team.winner {
+        font-weight: 700;
+        color: var(--brand-black, #1D1A0C);
+    }
+    .gp-match .m-score {
+        background: var(--brand-black, #1D1A0C);
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.8rem;
+        padding: 0.22rem 0.65rem;
+        border-radius: 4px;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        text-align: center;
+        min-width: 44px;
+        flex-shrink: 0;
+    }
+    .gp-match .m-score.pending {
+        background: #ece9e4;
+        color: #b0aca6;
+        font-weight: 500;
+        font-size: 0.75rem;
+        letter-spacing: 0.04em;
+    }
+
+    .bk-pair {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        position: relative;
+    }
+    .bk-pair > svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        overflow: visible;
+    }
+
+    .bk-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        min-height: 120px;
+        color: #ccc;
+        font-size: 0.78rem;
+        font-style: italic;
+        text-align: center;
+        padding: 1rem;
+    }
+
+    /* Section divider between bracket and standings */
+    .gp-section-divider {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 0 0.75rem 2rem;
+    }
+    .gp-section-divider::before,
+    .gp-section-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--brand-border, #DCE8D3);
+    }
+    .gp-section-divider span {
+        font-family: var(--font-slab, 'Roboto Slab', Georgia, serif);
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--brand-black, #111);
+        white-space: nowrap;
+    }
+
+    /* ─────────────────────────────────────────
+       EMPTY STATE
+    ───────────────────────────────────────── */
+    .gp-empty {
+        text-align: center;
+        padding: 5rem 2rem;
+    }
+    .gp-empty-icon {
+        width: 56px; height: 56px;
+        margin: 0 auto 1.25rem;
+        opacity: 0.2;
+    }
+    .gp-empty p {
+        color: #aaa;
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    /* ─────────────────────────────────────────
+       RESPONSIVE
+    ───────────────────────────────────────── */
+    @media (max-width: 576px) {
+        .gp-page { padding: 1.75rem 0 4rem; }
+        .bk-section { padding: 1rem 0.75rem; }
+        .bk-row { gap: 1.25rem; }
+        .bk-col { min-width: 180px; }
+        .gp-group-head { padding: 0.9rem 1rem; }
+        .gp-standings thead th,
+        .gp-standings tbody td { padding: 0.65rem 0.4rem; }
+        .gp-standings tbody td.col-club-td { padding-left: 1rem; }
+        .gp-standings thead th.col-club { padding-left: 1rem; }
+        .gp-standings .col-ds { display: none; }
+        .gp-cat-pill { padding: 0.4rem 0.9rem; font-size: 0.78rem; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container gp-page">
 
-    <!-- Botón volver -->
-    <div class="row justify-content-center mb-3">
-        <div class="col-lg-10">
-            <a href="{{ url_for('historial.lista_torneos') }}"
-               class="btn btn-sm fw-semibold"
-               style="border-radius:30px; border:2px solid #e5e7eb; color:#374151; background:white; padding:0.45rem 1.25rem;">
-                <i class="bi bi-arrow-left me-1"></i>Volver al historial
-            </a>
-        </div>
+    {# ── Volver ── #}
+    <a href="{{ url_for('historial.lista_torneos') }}" class="gp-back">
+        <i class="bi bi-arrow-left"></i>Volver al historial
+    </a>
+
+    {# ── Hero ── #}
+    <div class="gp-hero">
+        <p class="overline">
+            {% if torneo.tipo == 'fin1' %}Fin de semana 1
+            {% elif torneo.tipo == 'fin2' %}Fin de semana 2
+            {% else %}Historial{% endif %}
+        </p>
+        <h1>{{ torneo.nombre }}</h1>
+        {% if torneo.created_at %}
+        <p class="gp-hero-meta">
+            <i class="bi bi-calendar3 me-1"></i>
+            {% set fecha_str = torneo.created_at[:10] %}
+            {% set partes = fecha_str.split('-') %}
+            {% if partes|length == 3 %}{{ partes[2] }}/{{ partes[1] }}/{{ partes[0] }}
+            {% else %}{{ torneo.created_at }}{% endif %}
+        </p>
+        {% endif %}
+        <span class="accent-line"></span>
     </div>
 
-    <!-- Header del torneo -->
-    <div class="row justify-content-center mb-4">
-        <div class="col-lg-10">
-            <div class="card border-0"
-                 style="border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-start flex-wrap gap-3">
-                        <div style="width:52px; height:52px; background:var(--brand-taupe); border-radius:50%;
-                                    display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                            <i class="bi bi-trophy-fill text-white fs-5"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                                <h3 class="mb-0" style="font-family:var(--font-slab); font-size:clamp(1.6rem,3.5vw,2.4rem); font-weight:700; line-height:1.2; color:var(--brand-black);">{{ torneo.nombre }}</h3>
-                                {% set tipo = torneo.tipo if torneo.tipo is defined else '' %}
-                                {% if tipo == 'fin1' %}
-                                <span class="badge px-3 py-2"
-                                      style="background:rgba(34,197,94,0.12); color:var(--brand-green-dark);
-                                             border-radius:30px; font-size:0.78rem; font-weight:700;">
-                                    Fin de semana 1
-                                </span>
-                                {% elif tipo == 'fin2' %}
-                                <span class="badge px-3 py-2"
-                                      style="background:rgba(99,102,241,0.12); color:#4f46e5;
-                                             border-radius:30px; font-size:0.78rem; font-weight:700;">
-                                    Fin de semana 2
-                                </span>
-                                {% endif %}
-                            </div>
-                            {% set fecha_raw = torneo.created_at if torneo.created_at is defined else '' %}
-                            {% if fecha_raw %}
-                            <p class="text-muted mb-0" style="font-size:0.85rem;">
-                                <i class="bi bi-calendar3 me-1"></i>
-                                {% set fecha_str = fecha_raw[:10] %}
-                                {% set partes = fecha_str.split('-') %}
-                                {% if partes|length == 3 %}
-                                    {{ partes[2] }}/{{ partes[1] }}/{{ partes[0] }}
-                                {% else %}
-                                    {{ fecha_raw }}
-                                {% endif %}
-                            </p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    {% if not grupos_por_categoria %}
+
+    {# ── Empty state ── #}
+    <div class="gp-empty">
+        <svg class="gp-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 6v6l4 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <p>No hay datos disponibles para este torneo.</p>
     </div>
 
-    <!-- Contenido principal -->
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
+    {% else %}
 
-            {% if not grupos_por_categoria %}
-            <!-- Sin datos -->
-            <div class="text-center py-5">
-                <div style="width:70px; height:70px; background:#f3f4f6; border-radius:50%;
-                            display:flex; align-items:center; justify-content:center; margin:0 auto 1.25rem;">
-                    <i class="bi bi-inbox" style="font-size:1.75rem; color:#9ca3af;"></i>
-                </div>
-                <h6 class="fw-bold text-muted">No hay datos disponibles para este torneo</h6>
-            </div>
+    {# ── Category pills (orden: más difícil → más fácil según tipo de torneo) ── #}
+    {% set ns_first_cat = namespace(done=false) %}
+    <div class="gp-cats">
+        <span class="gp-cats-label">Categoría</span>
+        {% for cat in categorias %}
+        {% if grupos_por_categoria.get(cat) %}
+        <button class="gp-cat-pill {% if not ns_first_cat.done %}active{% endif %}"
+                data-cat="{{ cat }}"
+                data-cat-color="{{ colores.get(cat, '#888888') }}"
+                onclick="gpSwitchCat('{{ cat }}', this)">
+            {{ emojis.get(cat, '') }} {{ cat }}
+        </button>
+        {% set ns_first_cat.done = true %}
+        {% endif %}
+        {% endfor %}
+    </div>
 
-            {% else %}
+    {# ── Category panels ── #}
+    {% set ns_first_panel = namespace(done=false) %}
+    {% set alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
 
-            <!-- Tabs de categoría -->
-            <ul class="nav nav-pills mb-4 flex-wrap gap-2" id="tabsCategorias" role="tablist"
-                style="background:white; border-radius:50px; padding:0.5rem;
-                       box-shadow:0 2px 8px rgba(0,0,0,0.08); display:inline-flex !important;">
-                {% for cat in grupos_por_categoria.keys() %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-semibold {% if loop.first %}active{% endif %}"
-                            id="tab-cat-{{ loop.index }}"
-                            data-bs-toggle="pill"
-                            data-bs-target="#panel-cat-{{ loop.index }}"
-                            type="button" role="tab"
-                            style="border-radius:50px; padding:0.6rem 1.4rem;">
-                        {{ cat }}
-                    </button>
-                </li>
-                {% endfor %}
-            </ul>
+    {% for cat in categorias %}
+    {% set grupos = grupos_por_categoria.get(cat, []) %}
+    {% if grupos %}
+    {% set fixture = fixtures_finales.get(cat) if fixtures_finales else none %}
 
-            <div class="tab-content" id="tabsCategoriaContent">
-                {% for cat, grupos in grupos_por_categoria.items() %}
-                <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
-                     id="panel-cat-{{ loop.index }}"
-                     role="tabpanel">
+    <div class="gp-panel {% if not ns_first_panel.done %}active{% endif %}" id="gp-panel-{{ cat }}">
+        {% set ns_first_panel.done = true %}
 
-                    <!-- Sub-tabs por categoría: Grupos y Cuadros -->
-                    <ul class="nav nav-pills mb-3 gap-2" id="subTabs-{{ loop.index }}" role="tablist"
-                        style="background:#f8fafc; border-radius:30px; padding:0.35rem;
-                               display:inline-flex !important;">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active fw-semibold"
-                                    id="sub-grupos-{{ loop.index }}-tab"
-                                    data-bs-toggle="pill"
-                                    data-bs-target="#sub-grupos-{{ loop.index }}"
-                                    type="button"
-                                    style="border-radius:30px; padding:0.5rem 1.2rem; font-size:0.9rem;">
-                                <i class="bi bi-grid-3x3-gap me-1"></i>Grupos y Posiciones
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link fw-semibold"
-                                    id="sub-cuadros-{{ loop.index }}-tab"
-                                    data-bs-toggle="pill"
-                                    data-bs-target="#sub-cuadros-{{ loop.index }}"
-                                    type="button"
-                                    style="border-radius:30px; padding:0.5rem 1.2rem; font-size:0.9rem;">
-                                <i class="bi bi-trophy me-1"></i>Cuadros
-                            </button>
-                        </li>
-                    </ul>
+        {# ════════════════════════════════════════
+           BRACKET: grupos compactos → fases finales
+        ════════════════════════════════════════ #}
+        <div class="bk-section">
+            <div class="bk-wrapper">
+                <div class="bk-row">
 
-                    <div class="tab-content">
-
-                        <!-- Sub-tab: Grupos y Posiciones -->
-                        <div class="tab-pane fade show active" id="sub-grupos-{{ loop.index }}" role="tabpanel">
+                    {# ── Column: Grupos ── #}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-grid-3x3-gap-fill me-1"></i>Grupos</div>
+                        <div class="bk-col-cards">
                             {% for grupo in grupos %}
-                            {% set grupo_id = grupo['id'] %}
-                            <div class="card border-0 mb-3"
-                                 style="border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,0.07);">
-                                <div class="card-header border-0 px-4 py-3"
-                                     style="background:var(--brand-black); border-radius:14px 14px 0 0;">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <i class="bi bi-people-fill text-white"></i>
-                                        <span class="text-white fw-bold">Grupo {{ loop.index }}</span>
-                                        {% if grupo.franja_horaria %}
-                                        <span class="badge ms-2"
-                                              style="background:rgba(34,197,94,0.2); color:var(--brand-green);
-                                                     font-size:0.78rem; border-radius:20px;">
-                                            <i class="bi bi-clock me-1"></i>{{ grupo.franja_horaria }}
-                                        </span>
-                                        {% endif %}
-                                        {% if grupo.cancha %}
-                                        <span class="badge"
-                                              style="background:rgba(255,255,255,0.15); color:white;
-                                                     font-size:0.78rem; border-radius:20px;">
-                                            <i class="bi bi-geo-alt me-1"></i>Cancha {{ grupo.cancha }}
-                                        </span>
-                                        {% endif %}
-                                    </div>
+                            {% set letra = alphabet[loop.index0] if loop.index0 < 26 else loop.index|string %}
+                            <div class="bk-grupo">
+                                <div class="bk-grupo-head">
+                                    <span class="bk-grupo-serie">Serie {{ letra }}</span>
+                                    {% if grupo.franja_horaria %}
+                                    <span class="bk-grupo-horario">
+                                        <i class="bi bi-clock"></i>{{ grupo.franja_horaria }}
+                                    </span>
+                                    {% endif %}
                                 </div>
-                                <div class="card-body p-0">
-                                    <div class="table-responsive">
-                                        <table class="table table-hover mb-0 align-middle">
-                                            <thead style="background:#f8fafc;">
-                                                <tr>
-                                                    <th class="ps-4" style="font-size:0.8rem; font-weight:700; color:#6b7280;">Pos</th>
-                                                    <th style="font-size:0.8rem; font-weight:700; color:#6b7280;">Pareja</th>
-                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">PJ</th>
-                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">PG</th>
-                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">PP</th>
-                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">SG</th>
-                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">SP</th>
-                                                    <th class="text-center" style="font-size:0.8rem; font-weight:700; color:#6b7280;">+/- Sets</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% if standings_por_categoria[cat] is defined and grupo_id in standings_por_categoria[cat] %}
-                                                    {% for stat in standings_por_categoria[cat][grupo_id] %}
-                                                    <tr {% if loop.index0 == 0 %}style="background:rgba(34,197,94,0.05);"{% endif %}>
-                                                        <td class="ps-4">
-                                                            {% if loop.index0 == 0 %}
-                                                            <span class="badge rounded-circle"
-                                                                  style="width:26px; height:26px; background:var(--brand-green);
-                                                                         color:white; font-size:0.8rem; display:inline-flex;
-                                                                         align-items:center; justify-content:center;">1</span>
-                                                            {% elif loop.index0 == 1 %}
-                                                            <span class="badge rounded-circle"
-                                                                  style="width:26px; height:26px; background:#9ca3af;
-                                                                         color:white; font-size:0.8rem; display:inline-flex;
-                                                                         align-items:center; justify-content:center;">2</span>
-                                                            {% else %}
-                                                            <span class="badge rounded-circle"
-                                                                  style="width:26px; height:26px; background:#e5e7eb;
-                                                                         color:#374151; font-size:0.8rem; display:inline-flex;
-                                                                         align-items:center; justify-content:center;">3</span>
-                                                            {% endif %}
-                                                        </td>
-                                                        <td class="fw-semibold">{{ stat.pareja_nombre }}</td>
-                                                        <td class="text-center">{{ stat.partidos_jugados }}</td>
-                                                        <td class="text-center fw-bold" style="color:var(--brand-green-dark);">{{ stat.partidos_ganados }}</td>
-                                                        <td class="text-center text-muted">{{ stat.partidos_perdidos }}</td>
-                                                        <td class="text-center">{{ stat.sets_ganados }}</td>
-                                                        <td class="text-center text-muted">{{ stat.sets_perdidos }}</td>
-                                                        <td class="text-center fw-semibold
-                                                            {% if stat.diferencia_sets > 0 %}text-success
-                                                            {% elif stat.diferencia_sets < 0 %}text-danger
-                                                            {% else %}text-muted{% endif %}">
-                                                            {% if stat.diferencia_sets > 0 %}+{% endif %}{{ stat.diferencia_sets }}
-                                                        </td>
-                                                    </tr>
-                                                    {% endfor %}
-                                                {% else %}
-                                                    {% for pareja_dict in grupo.parejas %}
-                                                    <tr>
-                                                        <td class="ps-4 text-muted">—</td>
-                                                        <td>{{ pareja_dict.nombre }}</td>
-                                                        <td class="text-center text-muted">0</td>
-                                                        <td class="text-center text-muted">0</td>
-                                                        <td class="text-center text-muted">0</td>
-                                                        <td class="text-center text-muted">0</td>
-                                                        <td class="text-center text-muted">0</td>
-                                                        <td class="text-center text-muted">0</td>
-                                                    </tr>
-                                                    {% endfor %}
-                                                {% endif %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        <!-- Sub-tab: Cuadros -->
-                        <div class="tab-pane fade" id="sub-cuadros-{{ loop.index }}" role="tabpanel">
-                            {% if fixtures_finales and cat in fixtures_finales and fixtures_finales[cat] %}
-                            {% set fixture_cat = fixtures_finales[cat] %}
-
-                            {% set rondas = [
-                                ('octavos',    'Octavos de Final',    'bi-8-circle'),
-                                ('cuartos',    'Cuartos de Final',    'bi-4-circle'),
-                                ('semifinales','Semifinales',         'bi-2-circle'),
-                                ('final',      'Final',               'bi-trophy-fill')
-                            ] %}
-
-                            {% for ronda_key, ronda_nombre, ronda_icon in rondas %}
-                            {% if fixture_cat[ronda_key] is defined and fixture_cat[ronda_key] %}
-                            <div class="mb-4">
-                                <h6 class="fw-bold mb-3 d-flex align-items-center gap-2"
-                                    style="color:var(--brand-black);">
-                                    <i class="bi {{ ronda_icon }}" style="color:var(--brand-green);"></i>
-                                    {{ ronda_nombre }}
-                                </h6>
-                                <div class="row g-2">
-                                    {% for partido in fixture_cat[ronda_key] %}
-                                    <div class="col-md-6">
-                                        <div class="card border-0"
-                                             style="border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-                                            <div class="card-body p-3">
-                                                <!-- Slot info -->
-                                                {% if partido.slot1_info or partido.slot2_info %}
-                                                <p class="text-muted mb-2" style="font-size:0.78rem;">
-                                                    <i class="bi bi-clock me-1"></i>
-                                                    {{ partido.slot1_info or partido.slot2_info }}
-                                                </p>
-                                                {% endif %}
-
-                                                <!-- Pareja 1 -->
-                                                {% set es_ganador_p1 = partido.ganador and partido.pareja1 and partido.ganador == partido.pareja1.nombre %}
-                                                <div class="d-flex align-items-center justify-content-between p-2 rounded mb-1
-                                                    {% if es_ganador_p1 %}
-                                                    {% endif %}"
-                                                    style="background: {% if es_ganador_p1 %}rgba(34,197,94,0.1){% else %}#f8fafc{% endif %};">
-                                                    <span class="fw-semibold" style="font-size:0.9rem;
-                                                        {% if es_ganador_p1 %}color:var(--brand-green-dark);{% endif %}">
-                                                        {% if partido.pareja1 %}{{ partido.pareja1.nombre }}{% else %}<span class="text-muted">Por definir</span>{% endif %}
-                                                    </span>
-                                                    {% if es_ganador_p1 %}
-                                                    <i class="bi bi-trophy-fill" style="color:var(--brand-green); font-size:0.85rem;"></i>
-                                                    {% endif %}
-                                                </div>
-
-                                                <div class="text-center text-muted" style="font-size:0.75rem; line-height:1.2; padding:0.1rem 0;">vs</div>
-
-                                                <!-- Pareja 2 -->
-                                                {% set es_ganador_p2 = partido.ganador and partido.pareja2 and partido.ganador == partido.pareja2.nombre %}
-                                                <div class="d-flex align-items-center justify-content-between p-2 rounded
-                                                    {% if es_ganador_p2 %}
-                                                    {% endif %}"
-                                                    style="background: {% if es_ganador_p2 %}rgba(34,197,94,0.1){% else %}#f8fafc{% endif %};">
-                                                    <span class="fw-semibold" style="font-size:0.9rem;
-                                                        {% if es_ganador_p2 %}color:var(--brand-green-dark);{% endif %}">
-                                                        {% if partido.pareja2 %}{{ partido.pareja2.nombre }}{% else %}<span class="text-muted">Por definir</span>{% endif %}
-                                                    </span>
-                                                    {% if es_ganador_p2 %}
-                                                    <i class="bi bi-trophy-fill" style="color:var(--brand-green); font-size:0.85rem;"></i>
-                                                    {% endif %}
-                                                </div>
-
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div class="bk-grupo-teams">
+                                    {% for pareja in grupo.parejas %}
+                                    <div class="bk-grupo-team">{{ pareja.nombre }}</div>
                                     {% endfor %}
                                 </div>
                             </div>
-                            {% endif %}
                             {% endfor %}
-
-                            {% else %}
-                            <div class="text-center py-5 text-muted">
-                                <i class="bi bi-slash-circle fs-3 mb-2 d-block"></i>
-                                <p class="mb-0" style="font-size:0.9rem;">No hay datos de finales para esta categoría</p>
-                            </div>
-                            {% endif %}
                         </div>
+                    </div>
 
-                    </div><!-- /tab-content sub -->
-                </div><!-- /panel-cat -->
-                {% endfor %}
-            </div><!-- /tab-content categorias -->
+                    {# ── Column: Octavos (si existen) ── #}
+                    {% if fixture and fixture.octavos %}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-grid me-1"></i>Octavos de Final</div>
+                        <div class="bk-col-cards">
+                            {% set oct = fixture.octavos %}
+                            {% for i in range(0, oct|length) %}
+                            <div class="bk-pair" data-next-idx="{{ i + 1 }}">
+                                {{ render_partido(oct[i]) }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
 
-            {% endif %}
+                    {# ── Column: Cuartos ── #}
+                    {% if fixture and fixture.cuartos %}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-grid me-1"></i>Cuartos de Final</div>
+                        <div class="bk-col-cards">
+                            {% set cuartos = fixture.cuartos %}
+                            {% for i in range(0, cuartos|length, 2) %}
+                            <div class="bk-pair">
+                                {{ render_partido(cuartos[i]) }}
+                                {% if i + 1 < cuartos|length %}{{ render_partido(cuartos[i + 1]) }}{% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# ── Column: Semifinales ── #}
+                    {% if fixture and fixture.semifinales %}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-diagram-2 me-1"></i>Semifinales</div>
+                        <div class="bk-col-cards">
+                            {% set semis = fixture.semifinales %}
+                            {% for i in range(0, semis|length, 2) %}
+                            <div class="bk-pair">
+                                {{ render_partido(semis[i]) }}
+                                {% if i + 1 < semis|length %}{{ render_partido(semis[i + 1]) }}{% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# ── Column: Final ── #}
+                    {% if fixture and fixture.final %}
+                    <div class="bk-col">
+                        <div class="bk-col-label bk-final">
+                            <i class="bi bi-trophy-fill me-1"></i>Final
+                        </div>
+                        <div class="bk-col-cards">
+                            {{ render_partido(fixture.final) }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# ── Placeholder si no hay fixture ── #}
+                    {% if not fixture %}
+                    <div class="bk-col">
+                        <div class="bk-col-label"><i class="bi bi-trophy me-1"></i>Fases Finales</div>
+                        <div class="bk-placeholder">
+                            <span><i class="bi bi-slash-circle me-1"></i>Sin datos de finales</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
         </div>
-    </div>
+
+        {# ── Separador ── #}
+        <div class="gp-section-divider">
+            <span>Posiciones y Resultados</span>
+        </div>
+
+        {# ── Groups con standings ── #}
+        {% for grupo in grupos %}
+        {% set letra = alphabet[loop.index0] if loop.index0 < 26 else loop.index|string %}
+        {% set grupo_id = grupo.id if grupo.id is defined else '' %}
+
+        <div class="gp-group">
+
+            {# ── Group header ── #}
+            <div class="gp-group-head" data-letra="{{ letra }}">
+                <div class="gp-group-title">
+                    <span class="gp-letter-badge">{{ letra }}</span>
+                    <span class="gp-group-label">Grupo</span>
+                </div>
+                {% if grupo.franja_horaria %}
+                <span class="gp-group-franja">
+                    <i class="bi bi-clock"></i>{{ grupo.franja_horaria }}
+                </span>
+                {% endif %}
+            </div>
+
+            {# ── Standings table ── #}
+            <div class="gp-standings-wrap">
+                <table class="gp-standings">
+                    <thead>
+                        <tr>
+                            <th style="width:2.5rem;">#</th>
+                            <th class="col-club">Pareja</th>
+                            <th title="Partidos Jugados">PJ</th>
+                            <th title="Ganados">G</th>
+                            <th title="Perdidos">P</th>
+                            <th class="col-sep col-ds" title="Diferencia de Sets">DS</th>
+                            <th class="col-dg" title="Diferencia de Games">DG</th>
+                            <th class="col-pts" title="Puntos">Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if standings_por_categoria and cat in standings_por_categoria and grupo_id in standings_por_categoria[cat] %}
+                        {% for stat in standings_por_categoria[cat][grupo_id] %}
+                        {% set pts_val = stat.partidos_ganados * 2 %}
+                        <tr data-pts="{{ pts_val }}" data-ds="{{ stat.diferencia_sets }}" data-dg="{{ stat.diferencia_games }}">
+                            <td class="col-pos">{{ loop.index }}</td>
+                            <td class="col-club-td">{{ stat.pareja_nombre }}</td>
+                            <td>{{ stat.partidos_jugados }}</td>
+                            <td>{{ stat.partidos_ganados }}</td>
+                            <td>{{ stat.partidos_perdidos }}</td>
+                            <td class="col-sep col-ds">{{ stat.diferencia_sets }}</td>
+                            <td class="col-dg">{{ stat.diferencia_games }}</td>
+                            <td class="col-pts-td">{{ pts_val }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        {% for pareja in grupo.parejas %}
+                        <tr data-pts="0" data-ds="0" data-dg="0">
+                            <td class="col-pos">{{ loop.index }}</td>
+                            <td class="col-club-td">{{ pareja.nombre }}</td>
+                            <td>0</td><td>0</td><td>0</td>
+                            <td class="col-sep col-ds">0</td>
+                            <td class="col-dg">0</td>
+                            <td class="col-pts-td">0</td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# ── Legend ── #}
+            <div class="gp-legend">
+                <span><strong>PJ</strong> Partidos Jugados</span>
+                <span><strong>G</strong> Ganados</span>
+                <span><strong>P</strong> Perdidos</span>
+                <span><strong>DS</strong> Diferencia de Sets</span>
+                <span><strong>DG</strong> Diferencia de Games</span>
+                <span><strong>Pts</strong> Puntos</span>
+            </div>
+
+            {# ── Partidos de la serie ── #}
+            {% if grupo.partidos %}
+            <div class="gp-matches-head">Partidos</div>
+            {% for partido in grupo.partidos %}
+            {# Buscar resultado: la key es "{min_id}-{max_id}" #}
+            {% set p1id = partido.pareja1_id %}
+            {% set p2id = partido.pareja2_id %}
+            {% set res = namespace(found=none) %}
+            {% if grupo.resultados %}
+            {% for r in grupo.resultados.values() %}
+                {% if (r.pareja1_id == p1id and r.pareja2_id == p2id)
+                   or (r.pareja1_id == p2id and r.pareja2_id == p1id) %}
+                    {% set res.found = r %}
+                {% endif %}
+            {% endfor %}
+            {% endif %}
+            <div class="gp-match">
+                {% if res.found %}
+                {% set r = res.found %}
+                {% set p1_wins = r.ganador_id == p1id %}
+                {% set ds1 = r.sets_pareja1 | int %}
+                {% set ds2 = r.sets_pareja2 | int %}
+                {% if r.tiebreak_pareja1 is not none and r.tiebreak_pareja2 is not none %}
+                    {% if (r.tiebreak_pareja1 | int) > (r.tiebreak_pareja2 | int) %}
+                        {% set ds1 = ds1 + 1 %}
+                    {% else %}
+                        {% set ds2 = ds2 + 1 %}
+                    {% endif %}
+                {% endif %}
+                <span class="m-team {{ 'winner' if p1_wins else '' }}">{{ partido.pareja1 }}</span>
+                <span class="m-score">{{ ds1 }}–{{ ds2 }}</span>
+                <span class="m-team right {{ '' if p1_wins else 'winner' }}">{{ partido.pareja2 }}</span>
+                {% else %}
+                <span class="m-team">{{ partido.pareja1 }}</span>
+                <span class="m-score pending">vs</span>
+                <span class="m-team right">{{ partido.pareja2 }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% endif %}
+
+        </div>{# /gp-group #}
+        {% endfor %}
+    </div>{# /gp-panel #}
+    {% endif %}{# /if grupos #}
+    {% endfor %}
+
+    {% endif %}
+
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Activa correctamente los nav-pills de Bootstrap en tabs anidados
-// (Bootstrap 5 los maneja de forma nativa con data-bs-toggle="pill")
-// Este bloque está vacío intencionalmente; Bootstrap lo maneja solo.
+/* ── Hex → rgba helper ── */
+function gpHexRgba(hex, alpha) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/* ── Apply category tint to group cards and standings ── */
+function gpApplyTint(panelEl, hex) {
+    if (!panelEl || !hex) return;
+    const cardBg = gpHexRgba(hex, 0.25);
+    panelEl.querySelectorAll('.bk-grupo').forEach(card => {
+        card.style.backgroundColor = cardBg;
+    });
+    panelEl.querySelectorAll('.gp-standings-wrap').forEach(el => {
+        el.style.backgroundColor = cardBg;
+    });
+}
+
+/* ── Category switcher ── */
+function gpSwitchCat(cat, btn) {
+    document.querySelectorAll('.gp-cat-pill').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.gp-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = document.getElementById('gp-panel-' + cat);
+    if (panel) {
+        panel.classList.add('active');
+        gpApplyTint(panel, btn.dataset.catColor);
+        gpDrawConnectors(panel);
+    }
+}
+
+/* ── Draw SVG bracket connector lines ── */
+function gpDrawConnectors(panelEl) {
+    if (!panelEl) return;
+
+    panelEl.querySelectorAll('.bk-connector-svg').forEach(s => s.remove());
+
+    const bkRow = panelEl.querySelector('.bk-row');
+    if (!bkRow) return;
+
+    const columns = Array.from(bkRow.querySelectorAll('.bk-col')).filter(col =>
+        col.querySelectorAll('.bk-match').length > 0
+    );
+    if (columns.length < 2) return;
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.classList.add('bk-connector-svg');
+    svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible;';
+    bkRow.style.position = 'relative';
+    bkRow.appendChild(svg);
+
+    const containerRect = bkRow.getBoundingClientRect();
+
+    function drawPath(d) {
+        const path = document.createElementNS(svgNS, 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', '#1D1A0C');
+        path.setAttribute('stroke-width', '1.5');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        svg.appendChild(path);
+    }
+
+    function drawOne(mFrom, mTo) {
+        const rF = mFrom.getBoundingClientRect();
+        const rT = mTo.getBoundingClientRect();
+        const x1   = rF.right - containerRect.left;
+        const y1   = rF.top   + rF.height / 2 - containerRect.top;
+        const x2   = rT.left  - containerRect.left;
+        const y2   = rT.top   + rT.height / 2 - containerRect.top;
+        const xMid = x1 + (x2 - x1) / 2;
+        drawPath(`M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${y2} L ${x2} ${y2}`);
+    }
+
+    function drawMerge(mTop, mBot, mNext) {
+        const r1    = mTop.getBoundingClientRect();
+        const r2    = mBot.getBoundingClientRect();
+        const rNext = mNext.getBoundingClientRect();
+        const x1    = r1.right  - containerRect.left;
+        const y1    = r1.top    + r1.height / 2 - containerRect.top;
+        const x2    = r2.right  - containerRect.left;
+        const y2    = r2.top    + r2.height / 2 - containerRect.top;
+        const xNext = rNext.left - containerRect.left;
+        const yNext = rNext.top  + rNext.height / 2 - containerRect.top;
+        const xMid  = x1 + (xNext - x1) / 2;
+        drawPath(
+            `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${yNext} ` +
+            `M ${x2} ${y2} L ${xMid} ${y2} L ${xMid} ${yNext} ` +
+            `M ${xMid} ${yNext} L ${xNext} ${yNext}`
+        );
+    }
+
+    for (let i = 0; i < columns.length - 1; i++) {
+        const currentCol     = columns[i];
+        const currentMatches = Array.from(currentCol.querySelectorAll('.bk-match'));
+        const nextMatches    = Array.from(columns[i + 1].querySelectorAll('.bk-match'));
+        if (!currentMatches.length || !nextMatches.length) continue;
+
+        const pairsWithIdx = Array.from(currentCol.querySelectorAll('.bk-pair[data-next-idx]'));
+        if (pairsWithIdx.length > 0) {
+            pairsWithIdx.forEach(pair => {
+                const nextIdx = parseInt(pair.dataset.nextIdx, 10);
+                const mFrom   = pair.querySelector('.bk-match');
+                const mTo     = nextMatches[nextIdx];
+                if (mFrom && mTo) drawOne(mFrom, mTo);
+            });
+            continue;
+        }
+
+        if (currentMatches.length === nextMatches.length) {
+            currentMatches.forEach((m, j) => drawOne(m, nextMatches[j]));
+            continue;
+        }
+
+        for (let j = 0; j < nextMatches.length; j++) {
+            const m1    = currentMatches[j * 2];
+            const m2    = currentMatches[j * 2 + 1];
+            const mNext = nextMatches[j];
+            if (!m1 || !m2 || !mNext) continue;
+            drawMerge(m1, m2, mNext);
+        }
+    }
+}
+
+/* ── Init tint + connectors on first active panel ── */
+document.addEventListener('DOMContentLoaded', () => {
+    const firstBtn = document.querySelector('.gp-cat-pill.active');
+    if (!firstBtn) return;
+    const panel = document.getElementById('gp-panel-' + firstBtn.dataset.cat);
+    if (panel) {
+        gpApplyTint(panel, firstBtn.dataset.catColor);
+        gpDrawConnectors(panel);
+    }
+});
+
+/* ── Sort standings: Pts → DS → DG (all desc) ── */
+document.querySelectorAll('.gp-standings tbody').forEach(tbody => {
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    if (rows.length < 2) return;
+
+    rows.sort((a, b) => {
+        const pts = parseInt(b.dataset.pts || 0) - parseInt(a.dataset.pts || 0);
+        if (pts !== 0) return pts;
+        const ds = parseInt(b.dataset.ds || 0) - parseInt(a.dataset.ds || 0);
+        if (ds !== 0) return ds;
+        return parseInt(b.dataset.dg || 0) - parseInt(a.dataset.dg || 0);
+    });
+
+    rows.forEach((row, i) => {
+        const posCell = row.querySelector('.col-pos');
+        if (posCell) posCell.textContent = i + 1;
+        row.classList.toggle('is-leader', i === 0);
+        tbody.appendChild(row);
+    });
+});
 </script>
 {% endblock %}

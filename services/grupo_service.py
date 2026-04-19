@@ -422,6 +422,43 @@ def eliminar_grupo(resultado_data: dict, grupo_id: int, categoria: str) -> None:
     regenerar_calendario(resultado_data)
 
 
+def reordenar_grupos(resultado_data: dict, categoria: str, orden_grupos: list) -> list:
+    """Reordena los grupos de una categoría según el orden de IDs indicado.
+
+    Solo cambia la posición en la lista (y por ende la letra A/B/C asignada).
+    No modifica parejas, partidos, resultados ni scores.
+
+    Args:
+        resultado_data: blob del resultado del algoritmo (se muta en lugar).
+        categoria: nombre de la categoría.
+        orden_grupos: lista con TODOS los grupo_id de la categoría en el orden deseado.
+
+    Returns:
+        Lista de grupos reordenada.
+
+    Raises:
+        ServiceError si la categoría no existe o la lista no es permutación exacta.
+    """
+    grupos_dict = resultado_data.get('grupos_por_categoria', {})
+
+    if categoria not in grupos_dict:
+        raise ServiceError(f'Categoría {categoria} no encontrada', 404)
+
+    grupos_actuales = grupos_dict[categoria]
+    ids_actuales = {g['id'] for g in grupos_actuales}
+
+    if len(orden_grupos) != len(grupos_actuales) or set(orden_grupos) != ids_actuales:
+        raise ServiceError(
+            'El orden enviado no coincide con los grupos de la categoría.', 400
+        )
+
+    por_id = {g['id']: g for g in grupos_actuales}
+    grupos_dict[categoria] = [por_id[gid] for gid in orden_grupos]
+
+    regenerar_calendario(resultado_data)
+    return grupos_dict[categoria]
+
+
 # ==================== GESTIÓN DE PAREJAS ====================
 
 def agregar_pareja(

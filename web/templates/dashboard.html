@@ -900,6 +900,26 @@
                                 </span>
                                 {% endif %}
                                 <div class="position-absolute top-50 end-0 translate-middle-y me-2 d-flex gap-1">
+                                    {% if fase_torneo != 'torneo' and grupos|length > 1 %}
+                                    <button class="btn btn-sm btn-light"
+                                            data-grupo-id="{{ grupo.id }}"
+                                            data-categoria="{{ categoria }}"
+                                            data-direccion="left"
+                                            onclick="reordenarGrupo(this)"
+                                            {% if loop.first %}disabled{% endif %}
+                                            title="Mover grupo a la izquierda">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-light"
+                                            data-grupo-id="{{ grupo.id }}"
+                                            data-categoria="{{ categoria }}"
+                                            data-direccion="right"
+                                            onclick="reordenarGrupo(this)"
+                                            {% if loop.last %}disabled{% endif %}
+                                            title="Mover grupo a la derecha">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                    {% endif %}
                                     <button class="btn btn-sm btn-light"
                                             data-grupo-id="{{ grupo.id }}"
                                             data-categoria="{{ categoria }}"
@@ -1345,6 +1365,26 @@
                         </span>
                         {% endif %}
                         <div class="position-absolute top-50 end-0 translate-middle-y me-2 d-flex gap-1">
+                            {% if fase_torneo != 'torneo' and grupos|length > 1 %}
+                            <button class="btn btn-sm btn-light"
+                                    data-grupo-id="{{ grupo.id }}"
+                                    data-categoria="{{ categoria }}"
+                                    data-direccion="left"
+                                    onclick="reordenarGrupo(this)"
+                                    {% if loop.first %}disabled{% endif %}
+                                    title="Mover grupo a la izquierda">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <button class="btn btn-sm btn-light"
+                                    data-grupo-id="{{ grupo.id }}"
+                                    data-categoria="{{ categoria }}"
+                                    data-direccion="right"
+                                    onclick="reordenarGrupo(this)"
+                                    {% if loop.last %}disabled{% endif %}
+                                    title="Mover grupo a la derecha">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                            {% endif %}
                             <button class="btn btn-sm btn-light"
                                     data-grupo-id="{{ grupo.id }}"
                                     data-categoria="{{ categoria }}"

@@ -161,15 +161,15 @@ class GeneradorFixtureFinales:
         of1 = PartidoFinal(id=f"{categoria}_octavos_1", fase=FaseFinal.OCTAVOS, numero_partido=1)
         of1.pareja1 = _pareja_o_none(segundos_octavos, 0)
         of1.pareja2 = _pareja_o_none(segundos_octavos, 1)
-        of1.slot1_info = _info_o_vacio(segundos_octavos, 0, "2° Grupo (OF.1)")
-        of1.slot2_info = _info_o_vacio(segundos_octavos, 1, "2° Grupo (OF.1)")
+        of1.slot1_info = _info_o_vacio(segundos_octavos, 0, "2°")
+        of1.slot2_info = _info_o_vacio(segundos_octavos, 1, "2°")
         fixture.octavos.append(of1)
 
         of2 = PartidoFinal(id=f"{categoria}_octavos_2", fase=FaseFinal.OCTAVOS, numero_partido=2)
         of2.pareja1 = _pareja_o_none(segundos_octavos, 2)
         of2.pareja2 = _pareja_o_none(segundos_octavos, 3)
-        of2.slot1_info = _info_o_vacio(segundos_octavos, 2, "2° Grupo (OF.2)")
-        of2.slot2_info = _info_o_vacio(segundos_octavos, 3, "2° Grupo (OF.2)")
+        of2.slot1_info = _info_o_vacio(segundos_octavos, 2, "2°")
+        of2.slot2_info = _info_o_vacio(segundos_octavos, 3, "2°")
         fixture.octavos.append(of2)
 
         # --- Cuartos (4 partidos) ---
@@ -240,17 +240,17 @@ class GeneradorFixtureFinales:
         # PARCHE torneo actual: Séptima usa cruces distintos — sacar cuando se defina regla general
         if categoria.lower().replace('é', 'e') == 'septima':
             slots = [
-                {'p1': (primeros, 0), 'p2': (segundos, 2), 'info1': '1° Grupo A', 'info2': '2° Grupo C'},
-                {'p1': (primeros, 3), 'p2': (segundos, 1), 'info1': '1° Grupo D', 'info2': '2° Grupo B'},
-                {'p1': (primeros, 1), 'p2': (segundos, 3), 'info1': '1° Grupo B', 'info2': '2° Grupo D'},
-                {'p1': (primeros, 2), 'p2': (segundos, 0), 'info1': '1° Grupo C', 'info2': '2° Grupo A'},
+                {'p1': (primeros, 0), 'p2': (segundos, 2), 'info1': '1°', 'info2': '2°'},
+                {'p1': (primeros, 3), 'p2': (segundos, 1), 'info1': '1°', 'info2': '2°'},
+                {'p1': (primeros, 1), 'p2': (segundos, 3), 'info1': '1°', 'info2': '2°'},
+                {'p1': (primeros, 2), 'p2': (segundos, 0), 'info1': '1°', 'info2': '2°'},
             ]
         else:
             slots = [
-                {'p1': (primeros, 0), 'p2': (segundos, 3), 'info1': '1° Grupo A', 'info2': '2° Grupo D'},
-                {'p1': (primeros, 1), 'p2': (segundos, 2), 'info1': '1° Grupo B', 'info2': '2° Grupo C'},
-                {'p1': (primeros, 2), 'p2': (segundos, 1), 'info1': '1° Grupo C', 'info2': '2° Grupo B'},
-                {'p1': (primeros, 3), 'p2': (segundos, 0), 'info1': '1° Grupo D', 'info2': '2° Grupo A'},
+                {'p1': (primeros, 0), 'p2': (segundos, 3), 'info1': '1°', 'info2': '2°'},
+                {'p1': (primeros, 1), 'p2': (segundos, 2), 'info1': '1°', 'info2': '2°'},
+                {'p1': (primeros, 2), 'p2': (segundos, 1), 'info1': '1°', 'info2': '2°'},
+                {'p1': (primeros, 3), 'p2': (segundos, 0), 'info1': '1°', 'info2': '2°'},
             ]
 
         for i, s in enumerate(slots):

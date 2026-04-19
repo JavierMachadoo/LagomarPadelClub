@@ -301,6 +301,10 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-danger me-auto" onclick="eliminarGrupoDesdeModal()"
+                            title="Eliminar grupo (solo si no tiene parejas)">
+                        <i class="bi bi-trash-fill"></i> Eliminar Grupo
+                    </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" onclick="confirmarEditarGrupo()">
                         <i class="bi bi-check-circle"></i> Guardar Cambios
@@ -896,15 +900,6 @@
                                 </span>
                                 {% endif %}
                                 <div class="position-absolute top-50 end-0 translate-middle-y me-2 d-flex gap-1">
-                                    {% if not grupo.parejas %}
-                                    <button class="btn btn-sm btn-danger"
-                                            data-grupo-id="{{ grupo.id }}"
-                                            data-categoria="{{ categoria }}"
-                                            onclick="eliminarGrupoVacio(this)"
-                                            title="Eliminar grupo vacío">
-                                        <i class="bi bi-trash-fill"></i>
-                                    </button>
-                                    {% endif %}
                                     <button class="btn btn-sm btn-light"
                                             data-grupo-id="{{ grupo.id }}"
                                             data-categoria="{{ categoria }}"
@@ -1350,15 +1345,6 @@
                         </span>
                         {% endif %}
                         <div class="position-absolute top-50 end-0 translate-middle-y me-2 d-flex gap-1">
-                            {% if not grupo.parejas %}
-                            <button class="btn btn-sm btn-danger"
-                                    data-grupo-id="{{ grupo.id }}"
-                                    data-categoria="{{ categoria }}"
-                                    onclick="eliminarGrupoVacio(this)"
-                                    title="Eliminar grupo vacío">
-                                <i class="bi bi-trash-fill"></i>
-                            </button>
-                            {% endif %}
                             <button class="btn btn-sm btn-light"
                                     data-grupo-id="{{ grupo.id }}"
                                     data-categoria="{{ categoria }}"

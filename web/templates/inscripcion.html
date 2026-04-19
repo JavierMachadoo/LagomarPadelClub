@@ -484,20 +484,25 @@ async function aceptarInvitacion(inscripcionId) {
     }
 }
 
-async function rechazarInvitacion(inscripcionId) {
-    if (!confirm('¿Rechazar esta invitación? La inscripción de la pareja será cancelada.')) return;
-    try {
-        const resp = await fetch(`/api/inscripcion/${inscripcionId}/rechazar`, { method: 'POST' });
-        const data = await resp.json();
-        if (resp.ok && data.ok) {
-            Toast.success(data.mensaje || 'Invitación rechazada');
-            setTimeout(() => location.reload(), 900);
-        } else {
-            Toast.error(data.error || 'Error al rechazar');
-        }
-    } catch {
-        Toast.error('Error de conexión');
-    }
+function rechazarInvitacion(inscripcionId) {
+    Confirmar.show(
+        '¿Rechazar esta invitación? La inscripción de la pareja será cancelada.',
+        async () => {
+            try {
+                const resp = await fetch(`/api/inscripcion/${inscripcionId}/rechazar`, { method: 'POST' });
+                const data = await resp.json();
+                if (resp.ok && data.ok) {
+                    Toast.success(data.mensaje || 'Invitación rechazada');
+                    setTimeout(() => location.reload(), 900);
+                } else {
+                    Toast.error(data.error || 'Error al rechazar');
+                }
+            } catch {
+                Toast.error('Error de conexión');
+            }
+        },
+        { titulo: 'Rechazar invitación', textoOk: 'Rechazar' }
+    );
 }
 
 // ── Recuperar invitación desde sessionStorage ────────────────────────────────

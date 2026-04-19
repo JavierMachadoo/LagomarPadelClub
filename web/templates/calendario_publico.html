@@ -867,7 +867,7 @@ document.getElementById('tab-finales').addEventListener('hidden.bs.tab', functio
 
     window.toggleMiCalendario = function () {
         if (!miParejaNombre) {
-            alert('No tenés una inscripción activa en este torneo.');
+            Toast.error('No tenés una inscripción activa en este torneo.');
             return;
         }
         modoMisPartidos = !modoMisPartidos;
@@ -897,7 +897,7 @@ document.getElementById('tab-finales').addEventListener('hidden.bs.tab', functio
                 modoMisPartidos = false;
                 btn.innerHTML = '<i class="bi bi-person-fill"></i>Mis Partidos';
                 btn.classList.remove('activo');
-                alert('No encontramos partidos a tu nombre en el calendario.');
+                Toast.error('No encontramos partidos a tu nombre en el calendario.');
             }
         } else {
             btn.innerHTML = '<i class="bi bi-person-fill"></i>Mis Partidos';

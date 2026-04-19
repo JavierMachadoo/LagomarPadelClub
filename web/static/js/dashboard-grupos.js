@@ -9,6 +9,10 @@ const CATEGORIA_CONFIG = {
 };
 const CATEGORIA_DEFAULT = { clase: '', emoji: '⚪', border: '#6c757d', bg: '#f8f9fa' };
 
+function categoriaATabId(categoria) {
+    return categoria.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 // ==================== NAVEGACIÓN ENTRE VISTAS ====================
 // Las funciones de navegación ahora se manejan con los tabs de Bootstrap
 
@@ -694,7 +698,7 @@ function confirmarCrearGrupo() {
 
             // Para crear grupo necesitamos reload porque es un elemento nuevo en el DOM
             sessionStorage.setItem('tabPrincipal', 'series-main');
-            sessionStorage.setItem('tabCategoria', `series-${categoria.toLowerCase()}`);
+            sessionStorage.setItem('tabCategoria', `series-${categoriaATabId(categoria)}`);
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             sessionStorage.setItem('scrollPos', scrollPos);
 
@@ -978,7 +982,7 @@ function reordenarGrupo(button) {
         if (data.success) {
             Toast.success(data.mensaje || 'Grupos reordenados');
             sessionStorage.setItem('tabPrincipal', 'series-main');
-            sessionStorage.setItem('tabCategoria', `series-${categoria.toLowerCase()}`);
+            sessionStorage.setItem('tabCategoria', `series-${categoriaATabId(categoria)}`);
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             sessionStorage.setItem('scrollPos', scrollPos);
             setTimeout(() => window.location.reload(), 300);
@@ -1060,7 +1064,7 @@ function confirmarEditarPareja() {
             // Guardar estado antes de recargar
             sessionStorage.setItem('tabPrincipal', 'series-main');
             const categoriaActual = obtenerCategoriaActual();
-            sessionStorage.setItem('tabCategoria', `series-${categoriaActual.toLowerCase()}`);
+            sessionStorage.setItem('tabCategoria', `series-${categoriaATabId(categoriaActual)}`);
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             sessionStorage.setItem('scrollPos', scrollPos);
 

@@ -4,10 +4,8 @@ Tests unitarios para utils/calendario_builder.py
 Cubre: _crear_mapeo_grupos_a_letras() respeta orden de lista, no orden de id.
 """
 
-import pytest
-from unittest.mock import MagicMock
 from utils.calendario_builder import CalendarioBuilder
-from core.models import Grupo, ResultadoAlgoritmo, Pareja
+from core.models import Grupo, ResultadoAlgoritmo
 
 
 def _grupo(id: int, categoria: str = "Cuarta") -> Grupo:

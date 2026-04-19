@@ -72,9 +72,7 @@ class CalendarioBuilder:
         grupo_a_letra = {}
         
         for categoria, grupos in resultado_algoritmo.grupos_por_categoria.items():
-            # Ordenar grupos por ID para mantener consistencia
-            grupos_ordenados = sorted(grupos, key=lambda g: g.id)
-            for idx, grupo in enumerate(grupos_ordenados):
+            for idx, grupo in enumerate(grupos):
                 letra = letras[idx] if idx < len(letras) else str(idx + 1)
                 grupo_a_letra[grupo.id] = letra
         

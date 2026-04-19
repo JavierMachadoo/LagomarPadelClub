@@ -9,6 +9,10 @@ const CATEGORIA_CONFIG = {
 };
 const CATEGORIA_DEFAULT = { clase: '', emoji: '⚪', border: '#6c757d', bg: '#f8f9fa' };
 
+function categoriaATabId(categoria) {
+    return categoria.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 // ==================== NAVEGACIÓN ENTRE VISTAS ====================
 // Las funciones de navegación ahora se manejan con los tabs de Bootstrap
 
@@ -694,7 +698,7 @@ function confirmarCrearGrupo() {
 
             // Para crear grupo necesitamos reload porque es un elemento nuevo en el DOM
             sessionStorage.setItem('tabPrincipal', 'series-main');
-            sessionStorage.setItem('tabCategoria', `series-${categoria.toLowerCase()}`);
+            sessionStorage.setItem('tabCategoria', `series-${categoriaATabId(categoria)}`);
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             sessionStorage.setItem('scrollPos', scrollPos);
 
@@ -949,6 +953,46 @@ function confirmarEditarGrupo() {
     });
 }
 
+function reordenarGrupo(button) {
+    const grupoId = parseInt(button.getAttribute('data-grupo-id'));
+    const categoria = button.getAttribute('data-categoria');
+    const direccion = button.getAttribute('data-direccion');
+
+    const cards = Array.from(
+        document.querySelectorAll(`.grupo-card[data-categoria="${categoria}"]`)
+    );
+    const idsActuales = cards.map(c => parseInt(c.getAttribute('data-grupo-id')));
+
+    const idx = idsActuales.indexOf(grupoId);
+    if (idx < 0) return;
+
+    const vecino = direccion === 'left' ? idx - 1 : idx + 1;
+    if (vecino < 0 || vecino >= idsActuales.length) return;
+
+    const orden = idsActuales.slice();
+    [orden[idx], orden[vecino]] = [orden[vecino], orden[idx]];
+
+    fetch('/api/reordenar-grupos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoria, orden_grupos: orden }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            Toast.success(data.mensaje || 'Grupos reordenados');
+            sessionStorage.setItem('tabPrincipal', 'series-main');
+            sessionStorage.setItem('tabCategoria', `series-${categoriaATabId(categoria)}`);
+            const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
+            sessionStorage.setItem('scrollPos', scrollPos);
+            setTimeout(() => window.location.reload(), 300);
+        } else {
+            Toast.error('Error: ' + (data.error || 'No se pudo reordenar'));
+        }
+    })
+    .catch(() => Toast.error('Error al reordenar grupos'));
+}
+
 // ==================== EDITAR PAREJA ====================
 
 function abrirModalEditarPareja(parejaId, nombre, telefono, categoria, franjas) {
@@ -1020,7 +1064,7 @@ function confirmarEditarPareja() {
             // Guardar estado antes de recargar
             sessionStorage.setItem('tabPrincipal', 'series-main');
             const categoriaActual = obtenerCategoriaActual();
-            sessionStorage.setItem('tabCategoria', `series-${categoriaActual.toLowerCase()}`);
+            sessionStorage.setItem('tabCategoria', `series-${categoriaATabId(categoriaActual)}`);
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             sessionStorage.setItem('scrollPos', scrollPos);
 

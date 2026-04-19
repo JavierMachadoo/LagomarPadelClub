@@ -42,6 +42,38 @@
             --font-slab: 'Roboto Slab', Georgia, serif;
         }
 
+        /* ── Override Bootstrap primary → brand green/black ── */
+        .btn-primary {
+            --bs-btn-bg: var(--brand-green);
+            --bs-btn-border-color: var(--brand-green);
+            --bs-btn-hover-bg: var(--brand-green-dark);
+            --bs-btn-hover-border-color: var(--brand-green-dark);
+            --bs-btn-active-bg: var(--brand-green-dark);
+            --bs-btn-color: #111111;
+            --bs-btn-hover-color: #111111;
+            --bs-btn-active-color: #111111;
+            font-weight: 700;
+        }
+
+        .bg-primary { background-color: var(--brand-green) !important; }
+        .text-primary { color: var(--brand-green) !important; }
+        .border-primary { border-color: var(--brand-green) !important; }
+
+        .form-check-input:checked {
+            background-color: var(--brand-green);
+            border-color: var(--brand-green);
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--brand-green);
+            box-shadow: 0 0 0 0.2rem rgba(46, 155, 14, 0.2);
+        }
+
+        .table-hover > tbody > tr:hover > * {
+            --bs-table-accent-bg: rgba(46, 155, 14, 0.04);
+        }
+
         * { box-sizing: border-box; }
 
         body {

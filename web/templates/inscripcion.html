@@ -213,8 +213,18 @@
          SECCIÓN: Formulario de inscripción
          ═══════════════════════════════════════════════════════════════ -->
     <div id="cardFormulario" class="insc-card" style="display:none;">
-        <h1 class="insc-title mb-1">Inscribirse al torneo</h1>
-        <p class="insc-subtitle mb-4">{{ torneo.nombre or 'Torneo de Pádel' }}</p>
+        <h1 class="insc-title mb-1">Creación de inscripción</h1>
+        <p class="insc-subtitle mb-3">{{ torneo.nombre or 'Torneo de Pádel' }}</p>
+
+        <div class="d-flex gap-3 align-items-start mb-4 p-3"
+             style="background:#fffbeb; border-left:3px solid #f59e0b; border-radius:10px;">
+            <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" style="color:#d97706;"></i>
+            <div style="font-size:0.88rem; color:#78350f;">
+                <strong class="d-block mb-1">Inscripción parcial</strong>
+                Completá el formulario con <strong>tus datos y franjas horarias</strong>.
+                Al darle a Inscribirse, el sistema te da un link para enviárselo a tu compañero/a — cuando se registre, la pareja queda registrada automáticamente.
+            </div>
+        </div>
 
         <form id="formInscripcion" novalidate>
 
@@ -316,15 +326,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         const estadoResp = await fetch('/api/inscripcion/estado');
         const estado = await estadoResp.json();
 
-        loading.style.display = 'none';
-
         // 1) Mostrar invitaciones pendientes (como Player B)
         if (estado.invitaciones && estado.invitaciones.length > 0) {
+            loading.style.display = 'none';
             mostrarInvitacionesPendientes(estado.invitaciones);
         }
 
         // 2) Mostrar estado de mi inscripción (como Player A)
         if (estado.inscripcion) {
+            loading.style.display = 'none';
             const i = estado.inscripcion;
             if (i.estado === 'pendiente_companero') {
                 mostrarPendienteCompanero(i);
@@ -336,10 +346,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Intentar recuperar un token de invitación guardado (caso: perdió la URL original)
             const tokenGuardado = sessionStorage.getItem('pendingInviteToken');
             if (tokenGuardado) {
+                loading.querySelector('p').textContent = 'Completando tu inscripción...';
                 await intentarAceptarTokenPendiente(tokenGuardado);
             } else {
+                loading.style.display = 'none';
                 document.getElementById('cardFormulario').style.display = '';
             }
+        } else {
+            loading.style.display = 'none';
         }
 
     } catch {
@@ -507,6 +521,7 @@ function rechazarInvitacion(inscripcionId) {
 
 // ── Recuperar invitación desde sessionStorage ────────────────────────────────
 async function intentarAceptarTokenPendiente(token) {
+    const loading = document.getElementById('loadingInscripcion');
     try {
         const resp = await fetch('/api/inscripcion/aceptar-por-token', {
             method: 'POST',
@@ -516,14 +531,16 @@ async function intentarAceptarTokenPendiente(token) {
         const data = await resp.json();
         sessionStorage.removeItem('pendingInviteToken'); // limpiar siempre, éxito o error
         if (resp.ok && data.ok) {
-            // Recargar para mostrar la inscripción confirmada
+            // Recargar para mostrar la inscripción confirmada (el spinner queda visible hasta reload)
             location.reload();
         } else {
             // Token inválido/expirado/ya usado → mostrar formulario normalmente
+            if (loading) loading.style.display = 'none';
             document.getElementById('cardFormulario').style.display = '';
         }
     } catch {
         sessionStorage.removeItem('pendingInviteToken');
+        if (loading) loading.style.display = 'none';
         document.getElementById('cardFormulario').style.display = '';
     }
 }

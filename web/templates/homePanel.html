@@ -1637,6 +1637,10 @@ async function cargarInscripciones() {
                         <span class="badge bg-primary">${escapeHtml(i.categoria || '')}</span>
                         ${i.telefono ? `<span class="meta-text"><i class="bi bi-telephone"></i> ${escapeHtml(i.telefono)}</span>` : ''}
                     </div>
+                    <button class="btn btn-sm btn-outline-danger rounded-pill mt-2"
+                            onclick="eliminarInscripcion('${escapeHtml(i.id)}')">
+                        <i class="bi bi-trash me-1"></i>Eliminar
+                    </button>
                 </div>
             </div>`;
         }).join('');
@@ -1650,7 +1654,12 @@ async function cargarInscripciones() {
                 <td>
                     <span class="badge ${ESTADOS_BADGE[i.estado] || 'bg-secondary'}">${escapeHtml(i.estado)}</span>
                 </td>
-                <td></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger rounded-pill"
+                            onclick="eliminarInscripcion('${escapeHtml(i.id)}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
             </tr>`).join('');
 
         container.innerHTML = `
@@ -1673,6 +1682,22 @@ async function cargarInscripciones() {
     }
 }
 
+
+async function eliminarInscripcion(id) {
+    if (!confirm('¿Eliminar esta inscripción? Esta acción no se puede deshacer.')) return;
+    try {
+        const resp = await fetch(`/api/admin/inscripciones/${id}`, { method: 'DELETE' });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+            Toast.success('Inscripción eliminada');
+            cargarInscripciones();
+        } else {
+            Toast.error(data.error || 'Error al eliminar');
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+    }
+}
 
 // ── Cambio de fase del torneo ───────────────────────────────────────────────
 let _fasePendiente = null;

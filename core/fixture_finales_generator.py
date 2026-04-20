@@ -237,21 +237,12 @@ class GeneradorFixtureFinales:
         primeros = clasificados[1]
         segundos = clasificados[2]
 
-        # PARCHE torneo actual: Séptima usa cruces distintos — sacar cuando se defina regla general
-        if categoria.lower().replace('é', 'e') == 'septima':
-            slots = [
-                {'p1': (primeros, 0), 'p2': (segundos, 2), 'info1': '1°', 'info2': '2°'},
-                {'p1': (primeros, 3), 'p2': (segundos, 1), 'info1': '1°', 'info2': '2°'},
-                {'p1': (primeros, 1), 'p2': (segundos, 3), 'info1': '1°', 'info2': '2°'},
-                {'p1': (primeros, 2), 'p2': (segundos, 0), 'info1': '1°', 'info2': '2°'},
-            ]
-        else:
-            slots = [
-                {'p1': (primeros, 0), 'p2': (segundos, 3), 'info1': '1°', 'info2': '2°'},
-                {'p1': (primeros, 1), 'p2': (segundos, 2), 'info1': '1°', 'info2': '2°'},
-                {'p1': (primeros, 2), 'p2': (segundos, 1), 'info1': '1°', 'info2': '2°'},
-                {'p1': (primeros, 3), 'p2': (segundos, 0), 'info1': '1°', 'info2': '2°'},
-            ]
+        slots = [
+            {'p1': (primeros, 0), 'p2': (segundos, 3), 'info1': '1°', 'info2': '2°'},
+            {'p1': (primeros, 1), 'p2': (segundos, 2), 'info1': '1°', 'info2': '2°'},
+            {'p1': (primeros, 2), 'p2': (segundos, 1), 'info1': '1°', 'info2': '2°'},
+            {'p1': (primeros, 3), 'p2': (segundos, 0), 'info1': '1°', 'info2': '2°'},
+        ]
 
         for i, s in enumerate(slots):
             partido = PartidoFinal(

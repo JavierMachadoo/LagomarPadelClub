@@ -1062,7 +1062,7 @@ def eliminar_inscripcion_admin(inscripcion_id):
         resp = sb.table('inscripciones').select('id').eq('id', inscripcion_id).eq('torneo_id', torneo_id).execute()
         if not resp.data:
             return jsonify({'error': 'Inscripción no encontrada'}), 404
-        sb.table('inscripciones').delete().eq('id', inscripcion_id).execute()
+        sb.table('inscripciones').delete().eq('id', inscripcion_id).eq('torneo_id', torneo_id).execute()
         _auto_eliminar_de_grupos(inscripcion_id)
         logger.info('Admin eliminó inscripción: %s', inscripcion_id)
         return jsonify({'ok': True})

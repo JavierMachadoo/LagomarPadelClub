@@ -20,6 +20,7 @@ from services.grupo_service import (
     eliminar_pareja,
     remover_pareja_de_grupo,
     regenerar_calendario,
+    eliminar_grupo,
 )
 from services.exceptions import ServiceError
 from tests.conftest import crear_pareja, crear_grupo_dict
@@ -353,3 +354,64 @@ class TestEditarGrupo:
         with pytest.raises(ServiceError) as exc:
             editar_grupo(resultado_data, grupo_id=99, categoria='Cuarta', franja_horaria='Viernes 18:00', cancha=1)
         assert exc.value.status_code == 404
+
+
+# ── eliminar_grupo ────────────────────────────────────────────────────────────
+
+class TestEliminarGrupo:
+
+    def _resultado_vacio(self, grupo_id: int = 1, categoria: str = 'Cuarta') -> dict:
+        grupo = crear_grupo_dict(grupo_id=grupo_id, categoria=categoria, num_parejas=0)
+        grupo['resultados'] = []
+        return {
+            'grupos_por_categoria': {categoria: [grupo]},
+            'parejas_sin_asignar': [],
+            'calendario': {},
+            'partidos_por_grupo': {},
+        }
+
+    def test_happy_path_elimina_grupo_vacio(self):
+        resultado_data = self._resultado_vacio(grupo_id=1)
+        with patch('services.grupo_service.regenerar_calendario'):
+            eliminar_grupo(resultado_data, grupo_id=1, categoria='Cuarta')
+        assert resultado_data['grupos_por_categoria']['Cuarta'] == []
+
+    def test_grupo_inexistente_lanza_404(self):
+        resultado_data = self._resultado_vacio(grupo_id=1)
+        with pytest.raises(ServiceError) as exc:
+            eliminar_grupo(resultado_data, grupo_id=99, categoria='Cuarta')
+        assert exc.value.status_code == 404
+
+    def test_grupo_con_parejas_lanza_400(self):
+        resultado_data = {
+            'grupos_por_categoria': {
+                'Cuarta': [crear_grupo_dict(grupo_id=1, categoria='Cuarta', num_parejas=3)]
+            },
+            'parejas_sin_asignar': [],
+            'calendario': {},
+            'partidos_por_grupo': {},
+        }
+        with pytest.raises(ServiceError) as exc:
+            eliminar_grupo(resultado_data, grupo_id=1, categoria='Cuarta')
+        assert exc.value.status_code == 400
+
+    def test_grupo_con_resultados_lanza_400(self):
+        grupo = crear_grupo_dict(grupo_id=1, categoria='Cuarta', num_parejas=0)
+        grupo['resultados'] = [{'partido_id': 'x', 'sets': [[6, 3]]}]
+        resultado_data = {
+            'grupos_por_categoria': {'Cuarta': [grupo]},
+            'parejas_sin_asignar': [],
+            'calendario': {},
+            'partidos_por_grupo': {},
+        }
+        with pytest.raises(ServiceError) as exc:
+            eliminar_grupo(resultado_data, grupo_id=1, categoria='Cuarta')
+        assert exc.value.status_code == 400
+
+    def test_limpia_partidos_por_grupo(self):
+        resultado_data = self._resultado_vacio(grupo_id=5)
+        resultado_data['partidos_por_grupo'] = {'5': [{'id': 'p1'}], '9': [{'id': 'p2'}]}
+        with patch('services.grupo_service.regenerar_calendario'):
+            eliminar_grupo(resultado_data, grupo_id=5, categoria='Cuarta')
+        assert '5' not in resultado_data['partidos_por_grupo']
+        assert '9' in resultado_data['partidos_por_grupo']

@@ -156,7 +156,7 @@ class GeneradorFixtureFinales:
             return lista[idx]['pareja'] if idx < len(lista) else None
 
         def _info_o_vacio(lista, idx, label):
-            return label if idx < len(lista) else label
+            return label if idx < len(lista) else ""
 
         of1 = PartidoFinal(id=f"{categoria}_octavos_1", fase=FaseFinal.OCTAVOS, numero_partido=1)
         of1.pareja1 = _pareja_o_none(segundos_octavos, 0)

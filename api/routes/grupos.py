@@ -167,12 +167,17 @@ def eliminar_grupo():
     if storage.get_fase() == 'torneo':
         return jsonify({'error': 'El torneo ya está activo. No se pueden eliminar grupos.'}), 403
 
-    data = request.json
+    data = request.get_json(silent=True) or {}
     grupo_id = data.get('grupo_id')
     categoria = data.get('categoria')
 
-    if not all([grupo_id, categoria]):
+    if not grupo_id or not categoria:
         return jsonify({'error': 'Faltan parámetros requeridos'}), 400
+
+    try:
+        grupo_id = int(grupo_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'grupo_id debe ser un número entero'}), 400
 
     datos_actuales = obtener_datos_desde_token()
     resultado_data = datos_actuales.get('resultado_algoritmo')

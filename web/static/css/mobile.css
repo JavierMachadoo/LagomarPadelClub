@@ -88,14 +88,25 @@
         margin-bottom: 1rem;
     }
     
-    /* Ocultar tabla en móvil, mostrar cards */
+    /* Scroll horizontal en tablas (ya no se ocultan) */
     .table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Ocultar tabla principal de parejas (usa la vista mobile de cards) */
+    .table-responsive:has(#tablaParejas) {
         display: none !important;
     }
-    
-    /* Contenedor de calendario móvil */
+
+    /* Ocultar cards del calendario (mostramos la tabla con scroll) */
     .calendario-mobile {
-        display: block !important;
+        display: none !important;
+    }
+
+    /* Ancho mínimo para que la tabla del fixture haga scroll en móvil */
+    .calendario-table {
+        min-width: 520px;
     }
     
     .dia-card {
@@ -104,7 +115,7 @@
         padding: 1rem;
         margin-bottom: 1rem;
         box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        border-left: 4px solid #667eea;
+        border-left: 4px solid #2E9B0E;
     }
     
     .dia-header {
@@ -126,7 +137,7 @@
     }
     
     .dia-badge {
-        background: #667eea;
+        background: #2E9B0E;
         color: white;
         padding: 0.25rem 0.75rem;
         border-radius: 20px;
@@ -275,7 +286,7 @@
     }
     
     .nav-tabs::-webkit-scrollbar-thumb {
-        background: #667eea;
+        background: #2E9B0E;
         border-radius: 3px;
     }
     
@@ -358,19 +369,10 @@
         padding: 0.75rem 0.5rem !important;
     }
     
-    /* Hacer scroll horizontal en tablas */
-    .table-responsive {
-        -webkit-overflow-scrolling: touch;
-    }
-    
     /* Vista móvil de parejas con rows compactos */
     .parejas-mobile-list {
         display: block !important;
         padding: 0.5rem 0;
-    }
-
-    .table-responsive:has(#tablaParejas) {
-        display: none !important;
     }
 
     /* ===== PAREJAS ROW MOBILE ===== */
@@ -388,14 +390,14 @@
     .pareja-row-accent {
         width: 5px;
         flex-shrink: 0;
-        background: #667eea;
+        background: #111111;
     }
 
     .pareja-row-accent.cuarta   { background: #28a745; }
     .pareja-row-accent.quinta   { background: #ffc107; }
     .pareja-row-accent.sexta    { background: #17a2b8; }
     .pareja-row-accent.septima  { background: #9b7fed; }
-    .pareja-row-accent.tercera  { background: #667eea; }
+    .pareja-row-accent.tercera  { background: #fd7e14; }
 
     .pareja-row-content {
         flex: 1;
@@ -718,13 +720,45 @@
         transform: scale(1.02);
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3) !important;
     }
-    
+
     /* Mejorar área táctil de elementos draggables */
     [draggable="true"] {
         cursor: move;
         touch-action: none;
         user-select: none;
         -webkit-user-select: none;
+    }
+
+    /* ===== DOMINGO MÓVIL ===== */
+    #domingo-main .d-flex.justify-content-between {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem !important;
+    }
+
+    #domingo-main h4 {
+        font-size: 1.1rem !important;
+    }
+
+    #domingo-main .d-flex.gap-2 {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    #calendarioDomingoContainer .table-responsive {
+        display: block !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 10px;
+    }
+
+    .partido-card-domingo {
+        min-width: 140px;
+    }
+
+    .celda-vacia-domingo {
+        min-height: 64px !important;
+        min-width: 140px;
     }
 }
 

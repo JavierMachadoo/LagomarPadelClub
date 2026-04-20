@@ -9,6 +9,10 @@ const CATEGORIA_CONFIG = {
 };
 const CATEGORIA_DEFAULT = { clase: '', emoji: '⚪', border: '#6c757d', bg: '#f8f9fa' };
 
+function categoriaATabId(categoria) {
+    return categoria.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 // ==================== NAVEGACIÓN ENTRE VISTAS ====================
 // Las funciones de navegación ahora se manejan con los tabs de Bootstrap
 
@@ -694,7 +698,7 @@ function confirmarCrearGrupo() {
 
             // Para crear grupo necesitamos reload porque es un elemento nuevo en el DOM
             sessionStorage.setItem('tabPrincipal', 'series-main');
-            sessionStorage.setItem('tabCategoria', `series-${categoria.toLowerCase()}`);
+            sessionStorage.setItem('tabCategoria', `series-${categoriaATabId(categoria)}`);
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             sessionStorage.setItem('scrollPos', scrollPos);
 
@@ -708,6 +712,52 @@ function confirmarCrearGrupo() {
     .catch(error => {
         Toast.error('Error al crear grupo');
     });
+}
+
+function eliminarGrupoVacio(button) {
+    const grupoId = parseInt(button.getAttribute('data-grupo-id'));
+    const categoria = button.getAttribute('data-categoria');
+    _confirmarEliminarGrupo(grupoId, categoria);
+}
+
+function eliminarGrupoDesdeModal() {
+    const grupoId = parseInt(document.getElementById('editarGrupoId').value);
+    const categoria = document.getElementById('editarGrupoCategoria').value;
+
+    const modalGrupo = bootstrap.Modal.getInstance(document.getElementById('modalEditarGrupo'));
+    if (modalGrupo) {
+        modalGrupo.hide();
+        document.getElementById('modalEditarGrupo').addEventListener('hidden.bs.modal', function onHidden() {
+            document.getElementById('modalEditarGrupo').removeEventListener('hidden.bs.modal', onHidden);
+            _confirmarEliminarGrupo(grupoId, categoria);
+        });
+    } else {
+        _confirmarEliminarGrupo(grupoId, categoria);
+    }
+}
+
+function _confirmarEliminarGrupo(grupoId, categoria) {
+    Confirmar.show(
+        `¿Eliminar el grupo de ${categoria}? Esta acción no se puede deshacer.`,
+        () => {
+            fetch('/api/eliminar-grupo', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ grupo_id: grupoId, categoria }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    Toast.success(data.mensaje || 'Grupo eliminado');
+                    setTimeout(() => window.location.reload(), 300);
+                } else {
+                    Toast.error('Error: ' + data.error);
+                }
+            })
+            .catch(() => Toast.error('Error al eliminar el grupo'));
+        },
+        { titulo: 'Eliminar grupo', textoOk: 'Eliminar' }
+    );
 }
 
 function abrirModalEditarGrupo(button) {
@@ -816,10 +866,28 @@ function editarParejaDesdeGrupo(button) {
 
 // Nueva función para eliminar pareja desde el modal de grupo
 function eliminarParejaGrupo(parejaId) {
-    if (!confirm('¿Estás seguro de eliminar esta pareja? Se quitará del grupo y volverá a la lista de no asignadas.')) {
-        return;
+    // Cerrar el modal de edición primero para evitar conflictos de Bootstrap con modales anidados
+    const modalGrupo = bootstrap.Modal.getInstance(document.getElementById('modalEditarGrupo'));
+    if (modalGrupo) {
+        modalGrupo.hide();
+        document.getElementById('modalEditarGrupo').addEventListener('hidden.bs.modal', function onHidden() {
+            document.getElementById('modalEditarGrupo').removeEventListener('hidden.bs.modal', onHidden);
+            Confirmar.show(
+                '¿Eliminar esta pareja? Se quitará del grupo y volverá a la lista de no asignadas.',
+                () => _ejecutarEliminarParejaGrupo(parejaId),
+                { titulo: 'Eliminar pareja', textoOk: 'Eliminar' }
+            );
+        });
+    } else {
+        Confirmar.show(
+            '¿Eliminar esta pareja? Se quitará del grupo y volverá a la lista de no asignadas.',
+            () => _ejecutarEliminarParejaGrupo(parejaId),
+            { titulo: 'Eliminar pareja', textoOk: 'Eliminar' }
+        );
     }
+}
 
+function _ejecutarEliminarParejaGrupo(parejaId) {
     fetch('/api/remover-pareja-de-grupo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -832,22 +900,15 @@ function eliminarParejaGrupo(parejaId) {
         } else {
             Toast.success(data.mensaje);
 
-            // Actualizar estadísticas si están disponibles
             if (data.estadisticas) {
                 actualizarEstadisticas(data.estadisticas);
             }
 
-            const modalGrupo = bootstrap.Modal.getInstance(document.getElementById('modalEditarGrupo'));
-            if (modalGrupo) modalGrupo.hide();
-
-            // Actualizar solo la categoría del grupo
             const categoriaActual = obtenerCategoriaActual();
             actualizarCategoria(categoriaActual);
         }
     })
-    .catch(error => {
-        Toast.error('Error al eliminar la pareja');
-    });
+    .catch(() => Toast.error('Error al eliminar la pareja'));
 }
 
 function confirmarEditarGrupo() {
@@ -890,6 +951,46 @@ function confirmarEditarGrupo() {
     .catch(error => {
         Toast.error('Error al editar grupo');
     });
+}
+
+function reordenarGrupo(button) {
+    const grupoId = parseInt(button.getAttribute('data-grupo-id'));
+    const categoria = button.getAttribute('data-categoria');
+    const direccion = button.getAttribute('data-direccion');
+
+    const cards = Array.from(
+        document.querySelectorAll(`.grupo-card[data-categoria="${categoria}"]`)
+    );
+    const idsActuales = cards.map(c => parseInt(c.getAttribute('data-grupo-id')));
+
+    const idx = idsActuales.indexOf(grupoId);
+    if (idx < 0) return;
+
+    const vecino = direccion === 'left' ? idx - 1 : idx + 1;
+    if (vecino < 0 || vecino >= idsActuales.length) return;
+
+    const orden = idsActuales.slice();
+    [orden[idx], orden[vecino]] = [orden[vecino], orden[idx]];
+
+    fetch('/api/reordenar-grupos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoria, orden_grupos: orden }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            Toast.success(data.mensaje || 'Grupos reordenados');
+            sessionStorage.setItem('tabPrincipal', 'series-main');
+            sessionStorage.setItem('tabCategoria', `series-${categoriaATabId(categoria)}`);
+            const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
+            sessionStorage.setItem('scrollPos', scrollPos);
+            setTimeout(() => window.location.reload(), 300);
+        } else {
+            Toast.error('Error: ' + (data.error || 'No se pudo reordenar'));
+        }
+    })
+    .catch(() => Toast.error('Error al reordenar grupos'));
 }
 
 // ==================== EDITAR PAREJA ====================
@@ -963,7 +1064,7 @@ function confirmarEditarPareja() {
             // Guardar estado antes de recargar
             sessionStorage.setItem('tabPrincipal', 'series-main');
             const categoriaActual = obtenerCategoriaActual();
-            sessionStorage.setItem('tabCategoria', `series-${categoriaActual.toLowerCase()}`);
+            sessionStorage.setItem('tabCategoria', `series-${categoriaATabId(categoriaActual)}`);
             const scrollPos = window.pageYOffset || document.documentElement.scrollTop;
             sessionStorage.setItem('scrollPos', scrollPos);
 

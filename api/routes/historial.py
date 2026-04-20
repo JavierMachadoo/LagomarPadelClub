@@ -16,6 +16,7 @@ from pathlib import Path
 from flask import Blueprint, jsonify, render_template, request
 
 from api.routes._helpers import deserializar_resultado
+from config.settings import COLORES_CATEGORIA, EMOJI_CATEGORIA, TIPOS_TORNEO
 from core.clasificacion import CalculadorClasificacion
 from utils.api_helpers import verificar_autenticacion_api
 from utils.torneo_storage import storage, ConflictError
@@ -364,10 +365,16 @@ def detalle_torneo(torneo_id):
         except Exception as e:
             logger.error('Error al calcular clasificación para historial %s: %s', torneo_id, e)
 
+    tipo = torneo.get('tipo', '')
+    categorias_ordenadas = TIPOS_TORNEO.get(tipo, list(grupos_por_categoria.keys()))
+
     return render_template(
         'torneo_detalle.html',
         torneo=torneo,
         grupos_por_categoria=grupos_por_categoria,
         standings_por_categoria=standings_por_categoria,
         fixtures_finales=fixtures_finales,
+        categorias=categorias_ordenadas,
+        colores=COLORES_CATEGORIA,
+        emojis=EMOJI_CATEGORIA,
     )

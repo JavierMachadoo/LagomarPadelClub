@@ -644,8 +644,8 @@
         .gp-standings tbody td.col-club-td { padding-left: 1rem; }
         .gp-standings thead th.col-club { padding-left: 1rem; }
 
-        /* Ocultar DS en mobile — Pts siempre visible */
-        .gp-standings .col-ds { display: none; }
+        /* Ocultar DG en mobile — DS y Pts siempre visibles */
+        .gp-standings .col-dg { display: none; }
 
         /* Pills más compactas en mobile */
         .gp-cat-pill { padding: 0.4rem 0.9rem; font-size: 0.78rem; }
@@ -852,22 +852,29 @@
                             <th title="Partidos Jugados">PJ</th>
                             <th title="Ganados">G</th>
                             <th title="Perdidos">P</th>
-                            <th class="col-sep" title="Sets a Favor">SF</th>
-                            <th title="Sets en Contra">SC</th>
-                            <th class="col-ds" title="Diferencia de Sets">DS</th>
+                            <th class="col-sep col-ds" title="Diferencia de Sets">DS</th>
+                            <th class="col-dg" title="Diferencia de Games">DG</th>
                             <th class="col-pts" title="Puntos">Pts</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for pareja in grupo.parejas %}
-                        {# Compute standings per pareja from resultados #}
-                        {% set s = namespace(pj=0, g=0, p=0, sf=0, sc=0) %}
+                        {% set s = namespace(pj=0, g=0, p=0, sf=0, sc=0, gg=0, gp=0) %}
                         {% if grupo.resultados %}
                         {% for r in grupo.resultados.values() %}
                             {% if r.pareja1_id == pareja.id %}
                                 {% set s.pj = s.pj + 1 %}
                                 {% set s.sf = s.sf + (r.sets_pareja1 | int) %}
                                 {% set s.sc = s.sc + (r.sets_pareja2 | int) %}
+                                {% set s.gg = s.gg + (r.games_set1_pareja1 | default(0) | int) + (r.games_set2_pareja1 | default(0) | int) %}
+                                {% set s.gp = s.gp + (r.games_set1_pareja2 | default(0) | int) + (r.games_set2_pareja2 | default(0) | int) %}
+                                {% if r.tiebreak_pareja1 is not none and r.tiebreak_pareja2 is not none %}
+                                    {% if (r.tiebreak_pareja1 | int) > (r.tiebreak_pareja2 | int) %}
+                                        {% set s.sf = s.sf + 1 %}
+                                    {% else %}
+                                        {% set s.sc = s.sc + 1 %}
+                                    {% endif %}
+                                {% endif %}
                                 {% if r.ganador_id == pareja.id %}
                                     {% set s.g = s.g + 1 %}
                                 {% else %}
@@ -877,6 +884,15 @@
                                 {% set s.pj = s.pj + 1 %}
                                 {% set s.sf = s.sf + (r.sets_pareja2 | int) %}
                                 {% set s.sc = s.sc + (r.sets_pareja1 | int) %}
+                                {% set s.gg = s.gg + (r.games_set1_pareja2 | default(0) | int) + (r.games_set2_pareja2 | default(0) | int) %}
+                                {% set s.gp = s.gp + (r.games_set1_pareja1 | default(0) | int) + (r.games_set2_pareja1 | default(0) | int) %}
+                                {% if r.tiebreak_pareja1 is not none and r.tiebreak_pareja2 is not none %}
+                                    {% if (r.tiebreak_pareja2 | int) > (r.tiebreak_pareja1 | int) %}
+                                        {% set s.sf = s.sf + 1 %}
+                                    {% else %}
+                                        {% set s.sc = s.sc + 1 %}
+                                    {% endif %}
+                                {% endif %}
                                 {% if r.ganador_id == pareja.id %}
                                     {% set s.g = s.g + 1 %}
                                 {% else %}
@@ -885,16 +901,14 @@
                             {% endif %}
                         {% endfor %}
                         {% endif %}
-                        {# Expose sort keys via data-* for JS sorting #}
-                        <tr data-pts="{{ s.g * 2 }}" data-ds="{{ s.sf - s.sc }}" data-sf="{{ s.sf }}">
+                        <tr data-pts="{{ s.g * 2 }}" data-ds="{{ s.sf - s.sc }}" data-dg="{{ s.gg - s.gp }}">
                             <td class="col-pos">{{ loop.index }}</td>
                             <td class="col-club-td">{{ pareja.nombre }}</td>
                             <td>{{ s.pj }}</td>
                             <td>{{ s.g }}</td>
                             <td>{{ s.p }}</td>
-                            <td class="col-sep">{{ s.sf }}</td>
-                            <td>{{ s.sc }}</td>
-                            <td class="col-ds">{{ s.sf - s.sc }}</td>
+                            <td class="col-sep col-ds">{{ s.sf - s.sc }}</td>
+                            <td class="col-dg">{{ s.gg - s.gp }}</td>
                             <td class="col-pts-td">{{ s.g * 2 }}</td>
                         </tr>
                         {% endfor %}
@@ -907,9 +921,8 @@
                 <span><strong>PJ</strong> Partidos Jugados</span>
                 <span><strong>G</strong> Ganados</span>
                 <span><strong>P</strong> Perdidos</span>
-                <span><strong>SF</strong> Sets a Favor</span>
-                <span><strong>SC</strong> Sets en Contra</span>
                 <span><strong>DS</strong> Diferencia de Sets</span>
+                <span><strong>DG</strong> Diferencia de Games</span>
                 <span><strong>Pts</strong> Puntos</span>
             </div>
 
@@ -932,8 +945,17 @@
                 {% if res.found %}
                 {% set r = res.found %}
                 {% set p1_gana = r.ganador_id == partido.pareja1_id %}
+                {% set ds1 = r.sets_pareja1 | int %}
+                {% set ds2 = r.sets_pareja2 | int %}
+                {% if r.tiebreak_pareja1 is not none and r.tiebreak_pareja2 is not none %}
+                    {% if (r.tiebreak_pareja1 | int) > (r.tiebreak_pareja2 | int) %}
+                        {% set ds1 = ds1 + 1 %}
+                    {% else %}
+                        {% set ds2 = ds2 + 1 %}
+                    {% endif %}
+                {% endif %}
                 <span class="m-team {{ 'winner' if p1_gana else '' }}">{{ partido.pareja1 }}</span>
-                <span class="m-score">{{ r.sets_pareja1 }}–{{ r.sets_pareja2 }}</span>
+                <span class="m-score">{{ ds1 }}–{{ ds2 }}</span>
                 <span class="m-team right {{ '' if p1_gana else 'winner' }}">{{ partido.pareja2 }}</span>
                 {% else %}
                 <span class="m-team">{{ partido.pareja1 }}</span>
@@ -1104,7 +1126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gpDrawConnectors(panel);
 });
 
-/* ── Sort standings: Pts → DS → SF (all desc) ── */
+/* ── Sort standings: Pts → DS → DG (all desc) ── */
 document.querySelectorAll('.gp-standings tbody').forEach(tbody => {
     const rows = Array.from(tbody.querySelectorAll('tr'));
     if (rows.length < 2) return;
@@ -1114,7 +1136,7 @@ document.querySelectorAll('.gp-standings tbody').forEach(tbody => {
         if (pts !== 0) return pts;
         const ds = parseInt(b.dataset.ds || 0) - parseInt(a.dataset.ds || 0);
         if (ds !== 0) return ds;
-        return parseInt(b.dataset.sf || 0) - parseInt(a.dataset.sf || 0);
+        return parseInt(b.dataset.dg || 0) - parseInt(a.dataset.dg || 0);
     });
 
     rows.forEach((row, i) => {

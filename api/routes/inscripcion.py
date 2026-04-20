@@ -13,8 +13,9 @@ Rutas públicas (jugador logueado):
   GET  /inscripcion/invitar?token=XXX          → página de invitación por link
 
 Rutas admin:
-  GET  /api/admin/inscripciones                      → listar todas
-  PATCH /api/admin/inscripciones/<id>/estado         → cambiar estado
+  GET    /api/admin/inscripciones                    → listar todas
+  PATCH  /api/admin/inscripciones/<id>/estado        → cambiar estado
+  DELETE /api/admin/inscripciones/<id>               → eliminar inscripción
 """
 
 import logging
@@ -1046,3 +1047,25 @@ def listar_inscripciones():
         return jsonify({'error': 'Error al cargar inscripciones'}), 500
 
 
+# ── API Admin: eliminar inscripción (DELETE /api/admin/inscripciones/<id>) ────
+
+@inscripcion_bp.route('/api/admin/inscripciones/<inscripcion_id>', methods=['DELETE'])
+def eliminar_inscripcion_admin(inscripcion_id):
+    """Elimina una inscripción por ID. Solo admin."""
+    autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
+    if not autenticado:
+        return error
+
+    try:
+        sb = _get_supabase_admin()
+        torneo_id = storage.get_torneo_id()
+        resp = sb.table('inscripciones').select('id').eq('id', inscripcion_id).eq('torneo_id', torneo_id).execute()
+        if not resp.data:
+            return jsonify({'error': 'Inscripción no encontrada'}), 404
+        sb.table('inscripciones').delete().eq('id', inscripcion_id).eq('torneo_id', torneo_id).execute()
+        _auto_eliminar_de_grupos(inscripcion_id)
+        logger.info('Admin eliminó inscripción: %s', inscripcion_id)
+        return jsonify({'ok': True})
+    except Exception as e:
+        logger.error('Error al eliminar inscripción admin: %s', e)
+        return jsonify({'error': 'Error al eliminar la inscripción'}), 500

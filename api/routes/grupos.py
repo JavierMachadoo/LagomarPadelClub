@@ -162,6 +162,81 @@ def crear_grupo_manual():
     )
 
 
+@grupos_bp.route('/eliminar-grupo', methods=['DELETE'])
+def eliminar_grupo():
+    if storage.get_fase() == 'torneo':
+        return jsonify({'error': 'El torneo ya está activo. No se pueden eliminar grupos.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    grupo_id = data.get('grupo_id')
+    categoria = data.get('categoria')
+
+    if not grupo_id or not categoria:
+        return jsonify({'error': 'Faltan parámetros requeridos'}), 400
+
+    try:
+        grupo_id = int(grupo_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'grupo_id debe ser un número entero'}), 400
+
+    datos_actuales = obtener_datos_desde_token()
+    resultado_data = datos_actuales.get('resultado_algoritmo')
+    if not resultado_data:
+        return jsonify({'error': 'No hay resultados del algoritmo'}), 404
+
+    try:
+        grupo_service.eliminar_grupo(resultado_data, grupo_id, categoria)
+    except ServiceError as e:
+        return jsonify({'error': e.message}), e.status_code
+
+    datos_actuales['resultado_algoritmo'] = resultado_data
+    sincronizar_con_storage_y_token(datos_actuales)
+
+    return crear_respuesta_con_token_actualizado(
+        {'success': True, 'mensaje': '✓ Grupo eliminado correctamente'},
+        datos_actuales,
+    )
+
+
+@grupos_bp.route('/reordenar-grupos', methods=['POST'])
+def reordenar_grupos():
+    if storage.get_fase() == 'torneo':
+        return jsonify({'error': 'El torneo ya está activo. No se pueden reordenar grupos.'}), 403
+
+    data = request.json or {}
+    categoria = data.get('categoria')
+    orden_grupos = data.get('orden_grupos')
+
+    if not categoria or not isinstance(orden_grupos, list) or not orden_grupos:
+        return jsonify({'error': 'Faltan parámetros requeridos (categoria, orden_grupos)'}), 400
+
+    try:
+        orden_grupos = [int(x) for x in orden_grupos]
+    except (TypeError, ValueError):
+        return jsonify({'error': 'orden_grupos debe ser lista de enteros'}), 400
+
+    datos_actuales = obtener_datos_desde_token()
+    resultado_data = datos_actuales.get('resultado_algoritmo')
+    if not resultado_data:
+        return jsonify({'error': 'No hay resultados del algoritmo'}), 404
+
+    try:
+        grupo_service.reordenar_grupos(resultado_data, categoria, orden_grupos)
+    except ServiceError as e:
+        return jsonify({'error': e.message}), e.status_code
+    except Exception as e:
+        logger.error('Error al reordenar grupos: %s', e, exc_info=True)
+        return jsonify({'error': 'Error al reordenar grupos. Intenta nuevamente.'}), 500
+
+    datos_actuales['resultado_algoritmo'] = resultado_data
+    sincronizar_con_storage_y_token(datos_actuales)
+
+    return crear_respuesta_con_token_actualizado(
+        {'success': True, 'mensaje': '✓ Grupos reordenados correctamente'},
+        datos_actuales,
+    )
+
+
 @grupos_bp.route('/editar-grupo', methods=['POST'])
 def editar_grupo():
     if storage.get_fase() == 'torneo':

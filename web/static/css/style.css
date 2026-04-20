@@ -112,12 +112,12 @@
 }
 
 .nav-tabs .nav-link:hover {
-    color: #007bff;
+    color: #2E9B0E;
 }
 
 .nav-tabs .nav-link.active {
-    color: #007bff;
-    border-bottom: 3px solid #007bff;
+    color: #2E9B0E;
+    border-bottom: 3px solid #2E9B0E;
 }
 
 /* Cards de Grupos en Resultados */
@@ -186,8 +186,8 @@
 }
 
 .drag-over-slot {
-    background-color: rgba(0, 123, 255, 0.1) !important;
-    border-color: #007bff !important;
+    background-color: rgba(46, 155, 14, 0.08) !important;
+    border-color: #2E9B0E !important;
     border-width: 2px !important;
     transform: scale(1.02);
 }
@@ -360,7 +360,7 @@ h3.text-primary {
 }
 
 .dia-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #2E9B0E 0%, #246B08 100%);
     color: white;
     padding: 1rem;
     font-weight: bold;
@@ -406,8 +406,8 @@ h3.text-primary {
 
 /* Checkboxes Personalizados */
 .form-check-input:checked {
-    background-color: #007bff;
-    border-color: #007bff;
+    background-color: #2E9B0E;
+    border-color: #2E9B0E;
 }
 
 /* Navegación */
@@ -422,7 +422,7 @@ h3.text-primary {
 
 /* Hero Section */
 .hero-section {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #111111 0%, #2E9B0E 100%);
     color: white;
     padding: 3rem 0;
     border-radius: 12px;
@@ -444,8 +444,8 @@ h3.text-primary {
 /* Formularios */
 .form-control:focus,
 .form-select:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    border-color: #2E9B0E;
+    box-shadow: 0 0 0 0.2rem rgba(46, 155, 14, 0.2);
 }
 
 /* Tabla Striped Mejorada */
@@ -454,7 +454,7 @@ h3.text-primary {
 }
 
 .table-hover tbody tr:hover {
-    background-color: rgba(0,123,255,.075);
+    background-color: rgba(46, 155, 14, 0.05);
 }
 
 /* Botones Personalizados */
@@ -464,14 +464,9 @@ h3.text-primary {
     transition: all 0.3s ease;
 }
 
-.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-}
-
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 8px rgba(46, 155, 14, 0.35);
 }
 
 .btn-success:hover {

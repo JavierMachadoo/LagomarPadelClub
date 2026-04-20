@@ -68,8 +68,8 @@ const TorneoApp = (() => {
         return true;
     };
 
-    const confirmarEliminacion = (mensaje = '¿Está seguro de eliminar este elemento?') => {
-        return confirm(mensaje);
+    const confirmarEliminacion = (mensaje, onConfirm) => {
+        Confirmar.show(mensaje || '¿Está seguro de eliminar este elemento?', onConfirm, { titulo: 'Eliminar', textoOk: 'Eliminar' });
     };
 
     const actualizarContadorFranjas = () => {

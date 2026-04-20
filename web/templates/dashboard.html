@@ -257,7 +257,7 @@
 
     <!-- Modal Editar Grupo -->
     <div class="modal fade" id="modalEditarGrupo" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title">
@@ -301,6 +301,10 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-danger me-auto" onclick="eliminarGrupoDesdeModal()"
+                            title="Eliminar grupo (solo si no tiene parejas)">
+                        <i class="bi bi-trash-fill"></i> Eliminar Grupo
+                    </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" onclick="confirmarEditarGrupo()">
                         <i class="bi bi-check-circle"></i> Guardar Cambios
@@ -895,18 +899,40 @@
                                     <i class="bi bi-lock-fill"></i> Resultados ingresados
                                 </span>
                                 {% endif %}
-                                <button class="btn btn-sm btn-light position-absolute top-50 end-0 translate-middle-y me-2" 
-                                        data-grupo-id="{{ grupo.id }}"
-                                        data-categoria="{{ categoria }}"
-                                        data-franja="{{ grupo.franja_horaria }}"
-                                        data-cancha="{{ grupo.cancha }}"
-                                        data-parejas='{{ grupo.parejas|tojson }}'
-                                        onclick="abrirModalEditarGrupo(this)"
-                                        title="Editar horario y cancha">
-                                    <i class="bi bi-pencil-fill"></i>
-                                </button>
+                                <div class="position-absolute top-50 end-0 translate-middle-y me-2 d-flex gap-1">
+                                    {% if fase_torneo != 'torneo' and grupos|length > 1 %}
+                                    <button class="btn btn-sm btn-light"
+                                            data-grupo-id="{{ grupo.id }}"
+                                            data-categoria="{{ categoria }}"
+                                            data-direccion="left"
+                                            onclick="reordenarGrupo(this)"
+                                            {% if loop.first %}disabled{% endif %}
+                                            title="Mover grupo a la izquierda">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-light"
+                                            data-grupo-id="{{ grupo.id }}"
+                                            data-categoria="{{ categoria }}"
+                                            data-direccion="right"
+                                            onclick="reordenarGrupo(this)"
+                                            {% if loop.last %}disabled{% endif %}
+                                            title="Mover grupo a la derecha">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-light"
+                                            data-grupo-id="{{ grupo.id }}"
+                                            data-categoria="{{ categoria }}"
+                                            data-franja="{{ grupo.franja_horaria }}"
+                                            data-cancha="{{ grupo.cancha }}"
+                                            data-parejas='{{ grupo.parejas|tojson }}'
+                                            onclick="abrirModalEditarGrupo(this)"
+                                            title="Editar horario y cancha">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                </div>
                             </div>
-                            
+
                             <div class="card-body" style="background-color: {{ bg_color }};">
                                 <!-- Info de Franja y Cancha -->
                                 <div class="alert alert-light alert-permanent border mb-3 py-2">
@@ -1338,18 +1364,40 @@
                             <i class="bi bi-lock-fill"></i> Resultados ingresados
                         </span>
                         {% endif %}
-                        <button class="btn btn-sm btn-light position-absolute top-50 end-0 translate-middle-y me-2" 
-                                data-grupo-id="{{ grupo.id }}"
-                                data-categoria="{{ categoria }}"
-                                data-franja="{{ grupo.franja_horaria }}"
-                                data-cancha="{{ grupo.cancha }}"
-                                data-parejas='{{ grupo.parejas|tojson }}'
-                                onclick="abrirModalEditarGrupo(this)"
-                                title="Editar horario y cancha">
-                            <i class="bi bi-pencil-fill"></i>
-                        </button>
+                        <div class="position-absolute top-50 end-0 translate-middle-y me-2 d-flex gap-1">
+                            {% if fase_torneo != 'torneo' and grupos|length > 1 %}
+                            <button class="btn btn-sm btn-light"
+                                    data-grupo-id="{{ grupo.id }}"
+                                    data-categoria="{{ categoria }}"
+                                    data-direccion="left"
+                                    onclick="reordenarGrupo(this)"
+                                    {% if loop.first %}disabled{% endif %}
+                                    title="Mover grupo a la izquierda">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <button class="btn btn-sm btn-light"
+                                    data-grupo-id="{{ grupo.id }}"
+                                    data-categoria="{{ categoria }}"
+                                    data-direccion="right"
+                                    onclick="reordenarGrupo(this)"
+                                    {% if loop.last %}disabled{% endif %}
+                                    title="Mover grupo a la derecha">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                            {% endif %}
+                            <button class="btn btn-sm btn-light"
+                                    data-grupo-id="{{ grupo.id }}"
+                                    data-categoria="{{ categoria }}"
+                                    data-franja="{{ grupo.franja_horaria }}"
+                                    data-cancha="{{ grupo.cancha }}"
+                                    data-parejas='{{ grupo.parejas|tojson }}'
+                                    onclick="abrirModalEditarGrupo(this)"
+                                    title="Editar horario y cancha">
+                                <i class="bi bi-pencil-fill"></i>
+                            </button>
+                        </div>
                     </div>
-                    
+
                     <div class="card-body" style="background-color: {{ bg_color }};">
                         <!-- Info de Franja y Cancha -->
                         <div class="alert alert-light alert-permanent border mb-3 py-2">

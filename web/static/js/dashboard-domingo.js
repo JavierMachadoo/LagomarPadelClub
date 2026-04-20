@@ -45,25 +45,29 @@ async function cargarCalendarioDomingo() {
     }
 }
 
-async function restablecerCalendarioDomingo() {
-    if (!confirm('¿Restablecer el calendario automáticamente? Se perderán los cambios manuales.')) return;
-
-    try {
-        const response = await fetch('/api/finales/fixtures/regenerar', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-        });
-        const data = await response.json();
-        if (data.success) {
-            Toast.success('Calendario restablecido correctamente');
-            await cargarCalendarioDomingo();
-        } else {
-            Toast.error(data.message || 'Error al restablecer');
-        }
-    } catch (err) {
-        Toast.error('Error de conexión');
-    }
+function restablecerCalendarioDomingo() {
+    Confirmar.show(
+        '¿Restablecer el calendario automáticamente? Se perderán los cambios manuales.',
+        async () => {
+            try {
+                const response = await fetch('/api/finales/fixtures/regenerar', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await response.json();
+                if (data.success) {
+                    Toast.success('Calendario restablecido correctamente');
+                    await cargarCalendarioDomingo();
+                } else {
+                    Toast.error(data.message || 'Error al restablecer');
+                }
+            } catch (err) {
+                Toast.error('Error de conexión');
+            }
+        },
+        { titulo: 'Restablecer calendario', textoOk: 'Restablecer', claseOk: 'btn-warning text-dark' }
+    );
 }
 
 // ---- Renderizado ----

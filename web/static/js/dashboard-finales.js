@@ -50,7 +50,7 @@ function inicializarLlaves() {
             const card = e.target.closest('[data-open-partido]');
             if (!card) return;
             const datos = _partidosFinalesData[card.dataset.openPartido];
-            if (datos) abrirModalResultadoFinal(card.dataset.openPartido, datos.categoria, datos.p1, datos.p2);
+            if (datos) abrirModalResultadoFinal(card.dataset.openPartido, datos.categoria, datos.p1, datos.p2, datos.sets);
         });
     }
 }
@@ -196,11 +196,11 @@ function renderizarPartidoITF(partido, categoria, tieneSiguienteRonda = false, i
     const pareja1Nombre = partido.pareja1 ? partido.pareja1.nombre : (partido.slot1_info || 'Por definir');
     const pareja2Nombre = partido.pareja2 ? partido.pareja2.nombre : (partido.slot2_info || 'Por definir');
     let clickHandler = '';
-    if (partido.pareja1 && partido.pareja2 && !ganador) {
-        _partidosFinalesData[partido.id] = { categoria, p1: pareja1Nombre, p2: pareja2Nombre };
+    if (partido.pareja1 && partido.pareja2) {
+        _partidosFinalesData[partido.id] = { categoria, p1: pareja1Nombre, p2: pareja2Nombre, sets: partido.sets || [] };
         clickHandler = `data-open-partido="${partido.id}"`;
     }
-    const cursorStyle = partido.pareja1 && partido.pareja2 && !ganador ? 'cursor:pointer;' : 'cursor:default;';
+    const cursorStyle = partido.pareja1 && partido.pareja2 ? 'cursor:pointer;' : 'cursor:default;';
     const horarioInfo = calendarioIndex[partido.id]
         ? `<div class="match-schedule-info"><span class="match-schedule-cancha"><i class="bi bi-geo-alt-fill"></i> Cancha ${calendarioIndex[partido.id].cancha}</span><span>·</span><span><i class="bi bi-clock"></i> ${calendarioIndex[partido.id].hora_inicio}</span></div>` : '';
     return `<div class="match-wrapper">${horarioInfo}<div class="match-card-itf" ${clickHandler} style="${cursorStyle}"><div class="player-row-itf ${pareja1Class} ${porDefinir1}">${pareja1Text}${(partido.pareja1 && ganador === pareja1Id) ? '<i class="bi bi-check-circle-fill player-check"></i>' : ''}<div class="player-scores">${setsHTML1}</div></div><div class="player-row-itf ${pareja2Class} ${porDefinir2}">${pareja2Text}${(partido.pareja2 && ganador === pareja2Id) ? '<i class="bi bi-check-circle-fill player-check"></i>' : ''}<div class="player-scores">${setsHTML2}</div></div></div></div>`;
@@ -264,13 +264,27 @@ function verificarNecesidadTiebreak() {
     document.getElementById('tiebreakCardFinal').style.display = (sP1 === 1 && sP2 === 1) ? 'block' : 'none';
 }
 
-function abrirModalResultadoFinal(partidoId, categoria, pareja1Nombre, pareja2Nombre) {
+function abrirModalResultadoFinal(partidoId, categoria, pareja1Nombre, pareja2Nombre, setsExistentes = []) {
     document.getElementById('resultadoPartidoId').value = partidoId;
     document.getElementById('resultadoCategoria').value = categoria;
     document.getElementById('resultadoFinalPareja1').textContent = pareja1Nombre;
     document.getElementById('resultadoFinalPareja2').textContent = pareja2Nombre;
-    ['gamesSet1P1','gamesSet1P2','gamesSet2P1','gamesSet2P2','tiebreakP1','tiebreakP2'].forEach(id => { document.getElementById(id).value = ''; });
-    document.getElementById('tiebreakCardFinal').style.display = 'none';
+
+    const esEdicion = setsExistentes && setsExistentes.length > 0;
+    document.querySelector('#modalResultadoFinal .modal-title').innerHTML =
+        `<i class="bi bi-${esEdicion ? 'pencil-fill' : 'trophy-fill'} me-2"></i> ${esEdicion ? 'Editar resultado' : 'Resultado del Partido'}`;
+
+    const set1 = setsExistentes[0] || {};
+    const set2 = setsExistentes[1] || {};
+    const tie  = setsExistentes[2] || {};
+    document.getElementById('gamesSet1P1').value = set1.pareja1 ?? '';
+    document.getElementById('gamesSet1P2').value = set1.pareja2 ?? '';
+    document.getElementById('gamesSet2P1').value = set2.pareja1 ?? '';
+    document.getElementById('gamesSet2P2').value = set2.pareja2 ?? '';
+    document.getElementById('tiebreakP1').value = tie.pareja1 ?? '';
+    document.getElementById('tiebreakP2').value = tie.pareja2 ?? '';
+    document.getElementById('tiebreakCardFinal').style.display =
+        (tie.pareja1 !== undefined || tie.pareja2 !== undefined) ? 'block' : 'none';
     const setInputs = ['gamesSet1P1','gamesSet1P2','gamesSet2P1','gamesSet2P2'];
     setInputs.forEach(id => {
         const input = document.getElementById(id);

@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Cargar parejas no asignadas para cada categoría visible
-    const categorias = ['Cuarta', 'Quinta', 'Sexta', 'Séptima', 'Tercera'];
+    const categorias = ['Cuarta', 'Quinta', 'Sexta', 'Séptima', 'Tercera', 'Octava'];
     categorias.forEach(cat => cargarParejasNoAsignadas(cat));
 });
 

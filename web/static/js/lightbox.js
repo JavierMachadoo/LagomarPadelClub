@@ -1,7 +1,7 @@
 window.Lightbox = (function () {
   'use strict';
 
-  var $root, $img, $caption, $counter, $prev, $next;
+  var $root, $img, $caption, $counter, $prev, $next, $download;
   var fotos = [];
   var idx = 0;
   var touchStartX = 0;
@@ -11,7 +11,10 @@ window.Lightbox = (function () {
     var el = document.createElement('div');
     el.innerHTML = [
       '<div class="lb-overlay" id="lb-root" hidden>',
-      '  <button class="lb-close" aria-label="Cerrar">&times;</button>',
+      '  <div class="lb-toolbar">',
+      '    <a class="lb-download" target="_blank" rel="noopener" aria-label="Descargar foto"><i class="bi bi-download"></i></a>',
+      '    <button class="lb-close" aria-label="Cerrar">&times;</button>',
+      '  </div>',
       '  <button class="lb-prev" aria-label="Anterior">&#10094;</button>',
       '  <div class="lb-stage">',
       '    <img class="lb-img" alt="">',
@@ -26,8 +29,9 @@ window.Lightbox = (function () {
     $img     = $root.querySelector('.lb-img');
     $caption = $root.querySelector('.lb-caption');
     $counter = $root.querySelector('.lb-counter');
-    $prev    = $root.querySelector('.lb-prev');
-    $next    = $root.querySelector('.lb-next');
+    $prev     = $root.querySelector('.lb-prev');
+    $next     = $root.querySelector('.lb-next');
+    $download = $root.querySelector('.lb-download');
 
     $root.querySelector('.lb-close').addEventListener('click', cerrar);
     $prev.addEventListener('click', prev);
@@ -56,6 +60,7 @@ window.Lightbox = (function () {
     $counter.textContent = (idx + 1) + ' / ' + fotos.length;
     $prev.disabled = idx === 0;
     $next.disabled = idx === fotos.length - 1;
+    if ($download) $download.href = f.download_url || '#';
   }
 
   function abrir(i) {
@@ -77,7 +82,7 @@ window.Lightbox = (function () {
     ensureDOM();
     var thumbs = Array.from(containerEl.querySelectorAll('.foto-thumb'));
     fotos = thumbs.map(function (t) {
-      return { full_url: t.dataset.full, nombre: t.dataset.nombre || '' };
+      return { full_url: t.dataset.full, nombre: t.dataset.nombre || '', download_url: t.dataset.download || '' };
     });
     thumbs.forEach(function (t, i) {
       t.addEventListener('click', function () { abrir(i); });

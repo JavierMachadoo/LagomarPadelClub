@@ -260,6 +260,13 @@
                         </a>
                     </li>
 
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active-link' if request.endpoint in ('historial.lista_torneos', 'historial.detalle_torneo') else '' }}"
+                           href="{{ url_for('historial.lista_torneos') }}">
+                            <i class="bi bi-trophy me-1"></i>Historial
+                        </a>
+                    </li>
+
                     {% if es_jugador and fase_torneo == 'inscripcion' %}
                     <li class="nav-item">
                         <a class="nav-link {{ 'active-link' if request.endpoint == 'inscripcion.pagina_inscripcion' else '' }}"

@@ -1,27 +1,62 @@
 (function () {
   'use strict';
 
-  var TORNEO_ID = window.TORNEO_DATA && window.TORNEO_DATA.id;
-  var ES_ADMIN  = !!(window.TORNEO_DATA && window.TORNEO_DATA.esAdmin);
+  var TORNEO_ID  = window.TORNEO_DATA && window.TORNEO_DATA.id;
+  var ES_ADMIN   = !!(window.TORNEO_DATA && window.TORNEO_DATA.esAdmin);
+  var fotosLoaded = false;
 
-  var $section  = document.getElementById('fotos-section');
+  var $panel    = document.getElementById('fotos-panel');
   var $skeleton = document.getElementById('fotos-skeleton');
   var $content  = document.getElementById('fotos-content');
   var $empty    = document.getElementById('fotos-empty');
+  var $btnVer   = document.getElementById('btn-ver-fotos');
+  var $btnCerrar = document.getElementById('btn-cerrar-fotos');
 
-  if (!TORNEO_ID || !$section) return;
+  if (!TORNEO_ID || !$panel) return;
 
-  document.addEventListener('DOMContentLoaded', init);
+  // defer garantiza que el DOM ya está listo — llamamos init directamente
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
   function init() {
+    // Mostrar botón hero si hay carpeta configurada o es admin
+    var tieneFolderOAdmin = !!(window.TORNEO_DATA.driveFolderId || ES_ADMIN);
+    if ($btnVer && tieneFolderOAdmin) $btnVer.hidden = false;
+
+    if ($btnVer) $btnVer.addEventListener('click', abrirPanel);
+    if ($btnCerrar) $btnCerrar.addEventListener('click', cerrarPanel);
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && $panel.classList.contains('is-open')) cerrarPanel();
+    });
+
+    if (ES_ADMIN) configurarAdmin();
+  }
+
+  function abrirPanel() {
+    $panel.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    if (!fotosLoaded) cargarFotos();
+  }
+
+  function cerrarPanel() {
+    $panel.classList.remove('is-open');
+    document.body.style.overflow = '';
+  }
+
+  function cargarFotos() {
     fetch('/api/torneos/' + TORNEO_ID + '/fotos')
       .then(function (r) { return r.json(); })
-      .then(renderGaleria)
+      .then(function (data) { fotosLoaded = true; renderGaleria(data); })
       .catch(function (e) {
         console.warn('Error cargando galería:', e);
+        fotosLoaded = true;
         mostrarEmpty();
       });
-    if (ES_ADMIN) configurarAdmin();
   }
 
   function renderGaleria(data) {
@@ -37,7 +72,8 @@
     var fotos = (sub.fotos || []).map(function (f) {
       return '<button class="foto-thumb" type="button"' +
              ' data-full="' + f.full_url + '"' +
-             ' data-nombre="' + escapeHtml(f.nombre) + '">' +
+             ' data-nombre="' + escapeHtml(f.nombre) + '"' +
+             ' data-download="' + f.download_url + '">' +
              '<img src="' + f.thumbnail_url + '" alt="' + escapeHtml(f.nombre) + '" loading="lazy">' +
              '</button>';
     }).join('');
@@ -106,9 +142,11 @@
           $skeleton.hidden = false;
           $content.hidden  = true;
           $empty.hidden    = true;
+          fotosLoaded = false;
+          if ($btnVer) $btnVer.hidden = false;
           fetch('/api/torneos/' + TORNEO_ID + '/fotos')
             .then(function (r) { return r.json(); })
-            .then(renderGaleria)
+            .then(function (data) { fotosLoaded = true; renderGaleria(data); })
             .catch(mostrarEmpty);
         })
         .catch(function () {

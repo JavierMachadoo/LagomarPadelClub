@@ -76,7 +76,13 @@
     ───────────────────────────────────────── */
     .gp-hero {
         margin-bottom: 2.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
     }
+    .gp-hero-info { flex: 1; min-width: 0; }
+    .btn-fotos-hero { flex-shrink: 0; align-self: flex-start; }
     .gp-hero .overline {
         font-size: 0.72rem;
         font-weight: 700;
@@ -632,11 +638,18 @@
         .fotos-grid, .fotos-skeleton-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
     }
 
-    /* ── Galería de fotos ── */
-    .fotos-section { margin: 3rem 0.75rem 2rem; padding-top: 2rem; border-top: 1px solid #e8e4de; }
+    /* ── Panel fotos (modal full-screen) ── */
+    .fotos-panel         { position: fixed; inset: 0; background: #faf8f5; z-index: 9990; display: none; flex-direction: column; overflow-y: auto; }
+    .fotos-panel.is-open { display: flex; }
+    .fotos-panel-header  { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid #e8e4de; position: sticky; top: 0; background: #faf8f5; z-index: 1; }
+    .fotos-panel-title   { font-family: var(--font-slab, serif); font-weight: 700; font-size: 1.2rem; color: var(--brand-black, #1D1A0C); margin: 0; }
+    .fotos-panel-actions { display: flex; gap: 0.5rem; align-items: center; }
+    .fotos-panel-close   { background: transparent; border: 0; font-size: 1.8rem; cursor: pointer; color: #666; line-height: 1; padding: 0 0.25rem; }
+    .fotos-panel-body    { padding: 1.5rem; flex: 1; }
     .fotos-header  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
     .fotos-title   { font-family: var(--font-slab, serif); font-weight: 700; font-size: 1.4rem; color: var(--brand-black, #1D1A0C); margin: 0; }
-    .fotos-subcarpeta-title { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #999; margin: 1.5rem 0 0.75rem; }
+    .fotos-subcarpeta-title { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #444; margin: 2rem 0 1rem; }
+    .fotos-subcarpeta-title::before, .fotos-subcarpeta-title::after { content: ''; flex: 1; height: 1px; background: #e0dbd5; }
     .fotos-grid    { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem; }
     .foto-thumb    { aspect-ratio: 1; overflow: hidden; border: 0; padding: 0; border-radius: 6px; cursor: pointer; background: #f4f1ed; display: block; }
     .foto-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s; display: block; }
@@ -655,7 +668,11 @@
     .lb-img      { max-width: 95vw; max-height: 82vh; object-fit: contain; }
     .lb-caption  { color: #fff; font-size: 0.85rem; margin-top: 0.5rem; text-align: center; }
     .lb-counter  { color: rgba(255,255,255,0.6); font-size: 0.75rem; }
-    .lb-close    { position: absolute; top: 1rem; right: 1rem; background: transparent; border: 0; color: #fff; font-size: 2rem; cursor: pointer; line-height: 1; }
+    .lb-toolbar  { position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 0.25rem; align-items: center; }
+    .lb-close    { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 1.1rem; cursor: pointer; border-radius: 6px; width: 2.2rem; height: 2.2rem; display: flex; align-items: center; justify-content: center; transition: background 0.15s; line-height: 1; }
+    .lb-close:hover { background: rgba(255,255,255,0.25); }
+    .lb-download { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 1rem; text-decoration: none; border-radius: 6px; width: 2.2rem; height: 2.2rem; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+    .lb-download:hover { background: rgba(255,255,255,0.25); color: #fff; }
     .lb-prev, .lb-next { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.1); border: 0; color: #fff; font-size: 1.6rem; padding: 0.75rem 1rem; cursor: pointer; border-radius: 6px; }
     .lb-prev     { left: 1rem; }
     .lb-next     { right: 1rem; }
@@ -682,22 +699,27 @@
 
     {# ── Hero ── #}
     <div class="gp-hero">
-        <p class="overline">
-            {% if torneo.tipo == 'fin1' %}Fin de semana 1
-            {% elif torneo.tipo == 'fin2' %}Fin de semana 2
-            {% else %}Historial{% endif %}
-        </p>
-        <h1>{{ torneo.nombre }}</h1>
-        {% if torneo.created_at %}
-        <p class="gp-hero-meta">
-            <i class="bi bi-calendar3 me-1"></i>
-            {% set fecha_str = torneo.created_at[:10] %}
-            {% set partes = fecha_str.split('-') %}
-            {% if partes|length == 3 %}{{ partes[2] }}/{{ partes[1] }}/{{ partes[0] }}
-            {% else %}{{ torneo.created_at }}{% endif %}
-        </p>
-        {% endif %}
-        <span class="accent-line"></span>
+        <div class="gp-hero-info">
+            <p class="overline">
+                {% if torneo.tipo == 'fin1' %}Fin de semana 1
+                {% elif torneo.tipo == 'fin2' %}Fin de semana 2
+                {% else %}Historial{% endif %}
+            </p>
+            <h1>{{ torneo.nombre }}</h1>
+            {% if torneo.created_at %}
+            <p class="gp-hero-meta">
+                <i class="bi bi-calendar3 me-1"></i>
+                {% set fecha_str = torneo.created_at[:10] %}
+                {% set partes = fecha_str.split('-') %}
+                {% if partes|length == 3 %}{{ partes[2] }}/{{ partes[1] }}/{{ partes[0] }}
+                {% else %}{{ torneo.created_at }}{% endif %}
+            </p>
+            {% endif %}
+            <span class="accent-line"></span>
+        </div>
+        <button type="button" id="btn-ver-fotos" class="btn btn-sm btn-outline-dark btn-fotos-hero" hidden>
+            <i class="bi bi-images me-1"></i>Fotos
+        </button>
     </div>
 
     {% if not grupos_por_categoria %}
@@ -976,32 +998,31 @@
 
     {% endif %}
 
-    {# ── Galería de fotos (opcional — Google Drive) ── #}
-    <section id="fotos-section" class="fotos-section">
-        <div class="fotos-header">
-            <h2 class="fotos-title">
-                <i class="bi bi-images me-2"></i>Fotos del torneo
-            </h2>
-            {% if g.es_admin %}
-            <button type="button" id="btn-abrir-modal-drive"
-                    class="btn btn-sm btn-outline-dark" hidden>
-                <i class="bi bi-link-45deg"></i>
-                {% if drive_folder_id %}Cambiar carpeta{% else %}Vincular carpeta{% endif %}
-            </button>
-            {% endif %}
+    {# ── Panel fotos (modal full-screen, abierto desde hero) ── #}
+    <div id="fotos-panel" class="fotos-panel" role="dialog" aria-modal="true" aria-label="Fotos del torneo">
+        <div class="fotos-panel-header">
+            <h2 class="fotos-panel-title"><i class="bi bi-images me-2"></i>{{ torneo.nombre }} — Fotos</h2>
+            <div class="fotos-panel-actions">
+                {% if g.es_admin %}
+                <button type="button" id="btn-abrir-modal-drive" class="btn btn-sm btn-outline-dark" hidden>
+                    <i class="bi bi-link-45deg"></i>
+                    {% if drive_folder_id %}Cambiar carpeta{% else %}Vincular carpeta{% endif %}
+                </button>
+                {% endif %}
+                <button type="button" class="fotos-panel-close" id="btn-cerrar-fotos" aria-label="Cerrar">&times;</button>
+            </div>
         </div>
-
-        <div id="fotos-skeleton" class="fotos-skeleton-grid" aria-hidden="true">
-            {% for _ in range(6) %}<div class="foto-skeleton"></div>{% endfor %}
+        <div class="fotos-panel-body">
+            <div id="fotos-skeleton" class="fotos-skeleton-grid" aria-hidden="true">
+                {% for _ in range(6) %}<div class="foto-skeleton"></div>{% endfor %}
+            </div>
+            <div id="fotos-content" class="fotos-content" hidden></div>
+            <div id="fotos-empty" class="fotos-empty" hidden>
+                <i class="bi bi-camera"></i>
+                <p>Aún no se subieron fotos de este torneo.</p>
+            </div>
         </div>
-
-        <div id="fotos-content" class="fotos-content" hidden></div>
-
-        <div id="fotos-empty" class="fotos-empty" hidden>
-            <i class="bi bi-camera"></i>
-            <p>Aún no se subieron fotos de este torneo.</p>
-        </div>
-    </section>
+    </div>
 
     {% if g.es_admin %}
     {# ── Modal admin: vincular carpeta de Drive ── #}

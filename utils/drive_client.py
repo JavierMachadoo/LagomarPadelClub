@@ -24,6 +24,7 @@ class Foto(TypedDict):
     nombre: str
     thumbnail_url: str
     full_url: str
+    download_url: str
 
 
 class Subcarpeta(TypedDict):
@@ -78,6 +79,7 @@ def _to_foto(archivo: dict) -> Foto:
         "nombre": archivo.get("name", ""),
         "thumbnail_url": f"https://drive.google.com/thumbnail?id={fid}&sz=w400",
         "full_url": f"https://drive.google.com/thumbnail?id={fid}&sz=w1600",
+        "download_url": f"https://drive.google.com/uc?export=download&id={fid}",
     }
 
 

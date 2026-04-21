@@ -1326,20 +1326,20 @@
 
 <!-- Macro para mostrar solo los grupos/series de una categoría -->
 {% macro mostrar_grupos_categoria_solo_series(categoria, grupos, border_color, bg_color) %}
-    {% if grupos %}
-        {# --- Gestión de grupos: visible en ambas fases --- #}
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="mb-0">Grupos de {{ categoria }}</h4>
-            <button class="btn btn-success" onclick="abrirModalCrearGrupo('{{ categoria }}')">
-                <i class="bi bi-plus-circle-fill"></i> Nuevo Grupo
-            </button>
-        </div>
+    {# --- Gestión de grupos: siempre visible --- #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">Grupos de {{ categoria }}</h4>
+        <button class="btn btn-success" onclick="abrirModalCrearGrupo('{{ categoria }}')">
+            <i class="bi bi-plus-circle-fill"></i> Nuevo Grupo
+        </button>
+    </div>
 
-        <!-- Parejas No Asignadas -->
-        <div id="parejas-no-asignadas-{{ categoria }}" class="mb-4">
-            <!-- Se carga dinámicamente -->
-        </div>
-        
+    <!-- Parejas No Asignadas (siempre visible para mostrar inscriptos sin grupo) -->
+    <div id="parejas-no-asignadas-{{ categoria }}" class="mb-4">
+        <!-- Se carga dinámicamente -->
+    </div>
+
+    {% if grupos %}
         <!-- Grid de 4 columnas para Grupos A, B, C, D -->
         <div class="row g-3">
             {% for grupo in grupos %}

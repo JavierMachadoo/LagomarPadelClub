@@ -32,6 +32,10 @@ SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY', '')
 # NUNCA exponer al cliente — mantener solo en variables de entorno del servidor
 SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '')
 
+# Google Drive Public API — solo server-side (nunca al frontend).
+# Para la galería opcional de fotos en torneos archivados.
+GOOGLE_DRIVE_API_KEY = os.getenv('GOOGLE_DRIVE_API_KEY', '')
+
 UPLOAD_FOLDER = BASE_DIR / 'data' / 'uploads'
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 

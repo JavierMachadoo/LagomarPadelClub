@@ -13,3 +13,6 @@ openpyxl==3.1.5
 
 # Base de datos (Supabase)
 supabase==2.10.0
+
+# HTTP client (usado por drive_client para Google Drive API)
+requests==2.32.5

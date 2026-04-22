@@ -2,6 +2,7 @@
 Módulo para generar el fixture de finales basado en las posiciones de grupo.
 
 Escenarios soportados en producción:
+  - 2 grupos: 2 semis cruzadas + final  (4 parejas)
   - 3 grupos: 2 cuartos + 2 semis + final  (6 parejas)
   - 4 grupos: 4 cuartos + 2 semis + final  (8 parejas)
   - 5 grupos: 2 octavos + 4 cuartos + 2 semis + final  (10 parejas)
@@ -80,6 +81,7 @@ class GeneradorFixtureFinales:
         conforme se van completando los grupos.
 
         Casos soportados (únicos en producción):
+          - 2 grupos → 2 semis cruzadas + final
           - 5 grupos → 2 octavos + 4 cuartos + 2 semis + final
           - 4 grupos → 4 cuartos + 2 semis + final
           - 3 grupos → 2 cuartos + 2 semis + final
@@ -98,13 +100,69 @@ class GeneradorFixtureFinales:
 
         clasificados = GeneradorFixtureFinales.obtener_clasificados_por_posicion(grupos_categoria)
 
-        if num_grupos == 5:
+        if num_grupos == 2:
+            return GeneradorFixtureFinales._generar_2_grupos(categoria, clasificados, grupos_categoria)
+        elif num_grupos == 5:
             return GeneradorFixtureFinales._generar_5_grupos(categoria, clasificados)
         elif num_grupos == 3:
-            return GeneradorFixtureFinales._generar_3_grupos(categoria, clasificados)
+            return GeneradorFixtureFinales._generar_3_grupos(categoria, clasificados, grupos_categoria)
         else:
             # 4 grupos (o cualquier otro número fuera del rango esperado)
-            return GeneradorFixtureFinales._generar_4_grupos(categoria, clasificados)
+            return GeneradorFixtureFinales._generar_4_grupos(categoria, clasificados, grupos_categoria)
+
+    # ------------------------------------------------------------------
+    # 2 grupos: 2 semis cruzadas → final
+    # ------------------------------------------------------------------
+    #
+    # Cruces clásicos de semifinales directas:
+    #   S.1: 1° Grupo A vs 2° Grupo B
+    #   S.2: 1° Grupo B vs 2° Grupo A
+    #   F:   Ganador S.1 vs Ganador S.2
+
+    @staticmethod
+    def _generar_2_grupos(categoria: str, clasificados: Dict, grupos_categoria: List[Grupo]) -> FixtureFinales:
+        fixture = FixtureFinales(categoria=categoria)
+
+        primeros = clasificados[1]   # en orden de grupo (A, B)
+        segundos = clasificados[2]   # en orden de grupo
+
+        # Etiquetas de grupo: A = índice 0, B = índice 1
+        id_grupo_a = grupos_categoria[0].id if len(grupos_categoria) > 0 else None
+        id_grupo_b = grupos_categoria[1].id if len(grupos_categoria) > 1 else None
+
+        # Mapear grupo_id → entrada para buscar cruzado
+        primeros_por_grupo = {p['grupo_id']: p for p in primeros}
+        segundos_por_grupo = {s['grupo_id']: s for s in segundos}
+
+        primero_a = primeros_por_grupo.get(id_grupo_a)
+        primero_b = primeros_por_grupo.get(id_grupo_b)
+        segundo_a = segundos_por_grupo.get(id_grupo_a)
+        segundo_b = segundos_por_grupo.get(id_grupo_b)
+
+        # S.1: 1°A vs 2°B
+        s1 = PartidoFinal(id=f"{categoria}_semi_1", fase=FaseFinal.SEMIFINAL, numero_partido=1)
+        s1.pareja1 = primero_a['pareja'] if primero_a else None
+        s1.pareja2 = segundo_b['pareja'] if segundo_b else None
+        s1.slot1_info = "1° A"
+        s1.slot2_info = "2° B"
+        fixture.semifinales.append(s1)
+
+        # S.2: 1°B vs 2°A
+        s2 = PartidoFinal(id=f"{categoria}_semi_2", fase=FaseFinal.SEMIFINAL, numero_partido=2)
+        s2.pareja1 = primero_b['pareja'] if primero_b else None
+        s2.pareja2 = segundo_a['pareja'] if segundo_a else None
+        s2.slot1_info = "1° B"
+        s2.slot2_info = "2° A"
+        fixture.semifinales.append(s2)
+
+        # Final
+        fixture.final = PartidoFinal(
+            id=f"{categoria}_final",
+            fase=FaseFinal.FINAL,
+            numero_partido=1,
+        )
+
+        return fixture
 
     # ------------------------------------------------------------------
     # 5 grupos: 2 octavos → 4 cuartos → 2 semis → final
@@ -231,17 +289,25 @@ class GeneradorFixtureFinales:
     #   C.4: 1°D vs 2°A
 
     @staticmethod
-    def _generar_4_grupos(categoria: str, clasificados: Dict) -> FixtureFinales:
+    def _generar_4_grupos(categoria: str, clasificados: Dict, grupos_categoria: List[Grupo] = None) -> FixtureFinales:
         fixture = FixtureFinales(categoria=categoria)
 
         primeros = clasificados[1]
         segundos = clasificados[2]
 
+        # Letras de grupo: A, B, C, D... según el orden de grupos_categoria
+        n = len(grupos_categoria) if grupos_categoria else 4
+        letras = [chr(65 + i) for i in range(n)]
+        # Fallback si hay menos de 4 grupos (borde improbable)
+        while len(letras) < 4:
+            letras.append('?')
+
+        # Cruces clásicos: 1°A vs 2°D, 1°B vs 2°C, 1°C vs 2°B, 1°D vs 2°A
         slots = [
-            {'p1': (primeros, 0), 'p2': (segundos, 3), 'info1': '1°', 'info2': '2°'},
-            {'p1': (primeros, 1), 'p2': (segundos, 2), 'info1': '1°', 'info2': '2°'},
-            {'p1': (primeros, 2), 'p2': (segundos, 1), 'info1': '1°', 'info2': '2°'},
-            {'p1': (primeros, 3), 'p2': (segundos, 0), 'info1': '1°', 'info2': '2°'},
+            {'p1': (primeros, 0), 'p2': (segundos, 3), 'info1': f'1° {letras[0]}', 'info2': f'2° {letras[3]}'},
+            {'p1': (primeros, 1), 'p2': (segundos, 2), 'info1': f'1° {letras[1]}', 'info2': f'2° {letras[2]}'},
+            {'p1': (primeros, 2), 'p2': (segundos, 1), 'info1': f'1° {letras[2]}', 'info2': f'2° {letras[1]}'},
+            {'p1': (primeros, 3), 'p2': (segundos, 0), 'info1': f'1° {letras[3]}', 'info2': f'2° {letras[0]}'},
         ]
 
         for i, s in enumerate(slots):
@@ -285,7 +351,7 @@ class GeneradorFixtureFinales:
     #   F:   Ganador S.1 vs Ganador S.2
 
     @staticmethod
-    def _generar_3_grupos(categoria: str, clasificados: Dict) -> FixtureFinales:
+    def _generar_3_grupos(categoria: str, clasificados: Dict, grupos_categoria: List[Grupo] = None) -> FixtureFinales:
         from core.clasificacion import CalculadorClasificacion
 
         fixture = FixtureFinales(categoria=categoria)
@@ -303,6 +369,17 @@ class GeneradorFixtureFinales:
         def _pareja_o_none(entry):
             return entry['pareja'] if entry else None
 
+        # Mapear grupo_id → letra (A, B, C…) para labels con grupo cuando hay datos
+        letra_por_grupo = {}
+        if grupos_categoria:
+            for i, g in enumerate(grupos_categoria):
+                letra_por_grupo[g.id] = chr(65 + i)
+
+        def _letra(entry):
+            if not entry:
+                return None
+            return letra_por_grupo.get(entry['grupo_id'])
+
         # Mapear grupo_id → 2° de ese grupo para asignar por ranking del 1°
         segundo_por_grupo = {s['grupo_id']: s for s in segundos}
 
@@ -315,29 +392,32 @@ class GeneradorFixtureFinales:
         c1 = PartidoFinal(id=f"{categoria}_cuartos_1", fase=FaseFinal.CUARTOS, numero_partido=1)
         c1.pareja1 = _pareja_o_none(segundo_de_segundo1)
         c1.pareja2 = _pareja_o_none(segundo_de_tercer1)
-        c1.slot1_info = "2° del 2do mejor 1°"
-        c1.slot2_info = "2° del 3er mejor 1°"
+        l_s1 = _letra(segundo1)
+        l_t1 = _letra(tercer1)
+        c1.slot1_info = f'2° {l_s1}' if l_s1 else '2° (2do grupo)'
+        c1.slot2_info = f'2° {l_t1}' if l_t1 else '2° (3er grupo)'
         fixture.cuartos.append(c1)
 
         # C.2: 3er mejor 1° vs 2° del grupo del mejor 1°
         c2 = PartidoFinal(id=f"{categoria}_cuartos_2", fase=FaseFinal.CUARTOS, numero_partido=2)
         c2.pareja1 = _pareja_o_none(tercer1)
         c2.pareja2 = _pareja_o_none(segundo_de_mejor1)
-        c2.slot1_info = "3er mejor 1°"
-        c2.slot2_info = "2° del mejor 1°"
+        l_m1 = _letra(mejor1)
+        c2.slot1_info = f'1° {l_t1}' if l_t1 else '1° (3er grupo)'
+        c2.slot2_info = f'2° {l_m1}' if l_m1 else '2° (1er grupo)'
         fixture.cuartos.append(c2)
 
         # --- Semifinales (los 2 mejores primeros esperan directo) ---
         s1 = PartidoFinal(id=f"{categoria}_semi_1", fase=FaseFinal.SEMIFINAL, numero_partido=1)
         s1.pareja1 = _pareja_o_none(mejor1)
-        s1.slot1_info = "Mejor 1° — pasa directo"
-        s1.slot2_info = "Ganador Cuartos 1"
+        s1.slot1_info = f'1° {l_m1}' if l_m1 else 'Mejor 1°'
+        s1.slot2_info = "Gan. Cuartos 1"
         fixture.semifinales.append(s1)
 
         s2 = PartidoFinal(id=f"{categoria}_semi_2", fase=FaseFinal.SEMIFINAL, numero_partido=2)
         s2.pareja1 = _pareja_o_none(segundo1)
-        s2.slot1_info = "2do mejor 1° — pasa directo"
-        s2.slot2_info = "Ganador Cuartos 2"
+        s2.slot1_info = f'1° {l_s1}' if l_s1 else '2do mejor 1°'
+        s2.slot2_info = "Gan. Cuartos 2"
         fixture.semifinales.append(s2)
 
         # --- Final ---

@@ -468,7 +468,10 @@ def _fixture_es_consistente(fixture_dict: dict, num_grupos: int) -> bool:
     """Verifica si el fixture almacenado es estructuralmente consistente."""
     num_cuartos = len(fixture_dict.get('cuartos', []))
     num_octavos = len(fixture_dict.get('octavos', []))
-    if num_grupos == 3:
+    num_semis = len(fixture_dict.get('semifinales', []))
+    if num_grupos == 2:
+        return num_cuartos == 0 and num_octavos == 0 and num_semis == 2
+    elif num_grupos == 3:
         return num_cuartos == 2 and num_octavos == 0
     elif num_grupos == 4:
         return num_cuartos == 4 and num_octavos == 0

@@ -108,6 +108,8 @@ def crear_app():
         torneo = storage.cargar()
         tiene_datos = bool(torneo.get('resultado_algoritmo'))
         fase = torneo.get('fase', 'inscripcion')
+        nombre = getattr(g, 'nombre_jugador', '') or ''
+        primer_nombre = nombre.split(' ', 1)[0] if nombre else ''
         return dict(
             es_admin=getattr(g, 'es_admin', False),
             es_autenticado=getattr(g, 'es_autenticado', False),
@@ -115,6 +117,7 @@ def crear_app():
             torneo_tiene_datos=tiene_datos,
             fase_torneo=fase,
             proximo_torneo=torneo.get('proximo_torneo'),
+            primer_nombre=primer_nombre,
         )
 
     # Middleware: Verificar autenticación
@@ -131,20 +134,20 @@ def crear_app():
             data = jwt_handler.verificar_token(token)
             if data and data.get('authenticated'):
                 g.es_autenticado = True
-                # Compatibilidad: tokens previos sin campo 'role' eran siempre admin
-                role = data.get('role')
-                if role is None or role == 'admin':
+                role = data.get('role', '')
+                if role == 'admin':
                     g.es_admin = True
                 elif role == 'jugador':
                     g.es_jugador = True
                     g.jugador_id = data.get('user_id')
+                    g.nombre_jugador = data.get('nombre', '')
         # Rutas públicas: no requieren autenticación
         rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones', '/torneos']
         if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 
         # Rutas accesibles por jugadores autenticados (no admin)
-        rutas_jugador = ['/dashboard']
+        rutas_jugador = ['/dashboard', '/mi-cuenta']
         if g.es_jugador and any(request.path.startswith(r) for r in rutas_jugador):
             return
 
@@ -238,6 +241,13 @@ def crear_app():
                              fixtures=fixtures))
 
         return response
+
+    @app.route('/mi-cuenta')
+    def mi_cuenta():
+        """Página de gestión del perfil del jugador autenticado."""
+        if not getattr(g, 'es_jugador', False):
+            return redirect(url_for('login'))
+        return render_template('mi_cuenta.html')
 
     @app.route('/finales')
     def finales():

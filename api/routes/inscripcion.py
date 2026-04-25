@@ -29,6 +29,7 @@ from core import Pareja, Grupo
 from utils.torneo_storage import storage
 from utils.api_helpers import verificar_autenticacion_api
 from utils.supabase_client import get_supabase_admin as _get_supabase_central
+from utils.rate_limiter import limiter
 from config import FRANJAS_HORARIAS, TIPOS_TORNEO, CATEGORIAS
 from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO, MAX_CATEGORIA
 
@@ -417,8 +418,12 @@ def pagina_inscripcion():
 # ── API: crear inscripción (POST /api/inscripcion) ────────────────────────────
 
 @inscripcion_bp.route('/api/inscripcion', methods=['POST'])
+@limiter.limit("10/minute")
 def crear_inscripcion():
     """Crea una inscripción para el jugador logueado.
+
+    KNOWN ISSUE: in-memory rate limiter no sincroniza entre workers Gunicorn.
+    Con 2 workers en Railway el límite real es ~20/min. Futuro: RATE_LIMIT_STORAGE_URI=Redis.
 
     Si se envía `jugador2_id`, se invita a ese jugador directamente.
     Si no, se genera un link abierto para compartir (cualquiera puede aceptar).

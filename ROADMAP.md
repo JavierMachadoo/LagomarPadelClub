@@ -1,7 +1,7 @@
 # Roadmap de Mejoras — Algoritmo Torneos
 
 Mejoras ordenadas por impacto en la experiencia del usuario real.
-Actualizado: 2026-04-15.
+Actualizado: 2026-04-25.
 
 ---
 
@@ -17,6 +17,101 @@ P3 — Nice to have, evaluar según demanda real
 ---
 
 ## P0 — Críticos (hacer antes de que lleguen los jugadores)
+
+### 0. Gestión de usuario + verificación de teléfono (multi-fase)
+
+**Problema**: Hoy solo se verifica email. Para mandar avisos del torneo por WhatsApp el día de mañana, necesitamos teléfono validado. Además el usuario no puede editar sus datos (nombre, apellido, teléfono) y el header solo tiene un botón de Logout suelto.
+
+**Objetivo end-state**:
+- Dropdown `Hola, {primer_nombre}` en el header (reemplaza el Logout suelto)
+- Página "Mi cuenta" con edición de nombre, apellido, teléfono. Email read-only en esta entrega
+- Verificación de teléfono por OTP de WhatsApp
+- Indicador visual (puntito rojo + toast) cuando el teléfono no está verificado
+- Base para enviar avisos de torneo por WhatsApp vía n8n (fase posterior)
+
+**Decisiones arquitectónicas**:
+- **Proveedor OTP**: WhatsApp Cloud API de Meta. Descartado Supabase Auth Phone (Twilio, pago) y Telegram (baja adopción Uruguay)
+- **Costo**: tier gratis Meta cubre 1000 conversaciones servicio/mes; OTP ~USD 0.04 c/u en Uruguay → despreciable para volumen del club
+- **Setup Meta**: cuenta Meta Business verificada + número WhatsApp Business dedicado + plantilla OTP aprobada. Burocracia de días, **arrancar en paralelo desde ya**
+- **Teléfono NO es identificador**: solo dato verificado del perfil. Login sigue siendo email/password + Google
+- **Cambio de teléfono → se desverifica automáticamente**, hay que re-validar
+- **Email read-only en esta entrega**: editarlo dispara flow de Supabase Auth (link de confirmación), va aparte
+- **Notificaciones de torneo (fase posterior)**: backend dispara webhook → n8n orquesta → n8n manda por WhatsApp Cloud API. NO usar proveedores no oficiales (Evolution/Baileys) — Meta banea números automatizados
+
+**Schema (Supabase)**:
+```sql
+-- Fase 1
+ALTER TABLE usuarios ADD COLUMN telefono_verificado BOOLEAN DEFAULT FALSE;
+ALTER TABLE usuarios ADD COLUMN telefono_verificado_at TIMESTAMPTZ;
+
+-- Fase 2
+CREATE TABLE verificaciones_telefono (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
+  telefono_e164 TEXT NOT NULL,
+  codigo_hash TEXT NOT NULL,           -- hasheado, NUNCA plain
+  expira_en TIMESTAMPTZ NOT NULL,      -- now() + 10 min
+  intentos INT NOT NULL DEFAULT 0,
+  verificado BOOLEAN NOT NULL DEFAULT FALSE,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_verif_telefono_usuario ON verificaciones_telefono(usuario_id);
+```
+
+**Endpoints nuevos** (`api/routes/perfil.py` o extensión de `auth_jugador.py`):
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| GET | `/api/auth/perfil` | Devuelve nombre, apellido, email, teléfono, telefono_verificado |
+| PUT | `/api/auth/perfil` | Actualiza nombre/apellido/teléfono. Cambio de teléfono → desverifica |
+| POST | `/api/auth/telefono/enviar-codigo` | Genera OTP, guarda hash, manda por WA Cloud API |
+| POST | `/api/auth/telefono/verificar-codigo` | Valida código, marca verificado |
+
+**Reglas de negocio**:
+- Código: 6 dígitos numéricos, expira 10 min, hasheado en DB (sha256 o bcrypt)
+- Teléfono normalizado a E.164 Uruguay (`+5989XXXXXXX`) antes de guardar
+- Teléfono único por usuario activo
+- Rate limit OTP: **3 envíos/hora/usuario**, **5 intentos por código**
+- Validación de inputs reusa `utils/input_validation.py`
+
+**Frontend**:
+- Reemplazar botón Logout del header por dropdown `Hola, {primer_nombre}` (`nombre.split()[0]`) con opciones "Mi cuenta" y "Cerrar sesión"
+- Puntito rojo sobre el saludo cuando `telefono_verificado === false`
+- Toast post-login dismissable: "Verificá tu teléfono para recibir avisos del torneo"
+- Página/modal "Mi cuenta": form con nombre, apellido, email (disabled), teléfono + botón "Verificar teléfono"
+- Modal verificación: input 6 dígitos + botón "Reenviar código" (deshabilitado 60s tras envío)
+
+**Archivos críticos**:
+- Backend: `api/routes/auth_jugador.py`, nuevo `api/routes/perfil.py`, nuevo `utils/whatsapp_client.py`, `utils/input_validation.py`, `utils/rate_limiter.py`
+- Frontend: `web/templates/base.html` (header), `web/templates/dashboard.html` (~216KB, usar Grep), `web/static/js/app.js`, nuevo `web/templates/mi_cuenta.html`
+- Tests: `tests/test_perfil.py` nuevo, `tests/test_verificacion_telefono.py` nuevo
+
+### Fases con cronograma
+
+**Fase 1 — Antes del 17 de mayo (torneo)** — Gestión de usuario base
+- ALTER TABLE `usuarios` con `telefono_verificado` y `telefono_verificado_at` (default false → nadie verificado todavía, OK)
+- GET/PUT `/api/auth/perfil`
+- Dropdown "Hola, {primer_nombre}" en header
+- Página Mi cuenta con edición de nombre/apellido/teléfono (sin OTP)
+- Tests pytest del endpoint
+- **Esfuerzo**: 6-8h
+
+**Fase 2 — Post-torneo de mayo** — Verificación de teléfono
+- Setup Meta Business + plantilla OTP (en paralelo, arrancar YA — depende de Meta)
+- Tabla `verificaciones_telefono`
+- Cliente `utils/whatsapp_client.py` para WA Cloud API
+- Endpoints `enviar-codigo` y `verificar-codigo` con rate limit
+- Modal de verificación en frontend
+- Puntito rojo + toast de teléfono no verificado
+- **Esfuerzo**: 8-12h código + tiempo Meta
+
+**Fase 3 — P1, posterior** — Notificaciones de torneo por WhatsApp vía n8n
+- Eventos del backend que disparan webhook (compañero aceptó, partido programado, etc.)
+- Flujos n8n: webhook in → template WA out (Cloud API)
+- Solo a usuarios con `telefono_verificado = TRUE`
+- **Esfuerzo**: 4-6h backend + diseño de flujos n8n
+
+---
 
 ### 1. Rate limiting en POST /api/inscripcion
 
@@ -46,22 +141,6 @@ if role == 'admin':
 ---
 
 ## P1 — Alta prioridad (primer torneo)
-
-### 2. Categoría Octava — Completar implementación end-to-end
-
-**Estado**: Parcialmente implementada en `config/settings.py`, CSS y templates. Hay gaps que la dejan incompleta.
-
-**Gaps confirmados**:
-- `api/routes/parejas.py:143` — lista hardcodeada `['Cuarta', 'Quinta', 'Sexta', 'Séptima', 'Tercera']` excluye Octava de las estadísticas. Fix: importar `CATEGORIAS` y usarlo en lugar de la lista.
-- `web/static/css/dashboard.css` — verificar si existe `.categoria-octava` (la clase de ícono con gradiente). `.partido-octava` y `.categoria-btn-octava` sí existen.
-
-**Alcance**: Audit completo de todos los puntos de la cadena — config → modelo → algoritmo → storage → templates → CSS — y cierre de todos los gaps. Verificar que Octava aparece correctamente en `/grupos`, `/finales`, `/calendario`, `/dashboard` y estadísticas de admin.
-
-**Archivos críticos**: `api/routes/parejas.py:143`, `web/static/css/dashboard.css:62-76`, `web/templates/grupos_publico.html`, `web/templates/finales.html`
-
-**Esfuerzo**: Bajo (2-3h)
-
----
 
 ### 3. Franja horaria preferida del jugador
 

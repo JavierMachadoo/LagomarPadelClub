@@ -227,6 +227,75 @@
             border-color: var(--brand-taupe);
             color: var(--brand-taupe);
         }
+
+        .nav-jugador {
+            color: var(--brand-green) !important;
+            font-weight: 600;
+            font-size: 0.82rem;
+            text-transform: none !important;
+            letter-spacing: 0.01em !important;
+            padding: 0.35rem 0.85rem !important;
+            background: rgba(46, 155, 14, 0.12) !important;
+            border-radius: 9999px !important;
+            border-bottom: none !important;
+            margin: auto 0 !important;
+            transition: background 0.2s ease, color 0.2s ease !important;
+        }
+        .nav-jugador:hover,
+        .nav-jugador:focus {
+            color: #fff !important;
+            background: var(--brand-green) !important;
+        }
+        .nav-jugador.show {
+            color: var(--brand-green) !important;
+            background: rgba(46, 155, 14, 0.2) !important;
+        }
+        .nav-jugador::after {
+            border-top-color: currentColor;
+            margin-left: 0.4em;
+        }
+
+        /* ── Dropdown "Mi cuenta" ── */
+        .dropdown-jugador {
+            background: #1c1c1c;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            padding: 0.5rem;
+            min-width: 200px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+            margin-top: 0.6rem !important;
+        }
+        .dropdown-jugador .dropdown-item {
+            color: rgba(255,255,255,0.75);
+            font-size: 0.82rem;
+            font-weight: 500;
+            border-radius: 8px;
+            padding: 0.55rem 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+        .dropdown-jugador .dropdown-item i {
+            font-size: 0.95rem;
+            width: 16px;
+            text-align: center;
+        }
+        .dropdown-jugador .dropdown-item:hover {
+            background: rgba(46, 155, 14, 0.15);
+            color: var(--brand-green);
+        }
+        .dropdown-jugador .dropdown-item.item-danger {
+            color: rgba(248, 113, 113, 0.8);
+        }
+        .dropdown-jugador .dropdown-item.item-danger:hover {
+            background: rgba(248, 113, 113, 0.12);
+            color: #f87171;
+        }
+        .dropdown-jugador .dropdown-divider {
+            border-color: rgba(255,255,255,0.08);
+            margin: 0.35rem 0;
+        }
     </style>
 </head>
 <body>
@@ -293,7 +362,19 @@
 
                     <li class="nav-divider d-none d-lg-block"></li>
 
-                    {% if es_autenticado %}
+                    {% if es_jugador %}
+                    <li class="nav-item ms-1 dropdown">
+                      <a class="nav-link nav-jugador dropdown-toggle" href="#" role="button"
+                         data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle me-1"></i>Hola {{ primer_nombre or 'jugador' }}!
+                      </a>
+                      <ul class="dropdown-menu dropdown-menu-end dropdown-jugador">
+                        <li><a class="dropdown-item" href="{{ url_for('mi_cuenta') }}"><i class="bi bi-person-lines-fill"></i>Mi cuenta</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item item-danger" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i>Cerrar sesión</a></li>
+                      </ul>
+                    </li>
+                    {% elif es_autenticado %}
                     <li class="nav-item">
                         <a href="{{ url_for('logout') }}" class="btn-club-outline"
                            style="font-size: 0.75rem; padding: 0.45rem 1.1rem; color: #f87171; border-color: rgba(248,113,113,0.4); background: transparent;">

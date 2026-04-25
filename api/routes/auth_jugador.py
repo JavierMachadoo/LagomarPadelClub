@@ -21,8 +21,9 @@ from urllib.parse import urlparse
 from flask import Blueprint, request, jsonify, make_response, current_app, redirect, session, url_for
 
 from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
+from flask import g
 from utils.rate_limiter import limiter
-from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO, MAX_EMAIL, MAX_PASSWORD
+from utils.input_validation import validar_longitud, validar_telefono, MAX_NOMBRE, MAX_TELEFONO, MAX_EMAIL, MAX_PASSWORD
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,53 @@ def _get_supabase_anon():
     """Devuelve un cliente Supabase con ANON_KEY. Para sign_up / sign_in."""
     from utils.supabase_client import get_supabase_anon
     return get_supabase_anon()
+
+
+def _reemitir_jwt_jugador(response, user_id, nombre, apellido, telefono):
+    """Reemite el JWT del jugador con los datos actualizados y lo escribe en la cookie."""
+    import time as _time
+    jwt_handler = current_app.jwt_handler
+    token_data = {
+        'authenticated': True,
+        'role': 'jugador',
+        'user_id': user_id,
+        'nombre': nombre,
+        'apellido': apellido,
+        'telefono': telefono or '',
+        'timestamp': int(_time.time()),
+    }
+    token = jwt_handler.generar_token(token_data, expiration_hours=2)
+    response.set_cookie(
+        'token', token,
+        httponly=True,
+        samesite='Lax',
+        max_age=7200,
+        secure=not current_app.debug
+    )
+
+
+def _normalizar_perfil_payload(data):
+    """Extrae y normaliza nombre, apellido y teléfono del payload JSON."""
+    return (
+        data.get('nombre', '').strip(),
+        data.get('apellido', '').strip(),
+        (data.get('telefono', '') or '').strip(),
+    )
+
+
+def _validar_perfil_payload(nombre, apellido, telefono):
+    """Valida los campos del perfil. Devuelve mensaje de error o None."""
+    if not nombre or not apellido:
+        return "Nombre y apellido son obligatorios"
+    err_len = validar_longitud({
+        'Nombre':    (nombre, MAX_NOMBRE),
+        'Apellido':  (apellido, MAX_NOMBRE),
+        'Teléfono':  (telefono, MAX_TELEFONO),
+    })
+    if err_len:
+        return err_len
+    ok, msg = validar_telefono(telefono)
+    return msg if not ok else None
 
 
 @auth_jugador_bp.route("/register", methods=["POST"])
@@ -420,6 +468,63 @@ def logout():
     response.delete_cookie("sb_token")
     response.delete_cookie("token")
     return response
+
+
+@auth_jugador_bp.route("/perfil", methods=["GET"])
+def get_perfil():
+    """Devuelve los datos del perfil del jugador autenticado."""
+    if not getattr(g, 'es_jugador', False) or not getattr(g, 'jugador_id', None):
+        return jsonify({'error': 'No autenticado'}), 401
+    try:
+        sb = _get_supabase_admin()
+        row = sb.table('jugadores').select('nombre,apellido,telefono,telefono_verificado').eq('id', g.jugador_id).single().execute()
+        user_auth = sb.auth.admin.get_user_by_id(g.jugador_id)
+        return jsonify({
+            'nombre':               row.data.get('nombre', ''),
+            'apellido':             row.data.get('apellido', ''),
+            'email':                user_auth.user.email,
+            'telefono':             row.data.get('telefono') or '',
+            'telefono_verificado':  row.data.get('telefono_verificado', False),
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Error GET perfil: {e}")
+        return jsonify({'error': 'Error al obtener perfil'}), 500
+
+
+@auth_jugador_bp.route("/perfil", methods=["PUT"])
+def put_perfil():
+    """Actualiza nombre, apellido y teléfono del jugador. Reemite el JWT."""
+    if not getattr(g, 'es_jugador', False) or not getattr(g, 'jugador_id', None):
+        return jsonify({'error': 'No autenticado'}), 401
+    data = request.get_json(silent=True) or {}
+    nombre, apellido, telefono = _normalizar_perfil_payload(data)
+    error = _validar_perfil_payload(nombre, apellido, telefono)
+    if error:
+        return jsonify({'error': error}), 400
+    try:
+        sb = _get_supabase_admin()
+        actual = sb.table('jugadores').select('telefono,telefono_verificado').eq('id', g.jugador_id).single().execute()
+        telefono_actual = actual.data.get('telefono') or ''
+        update_data = {'nombre': nombre, 'apellido': apellido, 'telefono': telefono}
+        if telefono != telefono_actual:
+            update_data['telefono_verificado'] = False
+            update_data['telefono_verificado_at'] = None
+        sb.table('jugadores').update(update_data).eq('id', g.jugador_id).execute()
+        tel_verificado = False if telefono != telefono_actual else actual.data.get('telefono_verificado', False)
+        user_auth = sb.auth.admin.get_user_by_id(g.jugador_id)
+        resp = make_response(jsonify({
+            'ok': True,
+            'nombre': nombre,
+            'apellido': apellido,
+            'email': user_auth.user.email,
+            'telefono': telefono,
+            'telefono_verificado': tel_verificado,
+        }), 200)
+        _reemitir_jwt_jugador(resp, g.jugador_id, nombre, apellido, telefono)
+        return resp
+    except Exception as e:
+        current_app.logger.error(f"Error PUT perfil: {e}")
+        return jsonify({'error': 'Error al actualizar perfil'}), 500
 
 
 # ── OAuth Google ──────────────────────────────────────────────────────────────

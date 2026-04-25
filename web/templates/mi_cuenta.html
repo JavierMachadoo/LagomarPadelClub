@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}Mi cuenta{% endblock %}
+
+{% block extra_css %}
+<style>
+  .perfil-page {
+    background: var(--brand-bg);
+    min-height: 80vh;
+    padding: 3rem 1rem;
+  }
+
+  .perfil-wrap {
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  /* ── Encabezado ── */
+  .perfil-header {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .perfil-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--brand-green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .perfil-avatar i {
+    font-size: 1.6rem;
+    color: #fff;
+  }
+
+  .perfil-header-txt h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--brand-black);
+    margin: 0 0 0.15rem;
+  }
+
+  .perfil-header-txt span {
+    font-size: 0.8rem;
+    color: #6b7280;
+  }
+
+  /* ── Campos ── */
+  .perfil-field {
+    margin-bottom: 1.4rem;
+  }
+
+  .perfil-field label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #6b7280;
+    margin-bottom: 0.4rem;
+  }
+
+  .perfil-field .perfil-input {
+    width: 100%;
+    background: #fff;
+    border: 1.5px solid var(--brand-border);
+    border-radius: 10px;
+    color: var(--brand-black);
+    font-size: 0.92rem;
+    padding: 0.65rem 1rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .perfil-field .perfil-input:focus {
+    border-color: var(--brand-green);
+    box-shadow: 0 0 0 3px rgba(46, 155, 14, 0.1);
+  }
+
+  .perfil-field .perfil-input:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: default;
+  }
+
+  .input-tel-wrap {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .input-tel-wrap .perfil-input {
+    flex: 1;
+  }
+
+  .btn-verificar {
+    background: transparent;
+    border: 1.5px solid var(--brand-border);
+    border-radius: 10px;
+    color: #9ca3af;
+    font-size: 0.78rem;
+    padding: 0 1rem;
+    white-space: nowrap;
+    cursor: default;
+  }
+
+  /* ── Acciones ── */
+  .perfil-divider {
+    border: none;
+    border-top: 1.5px solid var(--brand-border);
+    margin: 2rem 0 1.5rem;
+  }
+
+  .perfil-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  .btn-perfil-cancelar {
+    background: transparent;
+    border: 1.5px solid var(--brand-border);
+    border-radius: 9999px;
+    color: #6b7280;
+    font-size: 0.84rem;
+    font-weight: 500;
+    padding: 0.55rem 1.4rem;
+    text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-perfil-cancelar:hover {
+    border-color: #9ca3af;
+    color: var(--brand-black);
+  }
+
+  .btn-perfil-guardar {
+    background: var(--brand-green);
+    border: none;
+    border-radius: 9999px;
+    color: #fff;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 0.55rem 1.6rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-perfil-guardar:hover {
+    background: var(--brand-green-dark);
+  }
+
+  .btn-perfil-guardar:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="perfil-page">
+  <div class="perfil-wrap">
+
+    <div class="perfil-header">
+      <div class="perfil-avatar">
+        <i class="bi bi-person-fill"></i>
+      </div>
+      <div class="perfil-header-txt">
+        <h2>Mi cuenta</h2>
+        <span id="header-email">—</span>
+      </div>
+    </div>
+
+    <form id="form-perfil">
+
+      <div class="perfil-field">
+        <label>Nombre <span style="color:#ef4444">*</span></label>
+        <input type="text" id="campo-nombre" class="perfil-input" required maxlength="100">
+      </div>
+
+      <div class="perfil-field">
+        <label>Apellido <span style="color:#ef4444">*</span></label>
+        <input type="text" id="campo-apellido" class="perfil-input" required maxlength="100">
+      </div>
+
+      <div class="perfil-field">
+        <label>Email</label>
+        <input type="email" id="campo-email" class="perfil-input" disabled>
+      </div>
+
+      <div class="perfil-field">
+        <label>Teléfono</label>
+        <div class="input-tel-wrap">
+          <input type="tel" id="campo-telefono" class="perfil-input" maxlength="20">
+          <button type="button" class="btn-verificar" disabled title="Verificación disponible próximamente">
+            <i class="bi bi-whatsapp me-1"></i>Verificar
+          </button>
+        </div>
+        <small id="estado-tel" class="d-block mt-2" style="font-size:0.78rem;"></small>
+      </div>
+
+      <hr class="perfil-divider">
+
+      <div class="perfil-actions">
+        <a href="{{ url_for('dashboard') }}" class="btn-perfil-cancelar">Cancelar</a>
+        <button type="submit" class="btn-perfil-guardar" id="btn-guardar">
+          <i class="bi bi-check2 me-1"></i>Guardar cambios
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+async function cargarPerfil() {
+  const res = await fetch('/api/auth/perfil');
+  if (!res.ok) { window.location.href = '/'; return; }
+  const d = await res.json();
+  document.getElementById('campo-email').value = d.email || '';
+  document.getElementById('campo-nombre').value = d.nombre || '';
+  document.getElementById('campo-apellido').value = d.apellido || '';
+  document.getElementById('campo-telefono').value = d.telefono || '';
+  document.getElementById('header-email').textContent = d.email || '—';
+
+  const estadoTel = document.getElementById('estado-tel');
+  if (d.telefono) {
+    estadoTel.innerHTML = d.telefono_verificado
+      ? '<span class="badge bg-success">Verificado</span>'
+      : '<span class="badge bg-secondary">Sin verificar</span>';
+  }
+}
+
+document.getElementById('form-perfil').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btn-guardar');
+  btn.disabled = true;
+  const body = {
+    nombre: document.getElementById('campo-nombre').value.trim(),
+    apellido: document.getElementById('campo-apellido').value.trim(),
+    telefono: document.getElementById('campo-telefono').value.trim(),
+  };
+  try {
+    const res = await fetch('/api/auth/perfil', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (typeof Toast !== 'undefined') Toast.show('Perfil actualizado', 'success');
+      setTimeout(() => location.reload(), 600);
+    } else {
+      if (typeof Toast !== 'undefined') Toast.show(data.error || 'Error al guardar', 'error');
+    }
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+cargarPerfil();
+</script>
+{% endblock %}

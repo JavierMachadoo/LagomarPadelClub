@@ -1216,7 +1216,7 @@ document.querySelectorAll('.gp-standings tbody').forEach(tbody => {
 });
 </script>
 <script>
-window.TORNEO_DATA = {{ {"id": torneo_id, "esAdmin": g.es_admin | default(false)} | tojson }};
+window.TORNEO_DATA = {{ {"id": torneo_id, "esAdmin": g.es_admin | default(false), "driveFolderId": drive_folder_id or none} | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/lightbox.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/torneo_detalle.js') }}" defer></script>

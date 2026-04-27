@@ -187,14 +187,22 @@ def _poblar_tablas_relacionales(sb, torneo_id: str, datos_blob: dict) -> None:
     )
 
 
-def _guardar_drive_folder(torneo_id: str, folder_id: str) -> bool:
-    """UPDATE top-level column drive_folder_id. Devuelve True si actualizó."""
+def _guardar_drive_folder(torneo_id: str, folder_id: str):
+    """UPDATE top-level column drive_folder_id.
+
+    Returns:
+        True  — actualización exitosa
+        None  — torneo no encontrado
+        False — error de base de datos / IO
+    """
     if _use_supabase():
         try:
             resp = _sb_admin().table('torneos') \
                 .update({'drive_folder_id': folder_id}) \
                 .eq('id', torneo_id).execute()
-            return bool(resp.data)
+            if not resp.data:
+                return None
+            return True
         except Exception as e:
             logger.error('Error al actualizar drive_folder_id %s: %s', torneo_id, e)
             return False
@@ -205,7 +213,7 @@ def _guardar_drive_folder(torneo_id: str, folder_id: str) -> bool:
             torneos = json.load(f)
         target = next((t for t in torneos if t['id'] == torneo_id), None)
         if not target:
-            return False
+            return None
         target['drive_folder_id'] = folder_id
         with open(_HISTORIAL_FILE, 'w', encoding='utf-8') as f:
             json.dump(torneos, f, indent=2, ensure_ascii=False)
@@ -226,8 +234,10 @@ def actualizar_drive_folder(torneo_id):
     if not folder_id:
         return jsonify({'error': 'URL o ID inválido'}), 400
     ok = _guardar_drive_folder(torneo_id, folder_id)
-    if not ok:
+    if ok is None:
         return jsonify({'error': 'Torneo no encontrado'}), 404
+    if not ok:
+        return jsonify({'error': 'Error al guardar la carpeta'}), 500
     invalidar_cache(folder_id)
     return jsonify({'ok': True, 'drive_folder_id': folder_id})
 

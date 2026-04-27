@@ -15,7 +15,9 @@ DRIVE_API_URL = "https://www.googleapis.com/drive/v3/files"
 FOLDER_MIME = "application/vnd.google-apps.folder"
 _FOLDER_REGEX = re.compile(r"/folders/([a-zA-Z0-9_-]+)")
 _BARE_ID_REGEX = re.compile(r"^[a-zA-Z0-9_-]{10,}$")
-_CACHE_TTL_SECONDS = 600  # 10 min
+_CACHE_TTL_SECONDS = 600     # 10 min
+_NEGATIVE_TTL_SECONDS = 30   # TTL corto para errores: evita spamear Drive API
+_MAX_CACHE_ENTRIES = 100     # evicción del más viejo para evitar crecimiento ilimitado
 _REQUEST_TIMEOUT = 6
 
 
@@ -35,6 +37,13 @@ class Subcarpeta(TypedDict):
 
 # cache: folder_id raíz -> (timestamp, list[Subcarpeta])
 _cache: dict[str, tuple[float, list]] = {}
+
+
+def _evict_oldest() -> None:
+    """Elimina la entrada más vieja si la caché supera el límite."""
+    if len(_cache) >= _MAX_CACHE_ENTRIES:
+        oldest = min(_cache, key=lambda k: _cache[k][0])
+        del _cache[oldest]
 
 
 def extraer_folder_id(valor: str) -> Optional[str]:
@@ -99,6 +108,8 @@ def obtener_galeria(folder_id: str) -> list:
         items = _listar_items(folder_id)
     except Exception as e:
         logger.warning("Drive API error folder=%s: %s", folder_id, e)
+        _evict_oldest()
+        _cache[folder_id] = (now - _CACHE_TTL_SECONDS + _NEGATIVE_TTL_SECONDS, [])
         return []
 
     subfolders = [i for i in items if i.get("mimeType") == FOLDER_MIME]
@@ -128,6 +139,7 @@ def obtener_galeria(folder_id: str) -> list:
             "fotos": [_to_foto(i) for i in imagenes_root],
         })
 
+    _evict_oldest()
     _cache[folder_id] = (now, resultado)
     return resultado
 

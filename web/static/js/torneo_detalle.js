@@ -29,23 +29,39 @@
     if ($btnVer) $btnVer.addEventListener('click', abrirPanel);
     if ($btnCerrar) $btnCerrar.addEventListener('click', cerrarPanel);
 
-    // Cerrar con Escape
+    // Cerrar con Escape — cede el evento al lightbox si está abierto
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && $panel.classList.contains('is-open')) cerrarPanel();
+      if (e.key === 'Escape' && $panel.classList.contains('is-open')) {
+        var lb = document.getElementById('lb-root');
+        if (lb && !lb.hidden) return;
+        cerrarPanel();
+      }
     });
 
     if (ES_ADMIN) configurarAdmin();
   }
 
+  function lockScroll() {
+    var n = (parseInt(document.body.dataset.scrollLocks, 10) || 0) + 1;
+    document.body.dataset.scrollLocks = n;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function unlockScroll() {
+    var n = Math.max(0, (parseInt(document.body.dataset.scrollLocks, 10) || 0) - 1);
+    document.body.dataset.scrollLocks = n;
+    if (n === 0) document.body.style.overflow = '';
+  }
+
   function abrirPanel() {
     $panel.classList.add('is-open');
-    document.body.style.overflow = 'hidden';
+    lockScroll();
     if (!fotosLoaded) cargarFotos();
   }
 
   function cerrarPanel() {
     $panel.classList.remove('is-open');
-    document.body.style.overflow = '';
+    unlockScroll();
   }
 
   function cargarFotos() {

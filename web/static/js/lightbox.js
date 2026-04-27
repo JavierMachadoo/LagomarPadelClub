@@ -63,16 +63,28 @@ window.Lightbox = (function () {
     if ($download) $download.href = f.download_url || '#';
   }
 
+  function lockScroll() {
+    var n = (parseInt(document.body.dataset.scrollLocks, 10) || 0) + 1;
+    document.body.dataset.scrollLocks = n;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function unlockScroll() {
+    var n = Math.max(0, (parseInt(document.body.dataset.scrollLocks, 10) || 0) - 1);
+    document.body.dataset.scrollLocks = n;
+    if (n === 0) document.body.style.overflow = '';
+  }
+
   function abrir(i) {
     idx = i;
     render();
     $root.hidden = false;
-    document.body.style.overflow = 'hidden';
+    lockScroll();
   }
 
   function cerrar() {
     $root.hidden = true;
-    document.body.style.overflow = '';
+    unlockScroll();
   }
 
   function prev() { if (idx > 0)                { idx--; render(); } }

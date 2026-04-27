@@ -139,8 +139,10 @@ def crear_app():
                     g.es_jugador = True
                     g.jugador_id = data.get('user_id')
         # Rutas públicas: no requieren autenticación
-        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones', '/torneos', '/api/torneos']
-        if request.path == '/' or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones', '/torneos']
+        # Rutas con variable que son públicas — whitelist explícita para evitar exponer prefijos enteros
+        es_ruta_fotos = request.path.startswith('/api/torneos/') and request.path.endswith('/fotos')
+        if request.path == '/' or es_ruta_fotos or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
             return
 
         # Rutas accesibles por jugadores autenticados (no admin)

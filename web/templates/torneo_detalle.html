@@ -1003,7 +1003,7 @@
         <div class="fotos-panel-header">
             <h2 class="fotos-panel-title"><i class="bi bi-images me-2"></i>{{ torneo.nombre }} — Fotos</h2>
             <div class="fotos-panel-actions">
-                {% if g.es_admin %}
+                {% if es_admin %}
                 <button type="button" id="btn-abrir-modal-drive" class="btn btn-sm btn-outline-dark" hidden>
                     <i class="bi bi-link-45deg"></i>
                     {% if drive_folder_id %}Cambiar carpeta{% else %}Vincular carpeta{% endif %}
@@ -1024,7 +1024,7 @@
         </div>
     </div>
 
-    {% if g.es_admin %}
+    {% if es_admin %}
     {# ── Modal admin: vincular carpeta de Drive ── #}
     <div id="modal-drive" class="modal-drive" role="dialog"
          aria-labelledby="modal-drive-title" aria-modal="true">
@@ -1216,7 +1216,7 @@ document.querySelectorAll('.gp-standings tbody').forEach(tbody => {
 });
 </script>
 <script>
-window.TORNEO_DATA = {{ {"id": torneo_id, "esAdmin": g.es_admin | default(false), "driveFolderId": drive_folder_id or none} | tojson }};
+window.TORNEO_DATA = {{ {"id": torneo_id, "esAdmin": es_admin, "driveFolderId": drive_folder_id or none} | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/lightbox.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/torneo_detalle.js') }}" defer></script>

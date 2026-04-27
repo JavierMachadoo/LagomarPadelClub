@@ -71,14 +71,24 @@ def _drive_get(params: dict) -> dict:
 
 
 def _listar_items(folder_id: str) -> list[dict]:
-    """Lista hijos directos de un folder (archivos y subcarpetas). No recursivo."""
-    data = _drive_get({
-        "q": f"'{folder_id}' in parents and trashed=false",
-        "fields": "files(id,name,mimeType)",
-        "orderBy": "name",
-        "pageSize": 1000,
-    })
-    return data.get("files", [])
+    """Lista hijos directos de un folder. Maneja paginación con nextPageToken."""
+    items: list[dict] = []
+    page_token = None
+    while True:
+        params: dict = {
+            "q": f"'{folder_id}' in parents and trashed=false",
+            "fields": "nextPageToken,files(id,name,mimeType)",
+            "orderBy": "name",
+            "pageSize": 1000,
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        data = _drive_get(params)
+        items.extend(data.get("files", []))
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+    return items
 
 
 def _to_foto(archivo: dict) -> Foto:

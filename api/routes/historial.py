@@ -19,6 +19,7 @@ from api.routes._helpers import deserializar_resultado
 from config.settings import COLORES_CATEGORIA, EMOJI_CATEGORIA, TIPOS_TORNEO
 from core.clasificacion import CalculadorClasificacion
 from utils.api_helpers import verificar_autenticacion_api
+from utils.drive_client import extraer_folder_id, obtener_galeria, invalidar_cache
 from utils.torneo_storage import storage, ConflictError
 
 logger = logging.getLogger(__name__)
@@ -184,6 +185,74 @@ def _poblar_tablas_relacionales(sb, torneo_id: str, datos_blob: dict) -> None:
         '%d partidos grupo, %d partidos finales',
         torneo_id, len(grupos_rows), len(parejas_rows), len(partidos_rows), len(finales_rows),
     )
+
+
+def _guardar_drive_folder(torneo_id: str, folder_id: str):
+    """UPDATE top-level column drive_folder_id.
+
+    Returns:
+        True  — actualización exitosa
+        None  — torneo no encontrado
+        False — error de base de datos / IO
+    """
+    if _use_supabase():
+        try:
+            resp = _sb_admin().table('torneos') \
+                .update({'drive_folder_id': folder_id}) \
+                .eq('id', torneo_id).execute()
+            if not resp.data:
+                return None
+            return True
+        except Exception as e:
+            logger.error('Error al actualizar drive_folder_id %s: %s', torneo_id, e)
+            return False
+    try:
+        if not _HISTORIAL_FILE.exists():
+            return False
+        with open(_HISTORIAL_FILE, encoding='utf-8') as f:
+            torneos = json.load(f)
+        target = next((t for t in torneos if t['id'] == torneo_id), None)
+        if not target:
+            return None
+        target['drive_folder_id'] = folder_id
+        with open(_HISTORIAL_FILE, 'w', encoding='utf-8') as f:
+            json.dump(torneos, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        logger.error('Error JSON drive_folder %s: %s', torneo_id, e)
+        return False
+
+
+@historial_bp.route('/api/admin/torneos/<torneo_id>/drive-folder', methods=['PUT'])
+def actualizar_drive_folder(torneo_id):
+    """Asocia una carpeta pública de Google Drive a un torneo archivado."""
+    autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
+    if not autenticado:
+        return error
+    data = request.get_json(silent=True) or {}
+    folder_id = extraer_folder_id(data.get('folder_url', ''))
+    if not folder_id:
+        return jsonify({'error': 'URL o ID inválido'}), 400
+    ok = _guardar_drive_folder(torneo_id, folder_id)
+    if ok is None:
+        return jsonify({'error': 'Torneo no encontrado'}), 404
+    if not ok:
+        return jsonify({'error': 'Error al guardar la carpeta'}), 500
+    invalidar_cache(folder_id)
+    return jsonify({'ok': True, 'drive_folder_id': folder_id})
+
+
+@historial_bp.route('/api/torneos/<torneo_id>/fotos', methods=['GET'])
+def obtener_fotos_torneo(torneo_id):
+    """Devuelve la galería de Drive del torneo, agrupada por subcarpeta."""
+    torneo = _cargar_archivado(torneo_id)
+    if not torneo:
+        return jsonify({'error': 'Torneo no encontrado'}), 404
+    folder_id = torneo.get('drive_folder_id')
+    if not folder_id:
+        return jsonify({'drive_folder_id': None, 'subcarpetas': []})
+    subcarpetas = obtener_galeria(folder_id)
+    return jsonify({'drive_folder_id': folder_id, 'subcarpetas': subcarpetas})
 
 
 @historial_bp.route('/api/admin/terminar-torneo', methods=['POST'])
@@ -377,4 +446,6 @@ def detalle_torneo(torneo_id):
         categorias=categorias_ordenadas,
         colores=COLORES_CATEGORIA,
         emojis=EMOJI_CATEGORIA,
+        drive_folder_id=torneo.get('drive_folder_id'),
+        torneo_id=torneo_id,
     )

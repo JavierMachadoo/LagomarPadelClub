@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS torneos (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- fotos-drive: asociar carpeta pública de Google Drive a torneos archivados
+-- Ejecutar primero en dev (LagomarPadelDB-Dev) y luego en prod (LagomarPadelDB)
+ALTER TABLE torneos ADD COLUMN IF NOT EXISTS drive_folder_id TEXT NULL;
+
 -- ============================================================
 -- Tablas relacionales — fuente de verdad para ranking
 -- Pobladas al archivar un torneo; el blob sigue siendo

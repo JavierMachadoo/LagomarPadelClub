@@ -76,7 +76,13 @@
     ───────────────────────────────────────── */
     .gp-hero {
         margin-bottom: 2.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
     }
+    .gp-hero-info { flex: 1; min-width: 0; }
+    .btn-fotos-hero { flex-shrink: 0; align-self: flex-start; }
     .gp-hero .overline {
         font-size: 0.72rem;
         font-weight: 700;
@@ -629,7 +635,57 @@
         .gp-standings thead th.col-club { padding-left: 1rem; }
         .gp-standings .col-ds { display: none; }
         .gp-cat-pill { padding: 0.4rem 0.9rem; font-size: 0.78rem; }
+        .fotos-grid, .fotos-skeleton-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
     }
+
+    /* ── Panel fotos (modal full-screen) ── */
+    .fotos-panel         { position: fixed; inset: 0; background: #faf8f5; z-index: 9990; display: none; flex-direction: column; overflow-y: auto; }
+    .fotos-panel.is-open { display: flex; }
+    .fotos-panel-header  { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid #e8e4de; position: sticky; top: 0; background: #faf8f5; z-index: 1; }
+    .fotos-panel-title   { font-family: var(--font-slab, serif); font-weight: 700; font-size: 1.2rem; color: var(--brand-black, #1D1A0C); margin: 0; }
+    .fotos-panel-actions { display: flex; gap: 0.5rem; align-items: center; }
+    .fotos-panel-close   { background: transparent; border: 0; font-size: 1.8rem; cursor: pointer; color: #666; line-height: 1; padding: 0 0.25rem; }
+    .fotos-panel-body    { padding: 1.5rem; flex: 1; }
+    .fotos-header  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .fotos-title   { font-family: var(--font-slab, serif); font-weight: 700; font-size: 1.4rem; color: var(--brand-black, #1D1A0C); margin: 0; }
+    .fotos-subcarpeta-title { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #444; margin: 2rem 0 1rem; }
+    .fotos-subcarpeta-title::before, .fotos-subcarpeta-title::after { content: ''; flex: 1; height: 1px; background: #e0dbd5; }
+    .fotos-grid    { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem; }
+    .foto-thumb    { aspect-ratio: 1; overflow: hidden; border: 0; padding: 0; border-radius: 6px; cursor: pointer; background: #f4f1ed; display: block; }
+    .foto-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s; display: block; }
+    .foto-thumb:hover img { transform: scale(1.05); }
+    .fotos-skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem; }
+    .foto-skeleton { aspect-ratio: 1; border-radius: 6px;
+        background: linear-gradient(90deg, #eee 0%, #f6f6f6 50%, #eee 100%);
+        background-size: 200% 100%; animation: shimmer 1.3s infinite; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .fotos-empty   { text-align: center; padding: 2.5rem; color: #aaa; }
+    .fotos-empty i { font-size: 2rem; opacity: 0.3; display: block; margin-bottom: 0.5rem; }
+
+    /* ── Lightbox ── */
+    .lb-overlay  { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+    .lb-stage    { max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; }
+    .lb-img      { max-width: 95vw; max-height: 82vh; object-fit: contain; }
+    .lb-caption  { color: #fff; font-size: 0.85rem; margin-top: 0.5rem; text-align: center; }
+    .lb-counter  { color: rgba(255,255,255,0.6); font-size: 0.75rem; }
+    .lb-toolbar  { position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 0.25rem; align-items: center; }
+    .lb-close    { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 1.1rem; cursor: pointer; border-radius: 6px; width: 2.2rem; height: 2.2rem; display: flex; align-items: center; justify-content: center; transition: background 0.15s; line-height: 1; }
+    .lb-close:hover { background: rgba(255,255,255,0.25); }
+    .lb-download { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 1rem; text-decoration: none; border-radius: 6px; width: 2.2rem; height: 2.2rem; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+    .lb-download:hover { background: rgba(255,255,255,0.25); color: #fff; }
+    .lb-prev, .lb-next { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.1); border: 0; color: #fff; font-size: 1.6rem; padding: 0.75rem 1rem; cursor: pointer; border-radius: 6px; }
+    .lb-prev     { left: 1rem; }
+    .lb-next     { right: 1rem; }
+    .lb-prev:disabled, .lb-next:disabled { opacity: 0.25; cursor: default; }
+
+    /* ── Modal admin Drive ── */
+    .modal-drive         { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9998; display: none; align-items: center; justify-content: center; }
+    .modal-drive.is-open { display: flex; }
+    .modal-drive-dialog  { background: #fff; padding: 1.75rem; border-radius: 10px; width: min(520px, 92vw); position: relative; }
+    .modal-drive-close   { position: absolute; top: 0.5rem; right: 0.75rem; background: transparent; border: 0; font-size: 1.5rem; cursor: pointer; color: #999; line-height: 1; }
+    .modal-drive-hint    { color: #777; font-size: 0.85rem; margin: 0.5rem 0 1rem; }
+    .modal-drive-error   { color: #dc3545; font-size: 0.85rem; min-height: 1.2em; margin-top: 0.5rem; }
+    .modal-drive-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
 </style>
 {% endblock %}
 
@@ -643,22 +699,27 @@
 
     {# ── Hero ── #}
     <div class="gp-hero">
-        <p class="overline">
-            {% if torneo.tipo == 'fin1' %}Fin de semana 1
-            {% elif torneo.tipo == 'fin2' %}Fin de semana 2
-            {% else %}Historial{% endif %}
-        </p>
-        <h1>{{ torneo.nombre }}</h1>
-        {% if torneo.created_at %}
-        <p class="gp-hero-meta">
-            <i class="bi bi-calendar3 me-1"></i>
-            {% set fecha_str = torneo.created_at[:10] %}
-            {% set partes = fecha_str.split('-') %}
-            {% if partes|length == 3 %}{{ partes[2] }}/{{ partes[1] }}/{{ partes[0] }}
-            {% else %}{{ torneo.created_at }}{% endif %}
-        </p>
-        {% endif %}
-        <span class="accent-line"></span>
+        <div class="gp-hero-info">
+            <p class="overline">
+                {% if torneo.tipo == 'fin1' %}Fin de semana 1
+                {% elif torneo.tipo == 'fin2' %}Fin de semana 2
+                {% else %}Historial{% endif %}
+            </p>
+            <h1>{{ torneo.nombre }}</h1>
+            {% if torneo.created_at %}
+            <p class="gp-hero-meta">
+                <i class="bi bi-calendar3 me-1"></i>
+                {% set fecha_str = torneo.created_at[:10] %}
+                {% set partes = fecha_str.split('-') %}
+                {% if partes|length == 3 %}{{ partes[2] }}/{{ partes[1] }}/{{ partes[0] }}
+                {% else %}{{ torneo.created_at }}{% endif %}
+            </p>
+            {% endif %}
+            <span class="accent-line"></span>
+        </div>
+        <button type="button" id="btn-ver-fotos" class="btn btn-sm btn-outline-dark btn-fotos-hero" hidden>
+            <i class="bi bi-images me-1"></i>Fotos
+        </button>
     </div>
 
     {% if not grupos_por_categoria %}
@@ -937,6 +998,57 @@
 
     {% endif %}
 
+    {# ── Panel fotos (modal full-screen, abierto desde hero) ── #}
+    <div id="fotos-panel" class="fotos-panel" role="dialog" aria-modal="true" aria-label="Fotos del torneo">
+        <div class="fotos-panel-header">
+            <h2 class="fotos-panel-title"><i class="bi bi-images me-2"></i>{{ torneo.nombre }} — Fotos</h2>
+            <div class="fotos-panel-actions">
+                {% if g.es_admin %}
+                <button type="button" id="btn-abrir-modal-drive" class="btn btn-sm btn-outline-dark" hidden>
+                    <i class="bi bi-link-45deg"></i>
+                    {% if drive_folder_id %}Cambiar carpeta{% else %}Vincular carpeta{% endif %}
+                </button>
+                {% endif %}
+                <button type="button" class="fotos-panel-close" id="btn-cerrar-fotos" aria-label="Cerrar">&times;</button>
+            </div>
+        </div>
+        <div class="fotos-panel-body">
+            <div id="fotos-skeleton" class="fotos-skeleton-grid" aria-hidden="true">
+                {% for _ in range(6) %}<div class="foto-skeleton"></div>{% endfor %}
+            </div>
+            <div id="fotos-content" class="fotos-content" hidden></div>
+            <div id="fotos-empty" class="fotos-empty" hidden>
+                <i class="bi bi-camera"></i>
+                <p>Aún no se subieron fotos de este torneo.</p>
+            </div>
+        </div>
+    </div>
+
+    {% if g.es_admin %}
+    {# ── Modal admin: vincular carpeta de Drive ── #}
+    <div id="modal-drive" class="modal-drive" role="dialog"
+         aria-labelledby="modal-drive-title" aria-modal="true">
+        <div class="modal-drive-dialog">
+            <button type="button" class="modal-drive-close" data-close aria-label="Cerrar">&times;</button>
+            <h3 id="modal-drive-title" style="margin-bottom:0.5rem">Vincular carpeta de Google Drive</h3>
+            <p class="modal-drive-hint">
+                Pegá la URL pública de la carpeta de Drive o su ID.
+                La carpeta debe estar compartida con "cualquiera con el link".
+            </p>
+            <form id="form-drive">
+                <input type="text" id="drive-folder-input" class="form-control"
+                       placeholder="https://drive.google.com/drive/folders/..."
+                       autocomplete="off">
+                <div id="drive-error" class="modal-drive-error" role="alert"></div>
+                <div class="modal-drive-actions">
+                    <button type="button" class="btn btn-link text-secondary" data-close>Cancelar</button>
+                    <button type="submit" class="btn btn-dark">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}
 
@@ -1103,4 +1215,9 @@ document.querySelectorAll('.gp-standings tbody').forEach(tbody => {
     });
 });
 </script>
+<script>
+window.TORNEO_DATA = {{ {"id": torneo_id, "esAdmin": g.es_admin | default(false), "driveFolderId": drive_folder_id or none} | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/lightbox.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/torneo_detalle.js') }}" defer></script>
 {% endblock %}

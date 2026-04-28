@@ -8,9 +8,10 @@ Rutas:
 
 import logging
 from collections import defaultdict
-from datetime import datetime
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, render_template
+
+
 
 from config.settings import CATEGORIAS, COLORES_CATEGORIA, EMOJI_CATEGORIA
 
@@ -29,8 +30,8 @@ def _use_supabase() -> bool:
     return bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
 
 
-def _calcular_ranking(year: int) -> dict:
-    """Devuelve ranking agrupado por categoría para el año dado.
+def _calcular_ranking() -> dict:
+    """Devuelve ranking agrupado por categoría (todos los torneos finalizados).
 
     Estructura de retorno:
     {
@@ -48,21 +49,18 @@ def _calcular_ranking(year: int) -> dict:
 
     sb = _sb()
 
-    # 1. Torneos finalizados del año
+    # 1. Todos los torneos finalizados
     torneos_resp = (
         sb.table('torneos')
-        .select('id, created_at')
+        .select('id')
         .eq('estado', 'finalizado')
         .execute()
     )
-    torneos_del_año = [
-        t for t in (torneos_resp.data or [])
-        if t.get('created_at', '')[:4] == str(year)
-    ]
-    if not torneos_del_año:
+    torneos_finalizados = torneos_resp.data or []
+    if not torneos_finalizados:
         return {}
 
-    torneo_ids = [t['id'] for t in torneos_del_año]
+    torneo_ids = [t['id'] for t in torneos_finalizados]
 
     # 2. Puntos de esos torneos
     puntos_resp = (
@@ -130,30 +128,25 @@ def _calcular_ranking(year: int) -> dict:
 
 @ranking_bp.route('/api/ranking')
 def api_ranking():
-    year = request.args.get('year', datetime.now().year, type=int)
     try:
-        data = _calcular_ranking(year)
-        return jsonify({'year': year, 'ranking': data})
+        data = _calcular_ranking()
+        return jsonify({'ranking': data})
     except Exception:
-        logger.exception('Error al calcular ranking año %s', year)
+        logger.exception('Error al calcular ranking')
         return jsonify({'error': 'Error al calcular el ranking'}), 500
 
 
 @ranking_bp.route('/ranking')
 def ranking_publico():
-    year = request.args.get('year', datetime.now().year, type=int)
-    years_disponibles = list(range(datetime.now().year, 2024, -1))
     try:
-        ranking = _calcular_ranking(year)
+        ranking = _calcular_ranking()
     except Exception:
-        logger.exception('Error al renderizar ranking año %s', year)
+        logger.exception('Error al renderizar ranking')
         ranking = {}
 
     return render_template(
         'ranking.html',
         ranking=ranking,
-        year=year,
-        years_disponibles=years_disponibles,
         colores=COLORES_CATEGORIA,
         emojis=EMOJI_CATEGORIA,
     )

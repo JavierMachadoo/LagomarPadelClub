@@ -155,3 +155,22 @@ RETURNS void AS $$
         AND t.usado = FALSE
     );
 $$ LANGUAGE sql;
+
+-- ============================================================
+-- Tabla de puntos por jugador por torneo (base del ranking anual)
+-- Ejecutar en dev y luego en prod
+-- ============================================================
+CREATE TABLE IF NOT EXISTS puntos_jugador (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    jugador_id  UUID        NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+    torneo_id   UUID        NOT NULL REFERENCES torneos(id) ON DELETE CASCADE,
+    categoria   TEXT        NOT NULL,
+    puntos      INTEGER     NOT NULL DEFAULT 0,
+    concepto    TEXT        NOT NULL DEFAULT 'serie',
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (jugador_id, torneo_id, categoria)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pj_jugador   ON puntos_jugador(jugador_id);
+CREATE INDEX IF NOT EXISTS idx_pj_torneo    ON puntos_jugador(torneo_id);
+CREATE INDEX IF NOT EXISTS idx_pj_categoria ON puntos_jugador(categoria);

@@ -141,14 +141,27 @@ class TestJugadoresStorageSupabase:
 
     def test_buscar_filtra_por_nombre(self):
         storage = _make_storage_supabase()
-        storage._sb.table.return_value.select.return_value.ilike.return_value.eq.return_value.order.return_value.execute.return_value.data = [
-            {"id": "b", "nombre": "Roberto", "apellido": "Silva", "telefono": None,
-             "email": None, "usuario_id": None, "activo": True,
-             "created_at": None, "telefono_verificado": False},
-        ]
+        jugador = {"id": "b", "nombre": "Roberto", "apellido": "Silva", "telefono": None,
+                   "email": None, "usuario_id": None, "activo": True,
+                   "created_at": None, "telefono_verificado": False}
+        storage._sb.table.return_value.select.return_value.eq.return_value.or_.return_value.order.return_value.execute.return_value.data = [jugador]
         result = storage.buscar("roberto")
         assert len(result) == 1
         assert result[0]["nombre"] == "Roberto"
+
+    def test_buscar_nombre_completo_supabase(self):
+        """Buscar 'Roberto Silva' debe llamar or_ dos veces (una por palabra)."""
+        storage = _make_storage_supabase()
+        jugador = {"id": "b", "nombre": "Roberto", "apellido": "Silva", "telefono": None,
+                   "email": None, "usuario_id": None, "activo": True,
+                   "created_at": None, "telefono_verificado": False}
+        # Con dos palabras, la cadena es: eq().or_().or_().order()
+        storage._sb.table.return_value.select.return_value.eq.return_value \
+            .or_.return_value.or_.return_value \
+            .order.return_value.execute.return_value.data = [jugador]
+        result = storage.buscar("Roberto Silva")
+        assert len(result) == 1
+        assert result[0]["apellido"] == "Silva"
 
 
 # ── JugadoresStorage (fallback JSON) ─────────────────────────────────────────
@@ -186,6 +199,22 @@ class TestJugadoresStorageFallback:
         result = s.listar()
         assert len(result) == 1
         assert result[0]["nombre"] == "Ana"
+
+    def test_buscar_nombre_completo_json(self, tmp_path):
+        """Buscar 'Ana García' debe encontrar al jugador aunque nombre y apellido estén separados."""
+        archivo = tmp_path / "jugadores.json"
+        archivo.write_text(json.dumps([
+            {"id": "x1", "nombre": "Ana", "apellido": "García", "activo": True,
+             "telefono": None, "email": None, "usuario_id": None,
+             "created_at": None, "telefono_verificado": False},
+        ]), encoding="utf-8")
+        s = JugadoresStorage.__new__(JugadoresStorage)
+        s._use_supabase = False
+        s._jugadores_file = archivo
+
+        result = s.buscar("Ana García")
+        assert len(result) == 1
+        assert result[0]["apellido"] == "García"
 
     def test_json_archivo_no_existe_retorna_lista_vacia(self, tmp_path):
         archivo = tmp_path / "no_existe.json"

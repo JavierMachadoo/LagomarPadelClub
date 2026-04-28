@@ -60,16 +60,11 @@ class JugadoresStorage:
         return q.order('apellido').execute().data or []
 
     def _sb_buscar(self, q: str) -> list:
-        patron = f'%{q}%'
-        return (
-            self._sb.table(_TABLE)
-            .select('*')
-            .ilike('nombre', patron)
-            .eq('activo', True)
-            .order('apellido')
-            .execute()
-            .data or []
-        )
+        query = self._sb.table(_TABLE).select('*').eq('activo', True)
+        for word in q.split():
+            patron = f'%{word}%'
+            query = query.or_(f'nombre.ilike.{patron},apellido.ilike.{patron}')
+        return query.order('apellido').execute().data or []
 
     def _sb_crear(self, payload: dict) -> dict:
         payload_con_id = {'id': str(uuid.uuid4()), **payload}
@@ -116,9 +111,8 @@ class JugadoresStorage:
         patron = q.lower()
         return [
             j for j in self._json_leer()
-            if j.get('activo', True) and (
-                patron in j.get('nombre', '').lower()
-                or patron in j.get('apellido', '').lower()
+            if j.get('activo', True) and patron in (
+                f"{j.get('nombre', '')} {j.get('apellido', '')}".lower()
             )
         ]
 

@@ -28,6 +28,7 @@ from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
 from api.routes.inscripcion import inscripcion_bp
 from api.routes.historial import historial_bp, _cargar_archivado
+from api.routes.jugadores import jugadores_bp
 from utils.torneo_storage import storage, ConflictError
 from utils.jwt_handler import JWTHandler
 from core.fixture_finales_generator import GeneradorFixtureFinales
@@ -89,6 +90,7 @@ def crear_app():
     app.register_blueprint(auth_jugador_bp)
     app.register_blueprint(inscripcion_bp)
     app.register_blueprint(historial_bp)
+    app.register_blueprint(jugadores_bp)
     
     # Helper para obtener datos del token o storage
     def obtener_datos_torneo():

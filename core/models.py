@@ -3,6 +3,46 @@ from typing import List, Optional, Tuple, Dict
 from enum import Enum
 
 
+@dataclass
+class Jugador:
+    id: str
+    nombre: str
+    apellido: str
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    usuario_id: Optional[str] = None
+    activo: bool = True
+    created_at: Optional[str] = None
+    telefono_verificado: bool = False
+
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'nombre': self.nombre,
+            'apellido': self.apellido,
+            'telefono': self.telefono,
+            'email': self.email,
+            'usuario_id': self.usuario_id,
+            'activo': self.activo,
+            'created_at': self.created_at,
+            'telefono_verificado': self.telefono_verificado,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Jugador':
+        return cls(
+            id=data['id'],
+            nombre=data['nombre'],
+            apellido=data['apellido'],
+            telefono=data.get('telefono'),
+            email=data.get('email'),
+            usuario_id=data.get('usuario_id'),
+            activo=data.get('activo', True),
+            created_at=data.get('created_at'),
+            telefono_verificado=data.get('telefono_verificado', False),
+        )
+
+
 class PosicionGrupo(Enum):
     """Posiciones finales en el grupo"""
     PRIMERO = 1
@@ -124,6 +164,8 @@ class Pareja:
     jugador1: str = ""
     jugador2: str = ""
     inscripcion_id: Optional[str] = None  # UUID de inscripciones (solo para parejas de DB)
+    jugador1_id: Optional[str] = None    # UUID del catálogo de jugadores
+    jugador2_id: Optional[str] = None    # UUID del catálogo de jugadores
     
     def __hash__(self):
         return hash(self.id)
@@ -145,6 +187,8 @@ class Pareja:
             'grupo_asignado': self.grupo_asignado,
             'posicion_grupo': self.posicion_grupo.value if self.posicion_grupo else None,
             'inscripcion_id': self.inscripcion_id,
+            'jugador1_id': self.jugador1_id,
+            'jugador2_id': self.jugador2_id,
         }
     
     @classmethod
@@ -166,6 +210,8 @@ class Pareja:
             jugador1=data.get('jugador1', ''),
             jugador2=data.get('jugador2', ''),
             inscripcion_id=data.get('inscripcion_id'),
+            jugador1_id=data.get('jugador1_id'),
+            jugador2_id=data.get('jugador2_id'),
         )
 
 

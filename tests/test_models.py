@@ -157,6 +157,40 @@ class TestPareja:
         p = Pareja.from_dict(data)
         assert p.franjas_disponibles == []
 
+    def test_jugador_ids_none_por_defecto(self):
+        p = crear_pareja(id=1)
+        assert p.jugador1_id is None
+        assert p.jugador2_id is None
+
+    def test_jugador_ids_se_serializan_en_to_dict(self):
+        p = Pareja(
+            id=1, nombre="A / B", telefono="600",
+            categoria="Cuarta", franjas_disponibles=[],
+            jugador1_id="uuid-j1", jugador2_id="uuid-j2",
+        )
+        d = p.to_dict()
+        assert d["jugador1_id"] == "uuid-j1"
+        assert d["jugador2_id"] == "uuid-j2"
+
+    def test_jugador_ids_roundtrip_from_dict(self):
+        p = Pareja(
+            id=2, nombre="C / D", telefono="",
+            categoria="Quinta", franjas_disponibles=[],
+            jugador1_id="uuid-a", jugador2_id="uuid-b",
+        )
+        p2 = Pareja.from_dict(p.to_dict())
+        assert p2.jugador1_id == "uuid-a"
+        assert p2.jugador2_id == "uuid-b"
+
+    def test_jugador_ids_ausentes_en_dict_quedan_none(self):
+        data = {
+            "id": 3, "nombre": "E / F", "telefono": "",
+            "categoria": "Tercera", "franjas_disponibles": [],
+        }
+        p = Pareja.from_dict(data)
+        assert p.jugador1_id is None
+        assert p.jugador2_id is None
+
 
 # ── Grupo ─────────────────────────────────────────────────────────────────────
 

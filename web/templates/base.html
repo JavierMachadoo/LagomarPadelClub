@@ -296,6 +296,12 @@
                             <i class="bi bi-sliders me-1"></i>Panel Admin
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active-link' if request.endpoint == 'admin_vinculacion' else '' }}"
+                           href="{{ url_for('admin_vinculacion') }}">
+                            <i class="bi bi-link-45deg me-1"></i>Vinculación
+                        </a>
+                    </li>
                     {% endif %}
 
                     <li class="nav-divider d-none d-lg-block"></li>

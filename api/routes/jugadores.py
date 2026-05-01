@@ -64,7 +64,7 @@ def sugerencias_vinculacion():
         def nombre_full(j):
             return f"{j.get('nombre', '')} {j.get('apellido', '')}".strip().lower()
 
-        UMBRAL = 0.5
+        UMBRAL = 0.75
         sugerencias = []
         for cat in admin_creados:
             for reg in registrados:

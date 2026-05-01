@@ -178,6 +178,7 @@ RANKING_DATA = [
     ("LU",          "RAZQUIN",      "Séptima", 250),
     ("GABY",        "REGALADO",     "Séptima", 225),
     ("JONA",        "FERRI",        "Séptima", 175),
+    ("VALERIA",     "ALMADA",       "Séptima", 175),
     ("ALEJANDRO",   "BENTANCOUR",   "Séptima", 150),
     ("GUZI",        "",             "Séptima", 150),  # solo apodo
     ("MONE",        "",             "Séptima", 150),  # solo apodo
@@ -186,7 +187,6 @@ RANKING_DATA = [
     ("NICOLAS",     "CABRERA",      "Séptima", 100),
     ("GABRIEL",     "FERNANDEZ",    "Séptima", 100),
     ("MARIO",       "LARROSA",      "Séptima", 100),
-    ("VALERIA",     "ALMADA",       "Séptima", 100),
     ("GONZALO",     "COLLA",        "Séptima", 100),
     ("PETER",       "WIBERG",       "Séptima", 100),
     ("ALE",         "BENTANCOUR",   "Séptima", 75),

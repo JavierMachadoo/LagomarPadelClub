@@ -158,5 +158,46 @@ class JugadoresStorage:
                 return j
         raise ValueError(f'Jugador {jugador_id} no encontrado')
 
+    def fusionar(self, catalogo_id: str, registrado_id: str) -> dict:
+        """
+        Fusiona el jugador del catálogo (admin) con el jugador registrado (auth).
+
+        Mueve las referencias históricas de catalogo_id → registrado_id,
+        copia los datos canónicos del catálogo al registrado, y desactiva
+        la fila del catálogo. El jugador registrado (auth UUID) queda como
+        el canónico con historial completo.
+        """
+        if not self._use_supabase:
+            raise ValueError('Fusión solo disponible con Supabase')
+
+        cat = self._sb_obtener(catalogo_id)
+        if not cat:
+            raise ValueError(f'Jugador catálogo {catalogo_id} no encontrado')
+
+        # Mover referencias históricas — cada tabla en try/except para no abortar
+        # si una columna no existe en el schema actual (dev vs prod)
+        _FKS = [
+            ('puntos_jugador', 'jugador_id'),
+            ('parejas',        'jugador1_id'),
+            ('parejas',        'jugador2_id'),
+            ('inscripciones',  'jugador_id'),
+            ('inscripciones',  'jugador2_id'),
+        ]
+        for tabla, columna in _FKS:
+            try:
+                self._sb.table(tabla).update({columna: registrado_id}).eq(columna, catalogo_id).execute()
+            except Exception as e:
+                logger.warning('fusionar: no se pudo actualizar %s.%s — %s', tabla, columna, e)
+
+        # Copiar datos canónicos del catálogo al jugador registrado
+        campos_canonicos = {k: cat[k] for k in ('nombre', 'apellido', 'telefono') if cat.get(k)}
+        if campos_canonicos:
+            self._sb.table(_TABLE).update(campos_canonicos).eq('id', registrado_id).execute()
+
+        # Desactivar la fila del catálogo (no se elimina)
+        self._sb.table(_TABLE).update({'activo': False}).eq('id', catalogo_id).execute()
+
+        return self._sb_obtener(registrado_id) or {}
+
 
 jugadores_storage = JugadoresStorage()

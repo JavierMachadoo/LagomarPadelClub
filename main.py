@@ -217,6 +217,11 @@ def crear_app():
         
         return response
     
+    @app.route('/admin/vinculacion')
+    def admin_vinculacion():
+        """Página de vinculación: catálogo del admin ↔ cuentas registradas."""
+        return render_template('vinculacion.html')
+
     @app.route('/dashboard')
     def dashboard():
         """Dashboard - Visualización de grupos generados."""

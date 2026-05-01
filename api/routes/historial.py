@@ -47,6 +47,7 @@ def _listar_archivados():
             resp = _sb_admin().table('torneos') \
                 .select('id, nombre, tipo, estado, created_at') \
                 .eq('estado', 'finalizado') \
+                .neq('tipo', 'historico') \
                 .order('created_at', desc=True) \
                 .execute()
             return resp.data or []
@@ -62,6 +63,7 @@ def _listar_archivados():
                     {'id': t['id'], 'nombre': t['nombre'], 'tipo': t['tipo'],
                      'estado': t.get('estado', 'finalizado'), 'created_at': t.get('created_at')}
                     for t in torneos
+                    if t.get('tipo') != 'historico'
                 ]
         except Exception as e:
             logger.error('Error al leer historial local: %s', e)

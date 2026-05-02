@@ -58,11 +58,17 @@ CREATE TABLE IF NOT EXISTS grupos (
 
 -- Las 3 parejas que componen cada grupo, con su posición final
 CREATE TABLE IF NOT EXISTS parejas_grupo (
-    grupo_id    UUID        REFERENCES grupos(id) ON DELETE CASCADE,
-    nombre      TEXT        NOT NULL,
-    posicion    INTEGER,    -- 1°, 2°, 3° | NULL si se archivó sin clasificar
+    grupo_id     UUID        REFERENCES grupos(id) ON DELETE CASCADE,
+    nombre       TEXT        NOT NULL,
+    posicion     INTEGER,    -- 1°, 2°, 3° | NULL si se archivó sin clasificar
+    jugador1_id  UUID        REFERENCES jugadores(id) ON DELETE SET NULL,
+    jugador2_id  UUID        REFERENCES jugadores(id) ON DELETE SET NULL,
     PRIMARY KEY (grupo_id, nombre)
 );
+
+-- Migración para entornos existentes (ejecutar una sola vez si la tabla ya existe):
+-- ALTER TABLE parejas_grupo ADD COLUMN IF NOT EXISTS jugador1_id UUID REFERENCES jugadores(id) ON DELETE SET NULL;
+-- ALTER TABLE parejas_grupo ADD COLUMN IF NOT EXISTS jugador2_id UUID REFERENCES jugadores(id) ON DELETE SET NULL;
 
 -- Los 3 partidos de grupo (round-robin entre las 3 parejas)
 CREATE TABLE IF NOT EXISTS partidos (
@@ -155,3 +161,32 @@ RETURNS void AS $$
         AND t.usado = FALSE
     );
 $$ LANGUAGE sql;
+
+-- ============================================================
+-- Tabla de puntos por jugador por torneo (base del ranking anual)
+-- Ejecutar en dev y luego en prod
+-- ============================================================
+CREATE TABLE IF NOT EXISTS puntos_jugador (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    jugador_id  UUID        NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+    torneo_id   UUID        NOT NULL REFERENCES torneos(id) ON DELETE CASCADE,
+    categoria   TEXT        NOT NULL,
+    puntos      INTEGER     NOT NULL DEFAULT 0,
+    concepto    TEXT        NOT NULL DEFAULT 'serie',
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (jugador_id, torneo_id, categoria)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pj_jugador   ON puntos_jugador(jugador_id);
+CREATE INDEX IF NOT EXISTS idx_pj_torneo    ON puntos_jugador(torneo_id);
+CREATE INDEX IF NOT EXISTS idx_pj_categoria ON puntos_jugador(categoria);
+
+-- ============================================================
+-- Rechazos de vinculación — pares que el admin descartó explícitamente
+-- ============================================================
+CREATE TABLE IF NOT EXISTS rechazos_vinculacion (
+    catalogo_id   UUID NOT NULL,
+    registrado_id UUID NOT NULL,
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (catalogo_id, registrado_id)
+);

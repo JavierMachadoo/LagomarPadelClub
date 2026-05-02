@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Ranking Anual - Pádel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ranking-page { background: var(--brand-bg); min-height: 100vh; }
+
+    .ranking-header {
+        background: #fff;
+        border-bottom: 1px solid var(--brand-border);
+        padding: 2.5rem 0 2rem;
+        margin-bottom: 2.5rem;
+    }
+    .ranking-header-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--brand-taupe);
+        margin-bottom: 0.4rem;
+    }
+    .ranking-header h1 {
+        font-family: var(--font-slab);
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0;
+        color: var(--brand-black);
+    }
+
+    /* Tabs de categoría */
+    .cat-tabs {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+    .cat-tab {
+        padding: 0.4rem 1.1rem;
+        border-radius: 9999px;
+        border: 1.5px solid var(--brand-border);
+        background: #fff;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .cat-tab:hover { border-color: #9ca3af; }
+    .cat-tab.active { color: #fff; border-color: transparent; }
+
+    /* Tabla */
+    .ranking-table-wrap {
+        background: #fff;
+        border: 1px solid var(--brand-border);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .ranking-table { width: 100%; border-collapse: collapse; margin: 0; }
+    .ranking-table th {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #9ca3af;
+        background: #fafafa;
+        border-bottom: 1px solid var(--brand-border);
+        padding: 0.75rem 1rem;
+        text-align: left;
+    }
+    .ranking-table th.text-end { text-align: right; }
+    .ranking-table td {
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 0.9rem;
+        vertical-align: middle;
+    }
+    .ranking-table tr:last-child td { border-bottom: none; }
+    .ranking-table tr:hover td { background: #fafafa; }
+
+    /* Posición */
+    .pos-badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+    .pos-1 { background: #fef3c7; color: #92400e; }
+    .pos-2 { background: #f3f4f6; color: #374151; }
+    .pos-3 { background: #fef2e8; color: #9a3412; }
+    .pos-n { background: #f9fafb; color: #9ca3af; }
+
+    /* Concepto badge */
+    .concepto-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+    }
+    .concepto-campeon     { background: #fef3c7; color: #92400e; }
+    .concepto-vicecampeon { background: #ede9fe; color: #5b21b6; }
+    .concepto-semifinal   { background: #dbeafe; color: #1d4ed8; }
+    .concepto-cuartos     { background: #dcfce7; color: #15803d; }
+    .concepto-octavos     { background: #f0fdf4; color: #166534; }
+    .concepto-serie       { background: #f3f4f6; color: #6b7280; }
+
+    .puntos-col {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--brand-black);
+        text-align: right;
+    }
+    .torneos-col {
+        font-size: 0.82rem;
+        color: #9ca3af;
+        text-align: right;
+    }
+
+    /* Estado vacío */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+    .empty-icon {
+        width: 72px; height: 72px;
+        background: #f3f4f6;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 1.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ranking-page">
+
+    <!-- Header -->
+    <div class="ranking-header">
+        <div class="container">
+            <div class="ranking-header-label"><i class="bi bi-trophy me-1"></i>Ranking</div>
+            <div>
+                <h1>Ranking Anual</h1>
+                <p class="text-muted mb-0" style="font-size:0.9rem; margin-top:0.4rem;">
+                    Puntos acumulados por jugador
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-3 align-items-start mb-4 p-3"
+             style="background:#fffbeb; border-left:3px solid #f59e0b; border-radius:10px;">
+            <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" style="color:#d97706;"></i>
+            <div style="font-size:0.88rem; color:#78350f;">
+                <strong class="d-block mb-1">Mejor Resultado y Torneos</strong>
+            De los torneos PREVIOS a MAYO solo se cuentan los puntos del Ranking, no toma el mejor resultado ni la cantidad de torneos jugados.
+            </div>
+        </div>
+    <div class="container">
+        <div class="col-xl-10 mx-auto">
+
+            {% if ranking %}
+
+            <!-- Tabs de categoría -->
+            <div class="cat-tabs" id="catTabs">
+                {% for cat, entries in ranking.items() %}
+                <button class="cat-tab {% if loop.first %}active{% endif %}"
+                        data-cat="{{ cat }}"
+                        style="{% if loop.first %}background:{{ colores.get(cat, '#6b7280') }};{% endif %}">
+                    {{ cat }}
+                    <span style="opacity:0.75; font-weight:500; font-size:0.75rem;
+                                 margin-left:0.35rem;">({{ entries|length }})</span>
+                </button>
+                {% endfor %}
+            </div>
+
+            <!-- Tablas por categoría -->
+            {% for cat, entries in ranking.items() %}
+            <div class="cat-panel {% if not loop.first %}d-none{% endif %}" data-cat="{{ cat }}">
+                <div class="ranking-table-wrap">
+                    <table class="ranking-table">
+                        <thead>
+                            <tr>
+                                <th style="width:44px;">#</th>
+                                <th>Jugador</th>
+                                <th>Mejor resultado</th>
+                                <th class="text-end">Torneos</th>
+                                <th class="text-end">Puntos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in entries %}
+                            <tr>
+                                <!-- Posición -->
+                                <td>
+                                    <span class="pos-badge
+                                        {% if row.posicion == 1 %}pos-1
+                                        {% elif row.posicion == 2 %}pos-2
+                                        {% elif row.posicion == 3 %}pos-3
+                                        {% else %}pos-n{% endif %}">
+                                        {{ row.posicion }}
+                                    </span>
+                                </td>
+
+                                <!-- Jugador -->
+                                <td>
+                                    <span class="fw-600">{{ row.nombre }} {{ row.apellido }}</span>
+                                </td>
+
+                                <!-- Mejor resultado -->
+                                <td>
+                                    <span class="concepto-badge concepto-{{ row.mejor_resultado }}">
+                                        {% if row.mejor_resultado == 'campeon' %}🏆 Campeón
+                                        {% elif row.mejor_resultado == 'vicecampeon' %}🥈 Vicecampeón
+                                        {% elif row.mejor_resultado == 'semifinal' %}Semifinal
+                                        {% elif row.mejor_resultado == 'cuartos' %}Cuartos
+                                        {% elif row.mejor_resultado == 'octavos' %}Octavos
+                                        {% else %}Serie
+                                        {% endif %}
+                                    </span>
+                                </td>
+
+                                <!-- Torneos -->
+                                <td class="torneos-col">{{ row.torneos }}</td>
+
+                                <!-- Puntos -->
+                                <td class="puntos-col">{{ row.puntos }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% else %}
+            <!-- Estado vacío -->
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="bi bi-trophy" style="font-size:1.8rem; color:#9ca3af;"></i>
+                </div>
+                <h5 class="fw-bold text-muted mb-2">Sin datos disponibles</h5>
+                <p class="text-muted" style="font-size:0.9rem; max-width:360px; margin:0 auto;">
+                    Cuando se archive un torneo, los puntos aparecerán aquí automáticamente.
+                </p>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const tabs   = document.querySelectorAll('.cat-tab');
+    const panels = document.querySelectorAll('.cat-panel');
+    const colores = {{ colores | tojson }};
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const cat = tab.dataset.cat;
+
+            tabs.forEach(t => {
+                t.classList.remove('active');
+                t.style.background = '';
+                t.style.color = '';
+            });
+            tab.classList.add('active');
+            tab.style.background = colores[cat] || '#6b7280';
+            tab.style.color = '#fff';
+
+            panels.forEach(p => {
+                p.classList.toggle('d-none', p.dataset.cat !== cat);
+            });
+        });
+    });
+}());
+</script>
+{% endblock %}

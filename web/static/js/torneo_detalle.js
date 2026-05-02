@@ -66,11 +66,14 @@
 
   function cargarFotos() {
     fetch('/api/torneos/' + TORNEO_ID + '/fotos')
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
       .then(function (data) { fotosLoaded = true; renderGaleria(data); })
       .catch(function (e) {
         console.warn('Error cargando galería:', e);
-        fotosLoaded = true;
+        // No marcamos fotosLoaded para permitir reintento al reabrir el panel
         mostrarEmpty();
       });
   }
@@ -147,7 +150,14 @@
         credentials: 'same-origin',
         body: JSON.stringify({ folder_url: folder_url }),
       })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (r) {
+          var ok = r.ok;
+          return r.text().then(function (text) {
+            var data;
+            try { data = JSON.parse(text); } catch (_) { data = {}; }
+            return { ok: ok, data: data };
+          });
+        })
         .then(function (res) {
           if (!res.ok) {
             if ($errEl) $errEl.textContent = res.data.error || 'Error al guardar.';

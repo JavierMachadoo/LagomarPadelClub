@@ -73,9 +73,13 @@ def agregar_pareja():
         if error_len:
             return jsonify({'error': error_len}), 400
 
+        jugador1_id = data.get('jugador1_id') or None
+        jugador2_id = data.get('jugador2_id') or None
+
         datos_actuales = obtener_datos_desde_token()
         nueva_pareja, estadisticas = grupo_service.agregar_pareja(
-            datos_actuales, jugador1, jugador2, nombre, telefono, categoria, franjas, desde_resultados
+            datos_actuales, jugador1, jugador2, nombre, telefono, categoria, franjas,
+            desde_resultados, jugador1_id=jugador1_id, jugador2_id=jugador2_id,
         )
         sincronizar_con_storage_y_token(datos_actuales)
 

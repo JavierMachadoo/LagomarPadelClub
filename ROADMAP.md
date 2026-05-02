@@ -47,19 +47,6 @@ if role == 'admin':
 
 ## P1 — Alta prioridad (primer torneo)
 
-### 2. Categoría Octava — Completar implementación end-to-end
-
-**Estado**: Parcialmente implementada en `config/settings.py`, CSS y templates. Hay gaps que la dejan incompleta.
-
-**Gaps confirmados**:
-- `api/routes/parejas.py:143` — lista hardcodeada `['Cuarta', 'Quinta', 'Sexta', 'Séptima', 'Tercera']` excluye Octava de las estadísticas. Fix: importar `CATEGORIAS` y usarlo en lugar de la lista.
-- `web/static/css/dashboard.css` — verificar si existe `.categoria-octava` (la clase de ícono con gradiente). `.partido-octava` y `.categoria-btn-octava` sí existen.
-
-**Alcance**: Audit completo de todos los puntos de la cadena — config → modelo → algoritmo → storage → templates → CSS — y cierre de todos los gaps. Verificar que Octava aparece correctamente en `/grupos`, `/finales`, `/calendario`, `/dashboard` y estadísticas de admin.
-
-**Archivos críticos**: `api/routes/parejas.py:143`, `web/static/css/dashboard.css:62-76`, `web/templates/grupos_publico.html`, `web/templates/finales.html`
-
-**Esfuerzo**: Bajo (2-3h)
 
 ---
 
@@ -96,25 +83,6 @@ if role == 'admin':
 **Mejora**: Email automático cuando el estado cambia a `confirmada`.
 **Dependencia**: Integración con servicio de email (Resend ya está en el stack para confirmación de registro).
 **Archivo**: `api/routes/inscripcion.py` + template de email
-
----
-
-### 12. Vista de mis resultados históricos
-
-**Problema**: El jugador puede ver el torneo actual, pero no sus resultados en torneos anteriores.
-**Mejora**: En el dashboard, sección "Mis torneos anteriores" con un resumen de cada torneo en el que participó.
-**Dependencia**: El historial ya existe, hay que filtrar por jugador_id.
-**Archivo**: `api/routes/historial.py` + `web/templates/dashboard.html`
-
----
-
-## P3 — Baja prioridad / evaluación post-temporada
-
-### 18. Sistema de ranking anual
-
-**Descripción**: Acumular puntos por posición en cada torneo. Requiere diseño de sistema de puntos, persistencia y UI de tabla de posiciones.
-**Dependencia**: Al menos 2-3 torneos archivados para que tenga sentido.
-**Esfuerzo**: Alto (semana de trabajo).
 
 ---
 

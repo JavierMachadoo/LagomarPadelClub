@@ -470,6 +470,8 @@ def agregar_pareja(
     categoria: str,
     franjas: list,
     desde_resultados: bool,
+    jugador1_id: str = None,
+    jugador2_id: str = None,
 ) -> tuple[dict, dict | None]:
     """Agrega una nueva pareja al torneo.
 
@@ -489,6 +491,8 @@ def agregar_pareja(
         'jugador2':           jugador2,
         'telefono':           telefono or 'Sin telefono',
         'origen':             'manual',
+        'jugador1_id':        jugador1_id,
+        'jugador2_id':        jugador2_id,
     }
     parejas.append(nueva_pareja)
     datos['parejas'] = parejas

@@ -110,6 +110,7 @@ class TorneoStorage:
         torneo['parejas'] = []
         torneo['resultado_algoritmo'] = None
         torneo['fixtures_finales'] = {}
+        torneo['calendario_finales'] = {}
         torneo['estado'] = 'creando'
         torneo['torneo_id'] = str(uuid.uuid4())
         torneo.pop('proximo_torneo', None)

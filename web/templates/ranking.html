@@ -55,7 +55,8 @@
         background: #fff;
         border: 1px solid var(--brand-border);
         border-radius: 6px;
-        overflow: hidden;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     .ranking-table { width: 100%; border-collapse: collapse; margin: 0; }
     .ranking-table th {
@@ -78,6 +79,28 @@
     }
     .ranking-table tr:last-child td { border-bottom: none; }
     .ranking-table tr:hover td { background: #fafafa; }
+
+    /* Masters: top 8 */
+    .row-master td { background: #fffdf0; }
+    .row-master:hover td { background: #fef9d9; }
+    .row-master td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+
+    /* Leyenda máster */
+    .master-legend {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-top: 0.6rem;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+    .master-legend-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #f59e0b;
+        flex-shrink: 0;
+    }
 
     /* Posición */
     .pos-badge {
@@ -188,14 +211,14 @@
                             <tr>
                                 <th style="width:44px;">#</th>
                                 <th>Jugador</th>
-                                <th>Mejor resultado</th>
-                                <th class="text-end">Torneos</th>
                                 <th class="text-end">Puntos</th>
+                                <th class="text-end">Torneos</th>
+                                <th>Mejor resultado</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for row in entries %}
-                            <tr>
+                            <tr {% if row.posicion <= 8 %}class="row-master"{% endif %}>
                                 <!-- Posición -->
                                 <td>
                                     <span class="pos-badge
@@ -212,6 +235,12 @@
                                     <span class="fw-600">{{ row.nombre }} {{ row.apellido }}</span>
                                 </td>
 
+                                <!-- Puntos -->
+                                <td class="puntos-col">{{ row.puntos }}</td>
+
+                                <!-- Torneos -->
+                                <td class="torneos-col">{{ row.torneos }}</td>
+
                                 <!-- Mejor resultado -->
                                 <td>
                                     <span class="concepto-badge concepto-{{ row.mejor_resultado }}">
@@ -224,16 +253,14 @@
                                         {% endif %}
                                     </span>
                                 </td>
-
-                                <!-- Torneos -->
-                                <td class="torneos-col">{{ row.torneos }}</td>
-
-                                <!-- Puntos -->
-                                <td class="puntos-col">{{ row.puntos }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+                <div class="master-legend">
+                    <span class="master-legend-dot"></span>
+                    Clasifican al Máster Final de Diciembre
                 </div>
             </div>
             {% endfor %}

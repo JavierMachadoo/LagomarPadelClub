@@ -192,6 +192,15 @@
     const carga  = document.getElementById('estado-carga');
     const vacio  = document.getElementById('estado-vacio');
 
+    function esc(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function scoreClass(s) {
         if (s >= 80) return 'score-high';
         if (s >= 60) return 'score-medium';
@@ -200,22 +209,22 @@
 
     function detalleCatalogo(j) {
         const partes = [];
-        if (j.telefono) partes.push(`📞 ${j.telefono}`);
+        if (j.telefono) partes.push(`📞 ${esc(j.telefono)}`);
         else             partes.push('Sin teléfono registrado');
         return partes.join(' · ');
     }
 
     function detalleRegistrado(j) {
         const partes = [];
-        if (j.telefono) partes.push(`📞 ${j.telefono}`);
-        if (j.email)    partes.push(`✉ ${j.email}`);
+        if (j.telefono) partes.push(`📞 ${esc(j.telefono)}`);
+        if (j.email)    partes.push(`✉ ${esc(j.email)}`);
         return partes.join(' · ') || 'Sin datos extra';
     }
 
     function crearTarjeta(sug) {
         const { catalogo, registrado, score } = sug;
-        const nombreCat = `${catalogo.nombre || ''} ${catalogo.apellido || ''}`.trim();
-        const nombreReg = `${registrado.nombre || ''} ${registrado.apellido || ''}`.trim();
+        const nombreCat = esc(`${catalogo.nombre || ''} ${catalogo.apellido || ''}`.trim());
+        const nombreReg = esc(`${registrado.nombre || ''} ${registrado.apellido || ''}`.trim());
 
         const div = document.createElement('div');
         div.className = 'sug-card';
@@ -313,20 +322,28 @@ async function confirmar(btn) {
 }
 
 async function descartar(btn) {
-    const card        = btn.closest('.sug-card');
+    const card         = btn.closest('.sug-card');
     const catalogoId   = card.dataset.catalogoId;
     const registradoId = card.dataset.registradoId;
 
     btn.disabled = true;
 
     try {
-        await fetch('/api/jugadores/rechazar-vinculacion', {
+        const res = await fetch('/api/jugadores/rechazar-vinculacion', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ catalogo_id: catalogoId, registrado_id: registradoId }),
         });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            Toast.error(data.error || 'Error al rechazar la sugerencia');
+            btn.disabled = false;
+            return;
+        }
     } catch {
-        // fallo de red — igual removemos la tarjeta
+        Toast.error('Error de red al rechazar');
+        btn.disabled = false;
+        return;
     }
 
     eliminarTarjeta(card);

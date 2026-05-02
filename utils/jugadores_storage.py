@@ -17,16 +17,14 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-_SUPABASE_URL = os.getenv('SUPABASE_URL', '').strip()
-_SUPABASE_KEY = (
-    os.getenv('SUPABASE_SERVICE_ROLE_KEY', '').strip()
-    or os.getenv('SUPABASE_ANON_KEY', '').strip()
+_USE_SUPABASE = bool(
+    os.getenv('SUPABASE_URL', '').strip()
+    and os.getenv('SUPABASE_SERVICE_ROLE_KEY', '').strip()
 )
-_USE_SUPABASE = bool(_SUPABASE_URL and _SUPABASE_KEY)
 
 if _USE_SUPABASE:
     try:
-        from supabase import create_client
+        from utils.supabase_client import get_supabase_admin as _get_supabase_admin  # noqa: F401
     except ImportError:
         logger.warning('supabase package no instalado. Usando almacenamiento JSON.')
         _USE_SUPABASE = False
@@ -45,7 +43,8 @@ class JugadoresStorage:
         self._jugadores_file = self._JUGADORES_FILE
 
         if self._use_supabase:
-            self._sb = create_client(_SUPABASE_URL, _SUPABASE_KEY)
+            from utils.supabase_client import get_supabase_admin
+            self._sb = get_supabase_admin()
             logger.info('JugadoresStorage: usando Supabase')
         else:
             self._jugadores_file.parent.mkdir(parents=True, exist_ok=True)
@@ -206,6 +205,10 @@ class JugadoresStorage:
         cat = self._sb_obtener(catalogo_id)
         if not cat:
             raise ValueError(f'Jugador catálogo {catalogo_id} no encontrado')
+
+        reg = self._sb_obtener(registrado_id)
+        if not reg:
+            raise ValueError(f'Jugador registrado {registrado_id} no encontrado')
 
         # Mover referencias históricas — cada tabla en try/except para no abortar
         # si una columna no existe en el schema actual (dev vs prod)

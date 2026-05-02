@@ -52,7 +52,16 @@ def sugerencias_vinculacion():
     try:
         from utils.supabase_client import get_supabase_admin
         sb = get_supabase_admin()
-        auth_ids = {str(u.id) for u in sb.auth.admin.list_users()}
+        page = 1
+        auth_ids: set[str] = set()
+        while True:
+            batch = sb.auth.admin.list_users(page=page, per_page=50)
+            if not batch:
+                break
+            auth_ids.update(str(u.id) for u in batch)
+            if len(batch) < 50:
+                break
+            page += 1
 
         todos = jugadores_storage.listar(activos_only=True)
 

@@ -58,11 +58,17 @@ CREATE TABLE IF NOT EXISTS grupos (
 
 -- Las 3 parejas que componen cada grupo, con su posición final
 CREATE TABLE IF NOT EXISTS parejas_grupo (
-    grupo_id    UUID        REFERENCES grupos(id) ON DELETE CASCADE,
-    nombre      TEXT        NOT NULL,
-    posicion    INTEGER,    -- 1°, 2°, 3° | NULL si se archivó sin clasificar
+    grupo_id     UUID        REFERENCES grupos(id) ON DELETE CASCADE,
+    nombre       TEXT        NOT NULL,
+    posicion     INTEGER,    -- 1°, 2°, 3° | NULL si se archivó sin clasificar
+    jugador1_id  UUID        REFERENCES jugadores(id) ON DELETE SET NULL,
+    jugador2_id  UUID        REFERENCES jugadores(id) ON DELETE SET NULL,
     PRIMARY KEY (grupo_id, nombre)
 );
+
+-- Migración para entornos existentes (ejecutar una sola vez si la tabla ya existe):
+-- ALTER TABLE parejas_grupo ADD COLUMN IF NOT EXISTS jugador1_id UUID REFERENCES jugadores(id) ON DELETE SET NULL;
+-- ALTER TABLE parejas_grupo ADD COLUMN IF NOT EXISTS jugador2_id UUID REFERENCES jugadores(id) ON DELETE SET NULL;
 
 -- Los 3 partidos de grupo (round-robin entre las 3 parejas)
 CREATE TABLE IF NOT EXISTS partidos (

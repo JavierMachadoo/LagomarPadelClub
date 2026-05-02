@@ -1,9 +1,9 @@
 """
-Blueprint de ranking anual por jugador.
+Blueprint de ranking por jugador.
 
 Rutas:
-  GET /api/ranking?year=YYYY           → JSON con ranking por categoría
-  GET /ranking                         → Vista pública del ranking
+  GET /api/ranking   → JSON con ranking acumulado por categoría
+  GET /ranking       → Vista pública del ranking
 """
 
 import logging

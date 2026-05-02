@@ -20,6 +20,7 @@ Uso:
 import argparse
 import os
 import sys
+import unicodedata
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -266,8 +267,14 @@ def get_or_create_torneo_historico(sb, dry_run: bool) -> str:
     return torneo_id
 
 
+def _norm(s: str) -> str:
+    """Normaliza a ASCII lowercase quitando tildes (ej: 'Hernán' → 'hernan')."""
+    nfkd = unicodedata.normalize('NFD', s)
+    return ''.join(c for c in nfkd if unicodedata.category(c) != 'Mn').lower().strip()
+
+
 def find_jugador(sb, nombre: str, apellido: str) -> dict | None:
-    """Busca jugador case-insensitive por nombre+apellido."""
+    """Busca jugador case-insensitive y accent-insensitive por nombre+apellido."""
     resp = (
         sb.table("jugadores")
         .select("id, nombre, apellido, usuario_id")
@@ -276,7 +283,17 @@ def find_jugador(sb, nombre: str, apellido: str) -> dict | None:
         .limit(1)
         .execute()
     )
-    return resp.data[0] if resp.data else None
+    if resp.data:
+        return resp.data[0]
+
+    # Fallback: normalizar acentos en Python para casos como 'Hernán' ↔ 'HERNAN'
+    nombre_norm   = _norm(nombre)
+    apellido_norm = _norm(apellido) if apellido else ''
+    todos = sb.table("jugadores").select("id, nombre, apellido, usuario_id").execute().data or []
+    for j in todos:
+        if _norm(j.get('nombre', '')) == nombre_norm and _norm(j.get('apellido', '')) == apellido_norm:
+            return j
+    return None
 
 
 def create_jugador(sb, nombre: str, apellido: str, dry_run: bool) -> str:

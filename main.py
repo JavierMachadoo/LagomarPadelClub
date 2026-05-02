@@ -22,6 +22,7 @@ from config import (
     TIPOS_TORNEO
 )
 from config.settings import BASE_DIR, DEBUG, SUPABASE_SERVICE_ROLE_KEY
+from utils.template_helpers import build_franjas_finales
 from utils.supabase_client import get_supabase_admin, get_supabase_anon
 from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
@@ -321,24 +322,18 @@ def crear_app():
                     res = lookup.get((gid, p1, p2))
                     if res:
                         partido['resultado'] = res
+                        gid_ganador = res.get('ganador_id')
+                        partido['ganador_top'] = gid_ganador is not None and gid_ganador == res.get('pareja1_id')
+                        partido['ganador_bot'] = gid_ganador is not None and gid_ganador == res.get('pareja2_id')
                     else:
                         res = lookup.get((gid, p2, p1))
                         if res:
                             # Invertir: pareja1 del resultado es pareja2 del calendario
                             partido['resultado'] = res
                             partido['resultado_invertido'] = True
-
-    def _build_franjas_finales(calendario: dict) -> list:
-        """Convierte el calendario persistido en lista de (hora, partido_c1, partido_c2)
-        para renderizar el panel de finales en Jinja2 con la misma estética que grupos."""
-        if not calendario:
-            return []
-        por_hora = {}
-        for p in calendario.get('cancha_1', []):
-            por_hora.setdefault(p['hora_inicio'], [None, None])[0] = p
-        for p in calendario.get('cancha_2', []):
-            por_hora.setdefault(p['hora_inicio'], [None, None])[1] = p
-        return [(h, slots[0], slots[1]) for h, slots in sorted(por_hora.items())]
+                            gid_ganador = res.get('ganador_id')
+                            partido['ganador_top'] = gid_ganador is not None and gid_ganador == res.get('pareja2_id')
+                            partido['ganador_bot'] = gid_ganador is not None and gid_ganador == res.get('pareja1_id')
 
     # Rutas públicas (sin login)
     @app.route('/grupos')
@@ -447,7 +442,7 @@ def crear_app():
                                          emojis=EMOJI_CATEGORIA,
                                          torneo=torneo,
                                          tipo_torneo=tipo_torneo,
-                                         franjas_finales=_build_franjas_finales(cal_arch),
+                                         franjas_finales=build_franjas_finales(cal_arch, datos_blob.get('fixtures_finales', {})),
                                          es_ultimo_torneo=True,
                                          nombre_ultimo_torneo=archivado.get('nombre', '')))
             return make_response(render_template('organizando.html', torneo=torneo))
@@ -471,7 +466,7 @@ def crear_app():
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,
                              tipo_torneo=tipo_torneo,
-                             franjas_finales=_build_franjas_finales(calendario_finales)))
+                             franjas_finales=build_franjas_finales(calendario_finales, {k: v for k, v in torneo.get('fixtures_finales', {}).items() if v})))
 
     @app.route('/cuadro')
     def cuadro_publico():

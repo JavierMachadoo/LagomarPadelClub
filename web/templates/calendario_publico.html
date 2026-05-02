@@ -19,37 +19,42 @@
         padding-bottom: 4rem;
     }
 
-    /* ── Header editorial ── */
-    .cal-header { background: var(--brand-white); border-bottom: 1px solid var(--brand-border); }
-    .cal-eyebrow {
-        background: var(--brand-black);
-        padding: 0.42rem 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-size: 0.67rem;
+    /* ── Header editorial (patrón ranking-header) ── */
+    .cal-header {
+        background: #fff;
+        border-bottom: 1px solid var(--brand-border);
+        padding: 2.5rem 0 2rem;
+        margin-bottom: 2.5rem;
+    }
+    .cal-header-label {
+        font-size: 0.68rem;
         font-weight: 700;
-        color: rgba(255,255,255,0.4);
-        letter-spacing: 1.8px;
+        letter-spacing: 0.2em;
         text-transform: uppercase;
+        color: var(--brand-taupe);
+        margin-bottom: 0.4rem;
     }
-    .cal-eyebrow .live-dot { color: var(--brand-green); animation: blink 2.2s ease-in-out infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
-    .cal-header-main { padding: 1.6rem 1.5rem 1.8rem; display: flex; align-items: center; gap: 1.1rem; }
-    .cal-bar {
-        width: 8px; min-height: 3rem; background: var(--brand-green); border-radius: 4px;
-        flex-shrink: 0; box-shadow: 0 0 14px rgba(46,155,14,0.4);
-    }
-    .cal-title-group { display: flex; flex-direction: column; gap: 0.1rem; }
-    .cal-title-label { font-size: 0.65rem; font-weight: 800; color: #9ca3af; letter-spacing: 2px; text-transform: uppercase; }
     .cal-header h1 {
         font-family: var(--font-slab);
-        font-size: clamp(2rem, 5.5vw, 3rem);
-        font-weight: 900;
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0;
         color: var(--brand-black);
-        margin: 0; letter-spacing: -1px; line-height: 1; text-transform: uppercase;
     }
-    .cal-header h1 em { color: var(--brand-green); font-style: normal; }
+    .cal-header p {
+        color: #9A9694;
+        font-size: 0.9rem;
+        margin: 0.5rem 0 0;
+    }
+
+    /* ── Winner highlight ── */
+    .equipo.equipo-ganador { font-weight: 800; }
+    .equipo.equipo-ganador::after {
+        content: ' \2713';
+        color: var(--brand-green);
+        font-weight: 900;
+    }
 
     /* ── Navegación de fases con botón inline ── */
     .phase-nav {
@@ -302,16 +307,10 @@
 
     <!-- Header editorial -->
     <div class="cal-header">
-        <div class="cal-eyebrow">
-            <span><i class="bi bi-calendar3 me-1"></i>Torneo de Pádel</span>
-            <span><span class="live-dot">●</span>&nbsp;2026</span>
-        </div>
-        <div class="cal-header-main">
-            <div class="cal-bar"></div>
-            <div class="cal-title-group">
-                <div class="cal-title-label">Temporada 2026</div>
-                <h1><em>Fix</em>ture</h1>
-            </div>
+        <div class="container">
+            <div class="cal-header-label"><i class="bi bi-calendar3 me-1"></i>Fixture</div>
+            <h1>Calendario de Partidos</h1>
+            <p>Consultá el horario y día de los partidos</p>
         </div>
     </div>
 
@@ -420,7 +419,7 @@
                                         <div class="match-rows">
                                             {# ── Pareja 1 ── #}
                                             <div class="match-row">
-                                                <div class="equipo">{{ partido.pareja1 }}</div>
+                                                <div class="equipo{% if partido.get('ganador_top') %} equipo-ganador{% endif %}">{{ partido.pareja1 }}</div>
                                                 <div class="score-cells">
                                                     {% if res %}
                                                         {% if not inv %}
@@ -441,7 +440,7 @@
                                             <div class="match-row-divider"></div>
                                             {# ── Pareja 2 ── #}
                                             <div class="match-row">
-                                                <div class="equipo">{{ partido.pareja2 }}</div>
+                                                <div class="equipo{% if partido.get('ganador_bot') %} equipo-ganador{% endif %}">{{ partido.pareja2 }}</div>
                                                 <div class="score-cells">
                                                     {% if res %}
                                                         {% if not inv %}
@@ -503,11 +502,11 @@
                 </div>
             </div>
 
-            {# Mapa de abreviatura de fase para el badge #}
-            {% set fase_abrev = {
-                'Octavos de Final': 'OF',
-                'Cuartos de Final': 'CF',
-                'Semifinal': 'Semis',
+            {# Mapa de nombre legible de fase para el badge #}
+            {% set fase_label = {
+                'Octavos de Final': 'Octavos',
+                'Cuartos de Final': 'Cuartos',
+                'Semifinal': 'Semifinal',
                 'Final': 'Final'
             } %}
 
@@ -529,14 +528,35 @@
                                     <div class="partido-body">
                                         <div class="partido-meta">
                                             <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c1.categoria }}</span>
-                                            <span class="badge-fase">{{ fase_abrev.get(c1.fase, c1.fase) }}</span>
+                                            <span class="badge-fase">{{ fase_label.get(c1.fase, c1.fase) }}</span>
                                         </div>
                                         <div class="match-rows">
                                             <div class="match-row">
-                                                <span class="equipo {{ 'equipo-tbd' if not c1.pareja1 else '' }}">{{ c1.pareja1 or 'Por definir' }}</span>
+                                                <span class="equipo {{ 'equipo-tbd' if not c1.pareja1 else '' }}{% if c1.ganador_nombre and c1.ganador_nombre == c1.pareja1 %} equipo-ganador{% endif %}">{{ c1.pareja1 or 'Por definir' }}</span>
+                                                <div class="score-cells">
+                                                    {% if c1.sets %}
+                                                        {% for s in c1.sets %}
+                                                        <div class="score-cell">{{ s.pareja1 if s.pareja1 is not none else '—' }}</div>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <div class="score-cell score-empty">—</div>
+                                                        <div class="score-cell score-empty">—</div>
+                                                    {% endif %}
+                                                </div>
                                             </div>
+                                            <div class="match-row-divider"></div>
                                             <div class="match-row">
-                                                <span class="equipo {{ 'equipo-tbd' if not c1.pareja2 else '' }}">{{ c1.pareja2 or 'Por definir' }}</span>
+                                                <span class="equipo {{ 'equipo-tbd' if not c1.pareja2 else '' }}{% if c1.ganador_nombre and c1.ganador_nombre == c1.pareja2 %} equipo-ganador{% endif %}">{{ c1.pareja2 or 'Por definir' }}</span>
+                                                <div class="score-cells">
+                                                    {% if c1.sets %}
+                                                        {% for s in c1.sets %}
+                                                        <div class="score-cell">{{ s.pareja2 if s.pareja2 is not none else '—' }}</div>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <div class="score-cell score-empty">—</div>
+                                                        <div class="score-cell score-empty">—</div>
+                                                    {% endif %}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -557,14 +577,35 @@
                                     <div class="partido-body">
                                         <div class="partido-meta">
                                             <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c2.categoria }}</span>
-                                            <span class="badge-fase">{{ fase_abrev.get(c2.fase, c2.fase) }}</span>
+                                            <span class="badge-fase">{{ fase_label.get(c2.fase, c2.fase) }}</span>
                                         </div>
                                         <div class="match-rows">
                                             <div class="match-row">
-                                                <span class="equipo {{ 'equipo-tbd' if not c2.pareja1 else '' }}">{{ c2.pareja1 or 'Por definir' }}</span>
+                                                <span class="equipo {{ 'equipo-tbd' if not c2.pareja1 else '' }}{% if c2.ganador_nombre and c2.ganador_nombre == c2.pareja1 %} equipo-ganador{% endif %}">{{ c2.pareja1 or 'Por definir' }}</span>
+                                                <div class="score-cells">
+                                                    {% if c2.sets %}
+                                                        {% for s in c2.sets %}
+                                                        <div class="score-cell">{{ s.pareja1 if s.pareja1 is not none else '—' }}</div>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <div class="score-cell score-empty">—</div>
+                                                        <div class="score-cell score-empty">—</div>
+                                                    {% endif %}
+                                                </div>
                                             </div>
+                                            <div class="match-row-divider"></div>
                                             <div class="match-row">
-                                                <span class="equipo {{ 'equipo-tbd' if not c2.pareja2 else '' }}">{{ c2.pareja2 or 'Por definir' }}</span>
+                                                <span class="equipo {{ 'equipo-tbd' if not c2.pareja2 else '' }}{% if c2.ganador_nombre and c2.ganador_nombre == c2.pareja2 %} equipo-ganador{% endif %}">{{ c2.pareja2 or 'Por definir' }}</span>
+                                                <div class="score-cells">
+                                                    {% if c2.sets %}
+                                                        {% for s in c2.sets %}
+                                                        <div class="score-cell">{{ s.pareja2 if s.pareja2 is not none else '—' }}</div>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <div class="score-cell score-empty">—</div>
+                                                        <div class="score-cell score-empty">—</div>
+                                                    {% endif %}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -681,7 +722,7 @@ function mostrarPredefinidoFinales() {
                         <div class="partido-body">
                             <div class="partido-meta">
                                 <span class="badge-cat" style="background:${color};">${emoji} ${cat}</span>
-                                <span class="badge-fase">F</span>
+                                <span class="badge-fase">Final</span>
                             </div>
                             <div class="match-rows">
                                 <div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div>
@@ -707,7 +748,7 @@ function mostrarPredefinidoFinales() {
         html += `<div class="franja-block">
             <div class="franja-sep"></div>
             <div class="canchas-grid">
-                <div class="match-slot"><div class="partido-card partido-tbd"><div class="hora-strip"><span>20:00</span></div><div class="partido-body"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">F</span></div><div class="match-rows"><div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div><div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div></div></div></div></div>
+                <div class="match-slot"><div class="partido-card partido-tbd"><div class="hora-strip"><span>20:00</span></div><div class="partido-body"><div class="partido-meta"><span class="badge-cat" style="background:#6b7280;">🎾 Por definir</span><span class="badge-fase">Final</span></div><div class="match-rows"><div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div><div class="match-row"><span class="equipo equipo-tbd">Por definir</span></div></div></div></div></div>
                 <div class="match-slot"><div class="partido-card vacio"><span><i class="bi bi-dash-circle me-1"></i>Libre</span></div></div>
             </div>
         </div>`;
@@ -725,10 +766,27 @@ function filtrarSlot(slot) {
     return slot;
 }
 
-function getFaseLabel(fase, num) {
-    const m = { 'Final': 'F', 'Semifinal': `S.${num}`, 'Cuartos': `CF.${num}`,
-                'Cuartos de Final': `CF.${num}`, 'Octavos': `OF.${num}`, 'Octavos de Final': `OF.${num}` };
+function getFaseLabel(fase) {
+    const m = {
+        'Final': 'Final',
+        'Semifinal': 'Semifinal',
+        'Cuartos de Final': 'Cuartos',
+        'Cuartos': 'Cuartos',
+        'Octavos de Final': 'Octavos',
+        'Octavos': 'Octavos'
+    };
     return m[fase] || fase;
+}
+
+function scoreCells(sets, key) {
+    if (!sets || !sets.length) {
+        return '<div class="score-cells"><div class="score-cell score-empty">—</div><div class="score-cell score-empty">—</div></div>';
+    }
+    const cells = sets.map(s => {
+        const v = s[key];
+        return `<div class="score-cell">${v != null ? v : '—'}</div>`;
+    }).join('');
+    return `<div class="score-cells">${cells}</div>`;
 }
 
 function horaBox(hora) {
@@ -741,12 +799,15 @@ function htmlSlotCard(slot, hora) {
         ? (() => {
             const color = coloresCat[slot.categoria] || '#6b7280';
             const emoji = emojisMap[slot.categoria] || '🎾';
-            const faseLabel = getFaseLabel(slot.fase, slot.numero_partido);
+            const faseLabel = getFaseLabel(slot.fase);
             const p1 = slot.pareja1 || 'Por definir';
             const p2 = slot.pareja2 || 'Por definir';
             const esTbd = !slot.pareja1 || slot.pareja1 === 'Por definir';
-            const cls1 = esTbd ? ' equipo-tbd' : '';
-            const cls2 = (!slot.pareja2 || slot.pareja2 === 'Por definir') ? ' equipo-tbd' : '';
+            const cls1Tbd = esTbd ? ' equipo-tbd' : '';
+            const cls2Tbd = (!slot.pareja2 || slot.pareja2 === 'Por definir') ? ' equipo-tbd' : '';
+            const gname = slot.ganador_nombre || null;
+            const cls1Win = (gname && gname === slot.pareja1) ? ' equipo-ganador' : '';
+            const cls2Win = (gname && gname === slot.pareja2) ? ' equipo-ganador' : '';
             return `<div class="partido-card${esTbd ? ' partido-tbd' : ''}" data-cat="${slot.categoria}"
                  data-pareja1="${p1}" data-pareja2="${p2}">
                 <div class="hora-strip"><span>${hora || ''}</span></div>
@@ -756,8 +817,15 @@ function htmlSlotCard(slot, hora) {
                         <span class="badge-fase">${faseLabel}</span>
                     </div>
                     <div class="match-rows">
-                        <div class="match-row"><span class="equipo${cls1}">${p1}</span></div>
-                        <div class="match-row"><span class="equipo${cls2}">${p2}</span></div>
+                        <div class="match-row">
+                            <span class="equipo${cls1Tbd}${cls1Win}">${p1}</span>
+                            ${scoreCells(slot.sets, 'pareja1')}
+                        </div>
+                        <div class="match-row-divider"></div>
+                        <div class="match-row">
+                            <span class="equipo${cls2Tbd}${cls2Win}">${p2}</span>
+                            ${scoreCells(slot.sets, 'pareja2')}
+                        </div>
                     </div>
                 </div>
             </div>`;

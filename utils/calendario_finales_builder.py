@@ -22,6 +22,33 @@ def _get_nombre(pareja: Optional[dict]) -> Optional[str]:
     return pareja.get('nombre')
 
 
+def _resolver_ganador_nombre(partido: dict, ganador: Optional[dict]) -> Optional[str]:
+    """Resuelve el nombre de la pareja ganadora a partir del ID en `ganador`.
+
+    El fixture guarda `ganador` como {'id': N} (ver services/fixture_service.py).
+    Para el render UI necesitamos el nombre — se obtiene cruzando con
+    pareja1/pareja2 del mismo partido.
+
+    Args:
+        partido: dict del partido con claves 'pareja1' y 'pareja2'
+                 (ambas dicts con 'id' y 'nombre')
+        ganador: {'id': N} o None
+
+    Returns:
+        Nombre string de la pareja ganadora, o None si no se puede resolver.
+    """
+    if not ganador or ganador.get('id') is None:
+        return None
+    gid = ganador['id']
+    p1 = partido.get('pareja1') or {}
+    p2 = partido.get('pareja2') or {}
+    if p1.get('id') == gid:
+        return p1.get('nombre')
+    if p2.get('id') == gid:
+        return p2.get('nombre')
+    return None
+
+
 @dataclass
 class BloqueHorario:
     """Representa un bloque horario disponible"""
@@ -276,6 +303,11 @@ class GeneradorCalendarioFinales:
                     partido = partido_index[pid]
                     entry['pareja1'] = _get_nombre(partido.get('pareja1'))
                     entry['pareja2'] = _get_nombre(partido.get('pareja2'))
+                    # Enriquecer con resultado: sets, ganador, ganador_nombre
+                    entry['sets'] = partido.get('sets', [])
+                    ganador_dict = partido.get('ganador')
+                    entry['ganador'] = ganador_dict
+                    entry['ganador_nombre'] = _resolver_ganador_nombre(partido, ganador_dict)
 
         return calendario
 

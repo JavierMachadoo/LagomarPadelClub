@@ -7,10 +7,12 @@ separados de utils/calendario_finales_builder.py (que gestiona lógica
 de calendarios) para no mezclar responsabilidades.
 """
 
-from typing import Optional
+from typing import Optional, List, Tuple
+
+from utils.calendario_finales_builder import _resolver_ganador_nombre
 
 
-def build_franjas_finales(calendario: dict, fixtures: Optional[dict] = None) -> list:
+def build_franjas_finales(calendario: Optional[dict], fixtures: Optional[dict] = None) -> List[Tuple]:
     """Convierte el calendario persistido en lista de (hora, partido_c1, partido_c2).
 
     Diseñado para renderizar el panel de finales en Jinja2 con la misma
@@ -34,6 +36,8 @@ def build_franjas_finales(calendario: dict, fixtures: Optional[dict] = None) -> 
     partido_index: dict = {}
     if fixtures:
         for cat, fixture in fixtures.items():
+            if not fixture:
+                continue
             for fase_key in ['octavos', 'cuartos', 'semifinales']:
                 for partido in fixture.get(fase_key, []):
                     if partido and partido.get('id'):
@@ -61,28 +65,3 @@ def build_franjas_finales(calendario: dict, fixtures: Optional[dict] = None) -> 
         por_hora.setdefault(p['hora_inicio'], [None, None])[1] = _enriquecer(p)
 
     return [(h, slots[0], slots[1]) for h, slots in sorted(por_hora.items())]
-
-
-def _resolver_ganador_nombre(partido: dict, ganador: Optional[dict]) -> Optional[str]:
-    """Resuelve el nombre de la pareja ganadora a partir del ID en `ganador`.
-
-    El fixture guarda `ganador` como {'id': N}. Para el render UI necesitamos
-    el nombre — se obtiene cruzando con pareja1/pareja2 del mismo partido.
-
-    Args:
-        partido: dict del partido con claves 'pareja1' y 'pareja2' (ambas dicts con 'id' y 'nombre')
-        ganador: {'id': N} o None
-
-    Returns:
-        Nombre string de la pareja ganadora, o None si no se puede resolver.
-    """
-    if not ganador or ganador.get('id') is None:
-        return None
-    gid = ganador['id']
-    p1 = partido.get('pareja1') or {}
-    p2 = partido.get('pareja2') or {}
-    if p1.get('id') == gid:
-        return p1.get('nombre')
-    if p2.get('id') == gid:
-        return p2.get('nombre')
-    return None

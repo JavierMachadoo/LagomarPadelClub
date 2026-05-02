@@ -466,7 +466,7 @@ def crear_app():
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,
                              tipo_torneo=tipo_torneo,
-                             franjas_finales=build_franjas_finales(calendario_finales, torneo.get('fixtures_finales', {}))))
+                             franjas_finales=build_franjas_finales(calendario_finales, {k: v for k, v in torneo.get('fixtures_finales', {}).items() if v})))
 
     @app.route('/cuadro')
     def cuadro_publico():

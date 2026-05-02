@@ -1,151 +1,207 @@
-# Sistema de Identidad de Jugadores — Diseño
+# Ranking Anual — Guía de Deploy
 
-> Estado: Diseño aprobado. Pendiente de implementación.
-> Fecha de diseño: 2026-04-27
-> Prioridad en roadmap: P3 (prerequisito para ranking anual)
-
----
-
-## Problema
-
-Hoy una "pareja" es un string libre con teléfono. No existe el concepto de jugador individual como entidad. Esto hace imposible acumular puntos entre torneos porque no hay forma de decir "este Juan Pérez del torneo de mayo es el mismo que el del torneo de agosto".
+> Estado: import ejecutado en dev ✅ — pendiente verificar /ranking en dev y aplicar en prod.
+> Última actualización: 2026-04-29
 
 ---
 
-## Decisión
+## Resumen de qué se hizo
 
-Separar dos conceptos que hoy están mezclados:
-
-- **`Usuario`** — cuenta con email/contraseña. Existe en Supabase Auth. Puede loguearse.
-- **`Jugador`** — persona real que juega en el club. Puede o no tener cuenta.
-
-Un jugador puede existir sin cuenta. Si algún día crea una cuenta, se vincula retroactivamente y todos sus torneos históricos quedan asociados.
+- Tabla `puntos_jugador` definida en `supabase_schema.sql`
+- Script de importación del histórico: `import_ranking_baseline.py` (180 jugadores con sus puntos hasta Abril 2026)
+- Vista `/ranking` sin filtro de año (muestra todos los torneos finalizados)
+- Blueprint `api/routes/ranking.py` limpiado
+- Script `copy_prod_to_dev.py` para copiar tablas clave de prod → dev (via supabase-py)
 
 ---
 
-## Modelo de datos
+## Hallazgos importantes — correcciones de nombres
 
-### Tabla `jugadores` (nueva)
+Durante el dry-run descubrimos que PostgreSQL `ILIKE` **no normaliza acentos** — `'HERNAN'` no matchea `'Hernán'` porque `'a' ≠ 'á'` a nivel Unicode.
+
+Se corrigieron 15 entradas en `RANKING_DATA` dentro de `import_ranking_baseline.py` para que los nombres coincidan exactamente con los registrados en prod:
+
+| Antes | Después |
+|-------|---------|
+| `HERNAN GYALOG` | `Hernán Gyalog` |
+| `MAXI LICANDRO` | `Maximo Licandro` |
+| `NICO SILVERA` | `Nicolas Silvera` |
+| `RODRI FRANCO` | `Rodrigo Franco` |
+| `QUIQUE FRAGA` | `Enrique Fraga` |
+| `NICO MARTINEZ` | `Nicolás Martínez` |
+| `FACU SPIRA` | `Facundo Spira` |
+| `ALE VAZQUEZ` | `Alejandro Vazquez` |
+| `AGUSTIN TORENA` | `Agustín Torena` |
+| `GONZALO OLIVERA` | `Gonza Olivera` |
+
+Resultado del import real en dev:
+- **102 reutilizados** — jugadores ya existentes en `jugadores` (ligados a su cuenta si se registraron)
+- **78 creados** — jugadores históricos que aún no se registraron en la app
+- **180 filas** insertadas en `puntos_jugador`
+
+---
+
+## Divergencia de schema prod ↔ dev — jugadores
+
+La tabla `jugadores` tiene esquemas distintos en prod y dev:
+
+| Columna | Prod | Dev |
+|---------|------|-----|
+| id | UUID PK, FK → auth.users | UUID PK (no FK) |
+| nombre | ✅ | ✅ |
+| apellido | ✅ | ✅ |
+| telefono | ✅ | ✅ |
+| created_at | ✅ | ✅ |
+| usuario_id | ❌ | UUID, FK → auth.users |
+| email | ❌ | ✅ |
+| activo | ❌ | BOOLEAN DEFAULT true |
+| telefono_verificado | ❌ | ✅ |
+| telefono_verificado_at | ❌ | ✅ |
+
+Al copiar prod → dev se insertan solo las 5 columnas comunes. Dev completa el resto con defaults.
+
+---
+
+## FASE 1 — Validar en DEV ✅ COMPLETADO
+
+### Paso 1 · Crear tabla en Supabase dev ✅
+
+SQL ejecutado en **LagomarPadelDB-Dev** (ya existe, no re-ejecutar):
 
 ```sql
-CREATE TABLE jugadores (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  nombre        TEXT NOT NULL,
-  telefono      TEXT,
-  email         TEXT,
-  usuario_id    UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  activo        BOOLEAN DEFAULT TRUE,
-  created_at    TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS puntos_jugador (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    jugador_id  UUID        NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+    torneo_id   UUID        NOT NULL REFERENCES torneos(id) ON DELETE CASCADE,
+    categoria   TEXT        NOT NULL,
+    puntos      INTEGER     NOT NULL DEFAULT 0,
+    concepto    TEXT        NOT NULL DEFAULT 'serie',
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (jugador_id, torneo_id, categoria)
 );
+
+CREATE INDEX IF NOT EXISTS idx_pj_jugador   ON puntos_jugador(jugador_id);
+CREATE INDEX IF NOT EXISTS idx_pj_torneo    ON puntos_jugador(torneo_id);
+CREATE INDEX IF NOT EXISTS idx_pj_categoria ON puntos_jugador(categoria);
 ```
 
-- `usuario_id` es nullable — jugador sin cuenta es válido
-- Un jugador puede cambiar de `usuario_id` si el admin lo vincula a una cuenta existente
-- `activo = FALSE` para jugadores retirados (no se borran — preservan historial)
+### Paso 2 · Copiar prod → dev ✅
 
-### Tabla `parejas` (refactorizada)
+Se copió vía Supabase MCP (tablas en orden por FK):
+1. `torneos` (FK padre de grupos y puntos_jugador)
+2. `jugadores` (solo 5 columnas comunes)
+3. `grupos` (FK → torneos)
+4. `parejas_grupo` (FK → grupos)
+5. `partidos` (FK → grupos)
+6. `partidos_finales` (FK → torneos)
 
-```sql
--- Agregar columnas FK
-ALTER TABLE parejas
-  ADD COLUMN jugador1_id UUID REFERENCES jugadores(id),
-  ADD COLUMN jugador2_id UUID REFERENCES jugadores(id);
+NO se copiaron: `inscripciones` (FK a auth.users de prod — incompatible con dev), `invitacion_tokens`, `puntos_jugador`.
 
--- El campo nombre_pareja (string) se mantiene como fallback durante migración
--- Una vez migrados todos los torneos históricos, se puede deprecar
+Para volver a copiar en el futuro:
+```bash
+python copy_prod_to_dev.py                  # copia todo
+python copy_prod_to_dev.py --solo-jugadores # solo jugadores (más rápido)
+python copy_prod_to_dev.py --dry-run        # preview sin escribir
+```
+Requiere `PROD_SUPABASE_URL` y `PROD_SUPABASE_SERVICE_ROLE_KEY` en `.env`.
+
+### Paso 3 · Import real en dev ✅
+
+```bash
+PYTHONIOENCODING=utf-8 python import_ranking_baseline.py
+```
+
+Resultado:
+```
+=== Resumen ===
+  Jugadores reutilizados: 102
+  Jugadores creados:      78
+  Filas puntos_jugador:   180
+```
+
+### Paso 4 · Verificar el ranking en dev ✅
+
+```bash
+python main.py
+```
+
+Entrá a `http://localhost:5000/ranking` y verificá:
+
+- [ ] Se ven las 6 categorías (Tercera a Octava)
+- [ ] Los puntos y nombres son correctos
+- [ ] El filtro de año ya no aparece
+- [ ] El estado vacío no menciona el año
+
+### Paso 5 · Commit y push
+
+Una vez validado en dev:
+
+```bash
+git add api/routes/ranking.py web/templates/ranking.html supabase_schema.sql \
+        import_ranking_baseline.py copy_prod_to_dev.py JUGADORES_IDENTIDAD.md
+git commit -m "feat(ranking): tabla puntos_jugador, import histórico baseline y vista /ranking sin filtro de año"
+git push
 ```
 
 ---
 
-## Flujo del admin al crear una pareja
+## FASE 2 — Aplicar en PROD ⬜ PENDIENTE
 
-1. Admin busca "Roberto" en el catálogo de jugadores
-2. Si existe → lo selecciona
-3. Si no existe → lo crea ahí mismo (nombre + teléfono opcional) → queda en el catálogo
-4. Repite para el segundo jugador
-5. Elige categoría y franjas → guarda
+> Solo hacer esto después de que FASE 1 funcionó bien en dev.
 
-El catálogo crece solo con el tiempo. Al segundo torneo, la mayoría de jugadores ya están cargados.
+### Paso 1 · Crear tabla en Supabase prod
+
+Mismo SQL del Paso 1 de FASE 1, pero ahora en **LagomarPadelDB** (prod).
 
 ---
 
-## Ranking anual (objetivo final)
+### Paso 2 · Dry run apuntando a prod
 
-Con esta estructura, el ranking es una query directa:
-
-```sql
-SELECT
-  j.nombre,
-  SUM(r.puntos) AS puntos_totales,
-  COUNT(DISTINCT r.torneo_id) AS torneos_jugados
-FROM resultados_torneos r
-JOIN jugadores j ON j.id = r.jugador_id
-GROUP BY j.id, j.nombre
-ORDER BY puntos_totales DESC;
+```bash
+SUPABASE_URL=<prod_url> SUPABASE_SERVICE_ROLE_KEY=<prod_key> \
+PYTHONIOENCODING=utf-8 python import_ranking_baseline.py --dry-run
 ```
 
-No hay fuzzy matching. No hay confirmaciones manuales. La identidad está resuelta desde la carga.
-
-### Sistema de puntos sugerido (a definir)
-
-| Posición | Puntos |
-|----------|--------|
-| 1° (Campeón) | 100 |
-| 2° (Finalista) | 75 |
-| 3°-4° (Semifinalistas) | 50 |
-| Cuartos de final | 30 |
-| Clasificado a finales | 15 |
-| Participación | 5 |
-
-> Los valores son un punto de partida. Ajustar según criterio del club.
+Revisá que todos los jugadores con cuenta en prod matcheen correctamente.
+Deberían salir ~102 reutilizados (los mismos que en dev — el script busca por nombre+apellido).
 
 ---
 
-## Plan de implementación
+### Paso 3 · Import real en prod
 
-### Fase 1 — Modelo y catálogo (sin romper lo existente)
-
-- [ ] Crear tabla `jugadores` en Supabase (dev primero, luego prod)
-- [ ] Agregar `jugador1_id` / `jugador2_id` a `parejas` (nullable — migración no destructiva)
-- [ ] Nuevo modelo `Jugador` en `core/models.py`
-- [ ] Endpoint CRUD `/api/jugadores` (listar, crear, buscar por nombre/teléfono, vincular usuario)
-- [ ] UI admin: selector de jugadores al crear pareja (con búsqueda + creación inline)
-
-### Fase 2 — Migración de datos históricos
-
-- [ ] Script de migración: para cada pareja histórica con nombre string, crear entidad `Jugador` y vincular
-- [ ] El admin revisa y deduplica entidades creadas automáticamente
-- [ ] Una vez validado, marcar `nombre_pareja` como deprecated
-
-### Fase 3 — Ranking
-
-- [ ] Tabla `resultados_torneos` (jugador_id, torneo_id, posicion, puntos)
-- [ ] Proceso de "calcular puntos" al archivar un torneo
-- [ ] Vista pública `/ranking` con tabla anual y filtros por categoría
-- [ ] Sección "Mis torneos" en dashboard del jugador (usa `jugador_id` vinculado a su cuenta)
+```bash
+SUPABASE_URL=<prod_url> SUPABASE_SERVICE_ROLE_KEY=<prod_key> \
+PYTHONIOENCODING=utf-8 python import_ranking_baseline.py
+```
 
 ---
 
-## Consideraciones importantes
+### Paso 4 · Deploy en Railway
 
-**Deduplicación**: Es responsabilidad del admin al crear el catálogo, no del sistema. El sistema no hace fuzzy matching — la identidad es explícita.
+Railway hace el deploy automático cuando el push llega a `main`. Si el branch aún no fue mergeado:
 
-**Migración no destructiva**: Las columnas `jugador1_id`/`jugador2_id` se agregan como nullable. El campo nombre string se mantiene durante la transición. Cero riesgo de romper torneos ya archivados.
-
-**Vinculación cuenta-jugador**: El admin puede vincular un `Jugador` a una cuenta `Usuario` en cualquier momento. La query de ranking funciona igual con o sin cuenta vinculada — opera sobre `jugador_id`, no sobre `usuario_id`.
-
-**RLS en Supabase**: La tabla `jugadores` debe seguir el mismo patrón que el resto — backend accede con `SUPABASE_SERVICE_ROLE_KEY`, nunca con anon key.
+```bash
+# Merge Feature/JugadoresIdentidad → main (o vía PR en GitHub)
+```
 
 ---
 
-## Archivos afectados (estimado)
+### Paso 5 · Verificar en prod
 
-| Archivo | Cambio |
-|---------|--------|
-| `core/models.py` | Nuevo dataclass `Jugador`, refactor de `Pareja` |
-| `api/routes/parejas.py` | Adaptar CRUD al nuevo modelo |
-| `api/routes/` | Nuevo blueprint `jugadores.py` |
-| `utils/torneo_storage.py` | Persistencia del catálogo de jugadores |
-| `web/templates/homePanel.html` | UI selector de jugadores |
-| `web/static/js/app.js` | Lógica de búsqueda + creación inline |
-| Supabase | Migration: tabla `jugadores`, ALTER TABLE `parejas` |
+Entrá a la URL de prod y verificá `/ranking` igual que en dev.
+
+---
+
+## Notas importantes
+
+**ILIKE no normaliza acentos**: `'HERNAN' ILIKE 'Hernán'` → FALSE en PostgreSQL. Los nombres en `RANKING_DATA` deben coincidir exactamente (incluyendo tildes) con los registrados en la tabla `jugadores`.
+
+**Jugadores con cuenta vinculada**: los jugadores que se registraron en la app ya tienen entrada en `jugadores`. El import los encuentra por nombre+apellido y reutiliza esa entrada — sus puntos quedan automáticamente ligados a su perfil.
+
+**Nombres sin apellido**: SCHUBERT, GUZI, MONE, WILLY, PEDRO — el script los crea con apellido vacío. Si tenés los apellidos completos, actualizalos en `import_ranking_baseline.py` antes de aplicar en prod.
+
+**Idempotente**: el script usa UPSERT en `puntos_jugador` (constraint UNIQUE por jugador+torneo+categoría). Correrlo dos veces no duplica datos.
+
+**Windows / encoding**: si el terminal da `UnicodeEncodeError`, correr con `PYTHONIOENCODING=utf-8` como prefijo.
+
+**Concepto**: todos los jugadores importados tienen `concepto = 'serie'` porque no tenemos el desglose histórico por torneo. Los próximos torneos que se archiven desde el sistema van a tener el concepto real (campeón, vicecampeón, etc.).

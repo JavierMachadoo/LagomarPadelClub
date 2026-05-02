@@ -28,6 +28,8 @@ from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
 from api.routes.inscripcion import inscripcion_bp
 from api.routes.historial import historial_bp, _cargar_archivado
+from api.routes.jugadores import jugadores_bp
+from api.routes.ranking import ranking_bp
 from utils.torneo_storage import storage, ConflictError
 from utils.jwt_handler import JWTHandler
 from core.fixture_finales_generator import GeneradorFixtureFinales
@@ -89,6 +91,8 @@ def crear_app():
     app.register_blueprint(auth_jugador_bp)
     app.register_blueprint(inscripcion_bp)
     app.register_blueprint(historial_bp)
+    app.register_blueprint(jugadores_bp)
+    app.register_blueprint(ranking_bp)
     
     # Helper para obtener datos del token o storage
     def obtener_datos_torneo():
@@ -139,7 +143,7 @@ def crear_app():
                     g.es_jugador = True
                     g.jugador_id = data.get('user_id')
         # Rutas públicas: no requieren autenticación
-        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones', '/torneos']
+        rutas_publicas_prefijos = ['/login', '/logout', '/static/', '/_health', '/grupos', '/cuadro', '/calendario', '/api/auth/', '/registro', '/auth/', '/inscripcion', '/api/inscripcion', '/api/admin/inscripciones', '/torneos', '/ranking', '/api/ranking']
         # Rutas con variable que son públicas — whitelist explícita para evitar exponer prefijos enteros
         es_ruta_fotos = request.path.startswith('/api/torneos/') and request.path.endswith('/fotos')
         if request.path == '/' or es_ruta_fotos or any(request.path.startswith(r) for r in rutas_publicas_prefijos):
@@ -213,6 +217,11 @@ def crear_app():
         
         return response
     
+    @app.route('/admin/vinculacion')
+    def admin_vinculacion():
+        """Página de vinculación: catálogo del admin ↔ cuentas registradas."""
+        return render_template('vinculacion.html')
+
     @app.route('/dashboard')
     def dashboard():
         """Dashboard - Visualización de grupos generados."""

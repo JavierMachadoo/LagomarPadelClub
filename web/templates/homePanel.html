@@ -343,15 +343,27 @@
                                     <label class="form-label fw-bold">
                                         Jugador 1 <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" class="form-control" name="jugador1" 
-                                           placeholder="Ej: Juan Pérez" required>
+                                    <div class="position-relative">
+                                        <input type="text" class="form-control" name="jugador1"
+                                               id="inputJugador1"
+                                               placeholder="Buscar en catálogo o escribir nombre"
+                                               autocomplete="off" required>
+                                        <input type="hidden" name="jugador1_id" id="jugador1Id">
+                                        <div id="dropdownJugador1" class="jugador-dropdown d-none"></div>
+                                    </div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">
                                         Jugador 2 <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" class="form-control" name="jugador2" 
-                                           placeholder="Ej: María López" required>
+                                    <div class="position-relative">
+                                        <input type="text" class="form-control" name="jugador2"
+                                               id="inputJugador2"
+                                               placeholder="Buscar en catálogo o escribir nombre"
+                                               autocomplete="off" required>
+                                        <input type="hidden" name="jugador2_id" id="jugador2Id">
+                                        <div id="dropdownJugador2" class="jugador-dropdown d-none"></div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1064,6 +1076,36 @@
         width: 100%;
     }
 }
+
+.jugador-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 .375rem .375rem;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 1050;
+    box-shadow: 0 4px 12px rgba(0,0,0,.1);
+}
+.jugador-dropdown .jd-item {
+    padding: .5rem .75rem;
+    cursor: pointer;
+    font-size: .9rem;
+}
+.jugador-dropdown .jd-item:hover { background: #f0f4ff; }
+.jugador-dropdown .jd-crear {
+    padding: .5rem .75rem;
+    cursor: pointer;
+    font-size: .85rem;
+    color: #0d6efd;
+    border-top: 1px solid #dee2e6;
+}
+.jugador-dropdown .jd-crear:hover { background: #e8f0fe; }
+.jugador-seleccionado { border-color: #198754 !important; }
 </style>
 {% endblock %}
 
@@ -1122,35 +1164,128 @@ document.getElementById('formCargarCSV').addEventListener('submit', function(e) 
     });
 });
 
+// ==================== BUSCADOR DE JUGADORES ====================
+
+let _jugadorTimer = {};
+
+function buscarJugadores(numero, q) {
+    clearTimeout(_jugadorTimer[numero]);
+    const dropdown = document.getElementById('dropdownJugador' + numero);
+    if (q.length < 2) { dropdown.classList.add('d-none'); dropdown.innerHTML = ''; return; }
+    _jugadorTimer[numero] = setTimeout(() => {
+        fetch('/api/jugadores?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => _renderDropdown(numero, q, data.jugadores || []))
+            .catch(() => dropdown.classList.add('d-none'));
+    }, 280);
+}
+
+function _renderDropdown(numero, q, jugadores) {
+    const dropdown = document.getElementById('dropdownJugador' + numero);
+    dropdown.innerHTML = '';
+    jugadores.slice(0, 8).forEach(j => {
+        const item = document.createElement('div');
+        item.className = 'jd-item';
+        item.textContent = j.nombre + ' ' + j.apellido + (j.telefono ? ' · ' + j.telefono : '');
+        item.addEventListener('mousedown', e => {
+            e.preventDefault();
+            seleccionarJugador(numero, j.id, j.nombre + ' ' + j.apellido);
+        });
+        dropdown.appendChild(item);
+    });
+    const crear = document.createElement('div');
+    crear.className = 'jd-crear';
+    crear.innerHTML = '➕ Crear jugador: <strong>' + q + '</strong>';
+    crear.addEventListener('mousedown', e => { e.preventDefault(); crearJugadorInline(numero, q); });
+    dropdown.appendChild(crear);
+    dropdown.classList.remove('d-none');
+}
+
+function seleccionarJugador(numero, id, nombreCompleto) {
+    const input = document.getElementById('inputJugador' + numero);
+    const hidden = document.getElementById('jugador' + numero + 'Id');
+    input.value = nombreCompleto;
+    hidden.value = id;
+    input.classList.add('jugador-seleccionado');
+    document.getElementById('dropdownJugador' + numero).classList.add('d-none');
+}
+
+function crearJugadorInline(numero, texto) {
+    const partes = texto.trim().split(/\s+/);
+    const nombre = partes[0] || '';
+    const apellido = partes.slice(1).join(' ') || '';
+    if (!nombre) { Toast.error('Escribí al menos el nombre'); return; }
+    if (!apellido) {
+        const ap = prompt('Apellido del jugador "' + nombre + '":');
+        if (!ap || !ap.trim()) return;
+        _crearJugador(numero, nombre, ap.trim());
+    } else {
+        _crearJugador(numero, nombre, apellido);
+    }
+}
+
+function _crearJugador(numero, nombre, apellido) {
+    fetch('/api/jugadores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, apellido })
+    })
+    .then(r => r.json())
+    .then(j => {
+        if (j.id) {
+            seleccionarJugador(numero, j.id, j.nombre + ' ' + j.apellido);
+            Toast.success('Jugador ' + j.nombre + ' ' + j.apellido + ' creado en el catálogo');
+        } else {
+            Toast.error(j.error || 'Error al crear jugador');
+        }
+    })
+    .catch(() => Toast.error('Error al crear jugador'));
+}
+
+['1', '2'].forEach(n => {
+    const input = document.getElementById('inputJugador' + n);
+    if (!input) return;
+    input.addEventListener('input', () => {
+        document.getElementById('jugador' + n + 'Id').value = '';
+        input.classList.remove('jugador-seleccionado');
+        buscarJugadores(n, input.value.trim());
+    });
+    input.addEventListener('blur', () => {
+        setTimeout(() => document.getElementById('dropdownJugador' + n).classList.add('d-none'), 150);
+    });
+});
+
 // ==================== AGREGAR PAREJA MANUAL ====================
 document.getElementById('formAgregarPareja').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(this);
     const jugador1 = (formData.get('jugador1') || '').trim();
     const jugador2 = (formData.get('jugador2') || '').trim();
+    const jugador1Id = (formData.get('jugador1_id') || '').trim() || null;
+    const jugador2Id = (formData.get('jugador2_id') || '').trim() || null;
     const telefono = formData.get('telefono').trim();
     const categoria = formData.get('categoria');
     const franjas = formData.getAll('franjas[]');
-    
+
     if (!jugador1) {
         Toast.error('El nombre del Jugador 1 es obligatorio');
         return;
     }
-    
+
     if (franjas.length === 0) {
         Toast.error('Seleccioná al menos una franja horaria');
         return;
     }
-    
+
     fetch('/api/agregar-pareja', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             jugador1: jugador1,
             jugador2: jugador2,
+            jugador1_id: jugador1Id,
+            jugador2_id: jugador2Id,
             telefono: telefono || 'Sin teléfono',
             categoria: categoria,
             franjas: franjas

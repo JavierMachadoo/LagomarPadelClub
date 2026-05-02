@@ -47,6 +47,7 @@ def _listar_archivados():
             resp = _sb_admin().table('torneos') \
                 .select('id, nombre, tipo, estado, created_at') \
                 .eq('estado', 'finalizado') \
+                .neq('tipo', 'historico') \
                 .order('created_at', desc=True) \
                 .execute()
             return resp.data or []
@@ -62,6 +63,7 @@ def _listar_archivados():
                     {'id': t['id'], 'nombre': t['nombre'], 'tipo': t['tipo'],
                      'estado': t.get('estado', 'finalizado'), 'created_at': t.get('created_at')}
                     for t in torneos
+                    if t.get('tipo') != 'historico'
                 ]
         except Exception as e:
             logger.error('Error al leer historial local: %s', e)
@@ -126,9 +128,11 @@ def _poblar_tablas_relacionales(sb, torneo_id: str, datos_blob: dict) -> None:
 
             for pareja_dict in grupo_dict.get('parejas', []):
                 parejas_rows.append({
-                    'grupo_id': grupo_uuid,
-                    'nombre':   pareja_dict.get('nombre', ''),
-                    'posicion': pareja_dict.get('posicion_grupo'),  # puede ser None
+                    'grupo_id':    grupo_uuid,
+                    'nombre':      pareja_dict.get('nombre', ''),
+                    'posicion':    pareja_dict.get('posicion_grupo'),
+                    'jugador1_id': pareja_dict.get('jugador1_id'),
+                    'jugador2_id': pareja_dict.get('jugador2_id'),
                 })
 
             for resultado_dict in grupo_dict.get('resultados', {}).values():
@@ -185,6 +189,102 @@ def _poblar_tablas_relacionales(sb, torneo_id: str, datos_blob: dict) -> None:
         '%d partidos grupo, %d partidos finales',
         torneo_id, len(grupos_rows), len(parejas_rows), len(partidos_rows), len(finales_rows),
     )
+
+
+_PUNTOS = {
+    'serie':       35,
+    'octavos':     50,
+    'cuartos':     75,
+    'semifinal':  100,
+    'vicecampeon': 150,
+    'campeon':     250,
+}
+
+# Mapeo fase serializada → concepto interno
+_FASE_A_CONCEPTO = {
+    'Octavos de Final': 'octavos',
+    'Cuartos de Final': 'cuartos',
+    'Semifinal':        'semifinal',
+    'Final':            'vicecampeon',  # todos los finalistas arrancan como vice
+}
+
+
+def _calcular_y_guardar_puntos(sb, torneo_id: str, datos_blob: dict) -> None:
+    """Calcula puntos por jugador y los inserta en puntos_jugador.
+
+    Lógica exclusiva: cada jugador recibe los puntos del máximo round alcanzado.
+    Ambos integrantes de la pareja reciben los mismos puntos.
+    """
+    resultado = datos_blob.get('resultado_algoritmo') or {}
+    grupos_por_categoria = resultado.get('grupos_por_categoria') or {}
+    fixtures_finales = datos_blob.get('fixtures_finales') or {}
+
+    # jugador_id → {categoria, concepto, puntos}  (solo el máximo por torneo/cat)
+    mejor: dict[str, dict] = {}
+
+    def _actualizar(jugador_id: str, categoria: str, concepto: str) -> None:
+        if not jugador_id:
+            return
+        key = f'{jugador_id}|{categoria}'
+        pts_nuevo = _PUNTOS[concepto]
+        if key not in mejor or pts_nuevo > mejor[key]['puntos']:
+            mejor[key] = {'jugador_id': jugador_id, 'categoria': categoria,
+                          'concepto': concepto, 'puntos': pts_nuevo}
+
+    # 1. Todos los que jugaron grupos arrancan con 'serie'
+    for categoria, grupos_lista in grupos_por_categoria.items():
+        for grupo_dict in grupos_lista:
+            for pareja_dict in grupo_dict.get('parejas', []):
+                for campo in ('jugador1_id', 'jugador2_id'):
+                    _actualizar(pareja_dict.get(campo), categoria, 'serie')
+
+    # 2. Recorrer fixtures y subir el concepto según fase
+    for categoria, fixture_dict in fixtures_finales.items():
+        if not isinstance(fixture_dict, dict):
+            continue
+
+        for fase_key in ('octavos', 'cuartos', 'semifinales'):
+            for partido_dict in fixture_dict.get(fase_key, []):
+                if not isinstance(partido_dict, dict):
+                    continue
+                fase_str = partido_dict.get('fase', '')
+                concepto = _FASE_A_CONCEPTO.get(fase_str)
+                if not concepto:
+                    continue
+                for slot in ('pareja1', 'pareja2'):
+                    pareja = partido_dict.get(slot) or {}
+                    for campo in ('jugador1_id', 'jugador2_id'):
+                        _actualizar(pareja.get(campo), categoria, concepto)
+
+        # La final: ambos arrancan como vicecampeón, el ganador sube a campeón
+        final_dict = fixture_dict.get('final')
+        if final_dict and isinstance(final_dict, dict):
+            for slot in ('pareja1', 'pareja2'):
+                pareja = final_dict.get(slot) or {}
+                for campo in ('jugador1_id', 'jugador2_id'):
+                    _actualizar(pareja.get(campo), categoria, 'vicecampeon')
+
+            ganador = final_dict.get('ganador') or {}
+            for campo in ('jugador1_id', 'jugador2_id'):
+                _actualizar(ganador.get(campo), categoria, 'campeon')
+
+    if not mejor:
+        logger.info('No hay jugador_ids en el torneo %s — puntos_jugador vacío', torneo_id)
+        return
+
+    rows = [
+        {
+            'jugador_id': v['jugador_id'],
+            'torneo_id':  torneo_id,
+            'categoria':  v['categoria'],
+            'puntos':     v['puntos'],
+            'concepto':   v['concepto'],
+        }
+        for v in mejor.values()
+    ]
+
+    sb.table('puntos_jugador').upsert(rows, on_conflict='jugador_id,torneo_id,categoria').execute()
+    logger.info('puntos_jugador: %d filas guardadas para torneo %s', len(rows), torneo_id)
 
 
 def _guardar_drive_folder(torneo_id: str, folder_id: str):
@@ -296,6 +396,11 @@ def terminar_torneo():
             _poblar_tablas_relacionales(sb, torneo_id, datos_blob)
         except Exception as e:
             logger.error('Error al poblar tablas relacionales para torneo %s: %s', torneo_id, e)
+
+        try:
+            _calcular_y_guardar_puntos(sb, torneo_id, datos_blob)
+        except Exception as e:
+            logger.error('Error al calcular puntos para torneo %s: %s', torneo_id, e)
     else:
         torneos = []
         if _HISTORIAL_FILE.exists():

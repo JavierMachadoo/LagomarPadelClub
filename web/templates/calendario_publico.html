@@ -419,7 +419,7 @@
                                         <div class="match-rows">
                                             {# ── Pareja 1 ── #}
                                             <div class="match-row">
-                                                <div class="equipo{% if res and ((not inv and res.sets_pareja1 > res.sets_pareja2) or (inv and res.sets_pareja2 > res.sets_pareja1)) %} equipo-ganador{% endif %}">{{ partido.pareja1 }}</div>
+                                                <div class="equipo{% if partido.get('ganador_top') %} equipo-ganador{% endif %}">{{ partido.pareja1 }}</div>
                                                 <div class="score-cells">
                                                     {% if res %}
                                                         {% if not inv %}
@@ -440,7 +440,7 @@
                                             <div class="match-row-divider"></div>
                                             {# ── Pareja 2 ── #}
                                             <div class="match-row">
-                                                <div class="equipo{% if res and ((not inv and res.sets_pareja2 > res.sets_pareja1) or (inv and res.sets_pareja1 > res.sets_pareja2)) %} equipo-ganador{% endif %}">{{ partido.pareja2 }}</div>
+                                                <div class="equipo{% if partido.get('ganador_bot') %} equipo-ganador{% endif %}">{{ partido.pareja2 }}</div>
                                                 <div class="score-cells">
                                                     {% if res %}
                                                         {% if not inv %}

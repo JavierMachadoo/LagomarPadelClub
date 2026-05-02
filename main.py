@@ -322,12 +322,18 @@ def crear_app():
                     res = lookup.get((gid, p1, p2))
                     if res:
                         partido['resultado'] = res
+                        gid_ganador = res.get('ganador_id')
+                        partido['ganador_top'] = gid_ganador is not None and gid_ganador == res.get('pareja1_id')
+                        partido['ganador_bot'] = gid_ganador is not None and gid_ganador == res.get('pareja2_id')
                     else:
                         res = lookup.get((gid, p2, p1))
                         if res:
                             # Invertir: pareja1 del resultado es pareja2 del calendario
                             partido['resultado'] = res
                             partido['resultado_invertido'] = True
+                            gid_ganador = res.get('ganador_id')
+                            partido['ganador_top'] = gid_ganador is not None and gid_ganador == res.get('pareja2_id')
+                            partido['ganador_bot'] = gid_ganador is not None and gid_ganador == res.get('pareja1_id')
 
     # Rutas públicas (sin login)
     @app.route('/grupos')

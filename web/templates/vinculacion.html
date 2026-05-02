@@ -312,8 +312,24 @@ async function confirmar(btn) {
     }
 }
 
-function descartar(btn) {
-    eliminarTarjeta(btn.closest('.sug-card'));
+async function descartar(btn) {
+    const card        = btn.closest('.sug-card');
+    const catalogoId   = card.dataset.catalogoId;
+    const registradoId = card.dataset.registradoId;
+
+    btn.disabled = true;
+
+    try {
+        await fetch('/api/jugadores/rechazar-vinculacion', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ catalogo_id: catalogoId, registrado_id: registradoId }),
+        });
+    } catch {
+        // fallo de red — igual removemos la tarjeta
+    }
+
+    eliminarTarjeta(card);
 }
 
 function eliminarTarjeta(card) {

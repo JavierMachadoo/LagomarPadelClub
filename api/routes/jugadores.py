@@ -76,12 +76,33 @@ def sugerencias_vinculacion():
                         'score':      round(score * 100),
                     })
 
+        rechazados = jugadores_storage.listar_rechazos()
+        sugerencias = [
+            s for s in sugerencias
+            if frozenset((s['catalogo']['id'], s['registrado']['id'])) not in rechazados
+        ]
+
         sugerencias.sort(key=lambda x: x['score'], reverse=True)
         return jsonify({'sugerencias': sugerencias}), 200
 
     except Exception:
         logger.exception('Error al calcular sugerencias de vinculación')
         return jsonify({'error': 'Error al calcular sugerencias'}), 500
+
+
+@jugadores_bp.route('/jugadores/rechazar-vinculacion', methods=['POST'])
+def rechazar_vinculacion():
+    data = request.json or {}
+    catalogo_id   = data.get('catalogo_id', '').strip()
+    registrado_id = data.get('registrado_id', '').strip()
+    if not catalogo_id or not registrado_id:
+        return jsonify({'error': 'catalogo_id y registrado_id son obligatorios'}), 400
+    try:
+        jugadores_storage.rechazar(catalogo_id, registrado_id)
+        return jsonify({'ok': True}), 200
+    except Exception:
+        logger.exception('Error al rechazar vinculación')
+        return jsonify({'error': 'Error al rechazar vinculación'}), 500
 
 
 @jugadores_bp.route('/jugadores/fusionar', methods=['POST'])

@@ -119,7 +119,7 @@ Resultado:
   Filas puntos_jugador:   180
 ```
 
-### Paso 4 · Verificar el ranking en dev ⬜ PENDIENTE
+### Paso 4 · Verificar el ranking en dev ✅
 
 ```bash
 python main.py

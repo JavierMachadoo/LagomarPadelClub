@@ -174,3 +174,13 @@ CREATE TABLE IF NOT EXISTS puntos_jugador (
 CREATE INDEX IF NOT EXISTS idx_pj_jugador   ON puntos_jugador(jugador_id);
 CREATE INDEX IF NOT EXISTS idx_pj_torneo    ON puntos_jugador(torneo_id);
 CREATE INDEX IF NOT EXISTS idx_pj_categoria ON puntos_jugador(categoria);
+
+-- ============================================================
+-- Rechazos de vinculación — pares que el admin descartó explícitamente
+-- ============================================================
+CREATE TABLE IF NOT EXISTS rechazos_vinculacion (
+    catalogo_id   UUID NOT NULL,
+    registrado_id UUID NOT NULL,
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (catalogo_id, registrado_id)
+);

@@ -147,6 +147,39 @@ class JugadoresStorage:
             None,
         )
 
+    def listar_rechazos(self) -> set:
+        """Devuelve el conjunto de pares rechazados como frozensets {catalogo_id, registrado_id}."""
+        if self._use_supabase:
+            rows = self._sb.table('rechazos_vinculacion').select('catalogo_id,registrado_id').execute().data or []
+            return {frozenset((r['catalogo_id'], r['registrado_id'])) for r in rows}
+        return {
+            frozenset(k.split('|', 1))
+            for k in self._json_rechazos_leer()
+        }
+
+    def rechazar(self, catalogo_id: str, registrado_id: str) -> None:
+        if self._use_supabase:
+            self._sb.table('rechazos_vinculacion').upsert(
+                {'catalogo_id': catalogo_id, 'registrado_id': registrado_id}
+            ).execute()
+        else:
+            rechazos = self._json_rechazos_leer()
+            key = f'{catalogo_id}|{registrado_id}'
+            if key not in rechazos:
+                rechazos.append(key)
+                self._json_rechazos_escribir(rechazos)
+
+    def _json_rechazos_leer(self) -> list:
+        path = self._jugadores_file.parent / 'rechazos_vinculacion.json'
+        try:
+            return json.loads(path.read_text(encoding='utf-8'))
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+
+    def _json_rechazos_escribir(self, datos: list) -> None:
+        path = self._jugadores_file.parent / 'rechazos_vinculacion.json'
+        path.write_text(json.dumps(datos, indent=2), encoding='utf-8')
+
     def vincular_usuario(self, jugador_id: str, usuario_id: str) -> dict:
         if self._use_supabase:
             return self._sb_actualizar(jugador_id, {'usuario_id': usuario_id})

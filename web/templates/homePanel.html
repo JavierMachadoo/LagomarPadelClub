@@ -1195,7 +1195,10 @@ function _renderDropdown(numero, q, jugadores) {
     });
     const crear = document.createElement('div');
     crear.className = 'jd-crear';
-    crear.innerHTML = '➕ Crear jugador: <strong>' + q + '</strong>';
+    crear.appendChild(document.createTextNode('➕ Crear jugador: '));
+    const strong = document.createElement('strong');
+    strong.textContent = q;
+    crear.appendChild(strong);
     crear.addEventListener('mousedown', e => { e.preventDefault(); crearJugadorInline(numero, q); });
     dropdown.appendChild(crear);
     dropdown.classList.remove('d-none');

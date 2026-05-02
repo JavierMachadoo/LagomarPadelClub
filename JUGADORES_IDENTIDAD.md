@@ -1,7 +1,7 @@
 # Ranking Anual — Guía de Deploy
 
-> Estado: import ejecutado en dev ✅ — pendiente verificar /ranking en dev y aplicar en prod.
-> Última actualización: 2026-04-29
+> Estado: import ejecutado en dev ✅ — FASE 2 (prod) pendiente.
+> Última actualización: 2026-05-02
 
 ---
 
@@ -149,34 +149,90 @@ git push
 
 > Solo hacer esto después de que FASE 1 funcionó bien en dev.
 
-### Paso 1 · Crear tabla en Supabase prod
+### Paso 1 · Migrar schema de `jugadores` en prod
+
+Prod tiene solo 5 columnas. Antes de correr el import hay que alinear el schema.
+Ejecutar en **LagomarPadelDB** (prod) vía Supabase SQL Editor:
+
+```sql
+-- 1. Dropear FK id → auth.users (el bug original — impide INSERT con UUID propio)
+ALTER TABLE jugadores DROP CONSTRAINT jugadores_id_fkey;
+
+-- 2. Agregar columnas que existen en dev pero no en prod
+ALTER TABLE jugadores
+  ADD COLUMN IF NOT EXISTS usuario_id          UUID        REFERENCES auth.users(id),
+  ADD COLUMN IF NOT EXISTS email               TEXT,
+  ADD COLUMN IF NOT EXISTS activo              BOOLEAN     DEFAULT true,
+  ADD COLUMN IF NOT EXISTS telefono_verificado BOOLEAN     DEFAULT false,
+  ADD COLUMN IF NOT EXISTS telefono_verificado_at TIMESTAMPTZ;
+
+-- 3. Preservar el vínculo auth de los 88 jugadores existentes
+--    En prod, jugadores.id ERA el auth UUID (por la FK vieja).
+--    Ahora que separamos id de usuario_id, hay que copiar ese vínculo
+--    antes de que se pierda — de lo contrario los 88 jugadores registrados
+--    quedan huérfanos: tienen cuenta pero el sistema no lo sabe.
+UPDATE jugadores SET usuario_id = id;
+
+-- 4. Marcar los jugadores existentes como activos
+UPDATE jugadores SET activo = true WHERE activo IS NULL;
+```
+
+> **Por qué**: `find_jugador()` hace `SELECT usuario_id` y `create_jugador()` inserta `activo: True`.
+> Sin estas columnas el script falla con error de columna inexistente.
+> Sin dropear la FK, todos los INSERT de jugadores nuevos fallan con FK violation.
+> Sin el `UPDATE usuario_id = id`, los 88 jugadores registrados en prod pierden el vínculo con su cuenta — su dashboard quedaría vacío y el ranking los mostraría duplicados cuando se vuelvan a registrar.
+
+---
+
+### Paso 2 · Crear tabla `puntos_jugador` en prod
 
 Mismo SQL del Paso 1 de FASE 1, pero ahora en **LagomarPadelDB** (prod).
 
+```sql
+CREATE TABLE IF NOT EXISTS puntos_jugador (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    jugador_id  UUID        NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+    torneo_id   UUID        NOT NULL REFERENCES torneos(id) ON DELETE CASCADE,
+    categoria   TEXT        NOT NULL,
+    puntos      INTEGER     NOT NULL DEFAULT 0,
+    concepto    TEXT        NOT NULL DEFAULT 'serie',
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (jugador_id, torneo_id, categoria)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pj_jugador   ON puntos_jugador(jugador_id);
+CREATE INDEX IF NOT EXISTS idx_pj_torneo    ON puntos_jugador(torneo_id);
+CREATE INDEX IF NOT EXISTS idx_pj_categoria ON puntos_jugador(categoria);
+```
+
 ---
 
-### Paso 2 · Dry run apuntando a prod
+### Paso 3 · Dry run apuntando a prod
 
 ```bash
-SUPABASE_URL=<prod_url> SUPABASE_SERVICE_ROLE_KEY=<prod_key> \
 PYTHONIOENCODING=utf-8 python import_ranking_baseline.py --dry-run
 ```
 
-Revisá que todos los jugadores con cuenta en prod matcheen correctamente.
-Deberían salir ~102 reutilizados (los mismos que en dev — el script busca por nombre+apellido).
+> Asegurate de que `.env` apunte a prod (`SUPABASE_URL` del proyecto `mxftowqqjyktxricdemd`).
+
+Revisá el output:
+- Los jugadores que ya tienen cuenta deben salir como `reutiliza`
+- Los `CREADO` son jugadores históricos sin cuenta — esperados
+- Si algún jugador conocido sale como `CREADO` en vez de `reutiliza`, hay un mismatch de nombre → corregirlo en `RANKING_DATA` antes de continuar
+
+> **Nota**: prod tiene 88 jugadores (vs 101 en dev cuando se copió). El número de reutilizados puede diferir levemente.
 
 ---
 
-### Paso 3 · Import real en prod
+### Paso 4 · Import real en prod
 
 ```bash
-SUPABASE_URL=<prod_url> SUPABASE_SERVICE_ROLE_KEY=<prod_key> \
 PYTHONIOENCODING=utf-8 python import_ranking_baseline.py
 ```
 
 ---
 
-### Paso 4 · Deploy en Railway
+### Paso 5 · Deploy en Railway
 
 Railway hace el deploy automático cuando el push llega a `main`. Si el branch aún no fue mergeado:
 
@@ -186,7 +242,7 @@ Railway hace el deploy automático cuando el push llega a `main`. Si el branch a
 
 ---
 
-### Paso 5 · Verificar en prod
+### Paso 6 · Verificar en prod
 
 Entrá a la URL de prod y verificá `/ranking` igual que en dev.
 

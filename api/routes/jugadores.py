@@ -99,6 +99,54 @@ def sugerencias_vinculacion():
         return jsonify({'error': 'Error al calcular sugerencias'}), 500
 
 
+@jugadores_bp.route('/jugadores/duplicados-catalogo', methods=['GET'])
+def duplicados_catalogo():
+    if not jugadores_storage._use_supabase:
+        return jsonify({'duplicados': []}), 200
+
+    try:
+        from utils.supabase_client import get_supabase_admin
+        sb = get_supabase_admin()
+        page = 1
+        auth_ids: set[str] = set()
+        while True:
+            batch = sb.auth.admin.list_users(page=page, per_page=50)
+            if not batch:
+                break
+            auth_ids.update(str(u.id) for u in batch)
+            if len(batch) < 50:
+                break
+            page += 1
+
+        todos = jugadores_storage.listar(activos_only=True)
+        admin_creados = [j for j in todos if j.get('id') not in auth_ids and not j.get('usuario_id')]
+
+        def nombre_full(j):
+            return f"{j.get('nombre', '')} {j.get('apellido', '')}".strip().lower()
+
+        UMBRAL = 0.75
+        duplicados = []
+        for i in range(len(admin_creados)):
+            for k in range(i + 1, len(admin_creados)):
+                a, b = admin_creados[i], admin_creados[k]
+                score = SequenceMatcher(None, nombre_full(a), nombre_full(b)).ratio()
+                if score >= UMBRAL:
+                    duplicados.append({'catalogo': a, 'registrado': b, 'score': round(score * 100)})
+
+        rechazados = jugadores_storage.listar_rechazos()
+        duplicados = [
+            d for d in duplicados
+            if frozenset((d['catalogo']['id'], d['registrado']['id'])) not in rechazados
+        ]
+
+        duplicados.sort(key=lambda x: x['score'], reverse=True)
+        return jsonify({'duplicados': duplicados}), 200
+
+    except Exception:
+        logger.exception('Error al calcular duplicados del catálogo')
+        return jsonify({'error': 'Error al calcular duplicados'}), 500
+
+
 @jugadores_bp.route('/jugadores/rechazar-vinculacion', methods=['POST'])
 def rechazar_vinculacion():
     data = request.json or {}

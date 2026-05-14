@@ -14,9 +14,6 @@
         <div class="col-lg-10">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2 class="mb-0">📊 Estadísticas del Torneo</h2>
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAgregarPareja">
-                    <i class="bi bi-plus-circle me-2"></i>Agregar Pareja Manual
-                </button>
             </div>
             <div class="stats-grid">
                 <div class="stat-card">
@@ -120,50 +117,6 @@
         <a href="{{ url_for('admin_panel') }}" class="btn-float btn-float-primary" title="Volver al panel">
             <i class="bi bi-house-fill"></i>
         </a>
-    </div>
-
-    <!-- Modal Agregar Pareja -->
-    <div class="modal fade" id="modalAgregarPareja" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title">
-                        <i class="bi bi-plus-circle"></i> Agregar Nueva Pareja
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="formAgregarParejaModal">
-                        <div class="mb-3">
-                            <label for="nombreModal" class="form-label">Nombre de la Pareja *</label>
-                            <input type="text" class="form-control" id="nombreModal" name="nombre" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="telefonoModal" class="form-label">Teléfono</label>
-                            <input type="tel" class="form-control" id="telefonoModal" name="telefono">
-                        </div>
-                        <div class="mb-3">
-                            <label for="categoriaModal" class="form-label">Categoría *</label>
-                            <select class="form-select" id="categoriaModal" name="categoria" required>
-                                {% for cat in categorias %}
-                                <option value="{{ cat }}">{{ cat }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Franjas Horarias Disponibles *</label>
-                            <div id="franjasModalContainer"></div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-success" onclick="agregarParejaDesdeModal()">
-                        <i class="bi bi-check-circle"></i> Agregar
-                    </button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Modal Confirmar Ganador -->

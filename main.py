@@ -244,6 +244,7 @@ def crear_app():
         response = make_response(render_template('dashboard.html',
                              resultado=resultado,
                              categorias=categorias_torneo,
+                             franjas=FRANJAS_HORARIAS,
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,

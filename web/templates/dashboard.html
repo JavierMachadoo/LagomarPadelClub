@@ -14,8 +14,9 @@
         <div class="col-lg-10">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2 class="mb-0">📊 Estadísticas del Torneo</h2>
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAgregarPareja">
-                    <i class="bi bi-plus-circle me-2"></i>Agregar Pareja Manual
+                <button class="btn btn-sm btn-outline-success rounded-pill"
+                        data-bs-toggle="modal" data-bs-target="#modalAgregarParejaRapida">
+                    <i class="bi bi-plus-circle me-1"></i>Agregar pareja
                 </button>
             </div>
             <div class="stats-grid">
@@ -120,50 +121,6 @@
         <a href="{{ url_for('admin_panel') }}" class="btn-float btn-float-primary" title="Volver al panel">
             <i class="bi bi-house-fill"></i>
         </a>
-    </div>
-
-    <!-- Modal Agregar Pareja -->
-    <div class="modal fade" id="modalAgregarPareja" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title">
-                        <i class="bi bi-plus-circle"></i> Agregar Nueva Pareja
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="formAgregarParejaModal">
-                        <div class="mb-3">
-                            <label for="nombreModal" class="form-label">Nombre de la Pareja *</label>
-                            <input type="text" class="form-control" id="nombreModal" name="nombre" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="telefonoModal" class="form-label">Teléfono</label>
-                            <input type="tel" class="form-control" id="telefonoModal" name="telefono">
-                        </div>
-                        <div class="mb-3">
-                            <label for="categoriaModal" class="form-label">Categoría *</label>
-                            <select class="form-select" id="categoriaModal" name="categoria" required>
-                                {% for cat in categorias %}
-                                <option value="{{ cat }}">{{ cat }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Franjas Horarias Disponibles *</label>
-                            <div id="franjasModalContainer"></div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-success" onclick="agregarParejaDesdeModal()">
-                        <i class="bi bi-check-circle"></i> Agregar
-                    </button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Modal Confirmar Ganador -->
@@ -849,6 +806,71 @@
                     <i class="bi bi-check-circle me-1"></i> Guardar Resultado
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+<!-- Modal: Agregar Pareja Rápida (A CONFIRMAR) -->
+<div class="modal fade" id="modalAgregarParejaRapida" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-plus-circle me-2"></i>Agregar pareja
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formAgregarParejaRapida">
+            <div class="modal-body">
+                <div class="alert alert-warning py-2 mb-3">
+                    <i class="bi bi-clock-history me-2"></i>
+                    <small><strong>Esta pareja queda como A CONFIRMAR</strong> — se ingresa como texto libre, sin cuenta de jugador.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nombre de la pareja <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="rapidaNombre"
+                           placeholder="Ej: García / López" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Teléfono</label>
+                    <input type="text" class="form-control" id="rapidaTelefono"
+                           placeholder="Ej: 099123456">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Categoría <span class="text-danger">*</span></label>
+                    <select class="form-select" id="rapidaCategoria">
+                        {% for cat in categorias %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-1">
+                    <label class="form-label fw-bold mb-2">Franjas horarias <span class="text-danger">*</span></label>
+                    <div class="row g-2">
+                        {% for franja in franjas %}
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input rapida-franja" type="checkbox"
+                                       value="{{ franja }}" id="rapidaFranja{{ loop.index }}">
+                                <label class="form-check-label" for="rapidaFranja{{ loop.index }}">
+                                    {{ franja }}
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-plus-circle me-1"></i>Agregar
+                </button>
+            </div>
+            </form>
         </div>
     </div>
 </div>
@@ -1597,6 +1619,37 @@
 {% endmacro %}
 
 {% block extra_js %}
+<script>
+// ==================== AGREGAR PAREJA RÁPIDA (A CONFIRMAR) ====================
+document.getElementById('formAgregarParejaRapida').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const nombre = document.getElementById('rapidaNombre').value.trim();
+    const telefono = document.getElementById('rapidaTelefono').value.trim();
+    const categoria = document.getElementById('rapidaCategoria').value;
+    const franjas = [...document.querySelectorAll('.rapida-franja:checked')].map(cb => cb.value);
+
+    if (!nombre) { Toast.error('El nombre de la pareja es obligatorio'); return; }
+    if (franjas.length === 0) { Toast.error('Seleccioná al menos una franja horaria'); return; }
+
+    fetch('/api/agregar-pareja', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, telefono: telefono || 'Sin teléfono', categoria, franjas })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success || data.mensaje) {
+            bootstrap.Modal.getInstance(document.getElementById('modalAgregarParejaRapida')).hide();
+            Toast.success(data.mensaje || 'Pareja agregada');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            Toast.error(data.error || 'Error al agregar pareja');
+        }
+    })
+    .catch(() => Toast.error('Error al agregar pareja'));
+});
+</script>
 <script>
 // Variables renderizadas por Jinja2 -- deben permanecer en el template
 const CATEGORIAS_TORNEO_FINALES = {{ categorias | tojson }};

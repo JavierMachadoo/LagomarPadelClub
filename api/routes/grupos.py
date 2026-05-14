@@ -90,11 +90,24 @@ def intercambiar_pareja():
     )
 
 
+def _es_placeholder(resultado_data: dict, pareja_id) -> bool:
+    """Devuelve True si la pareja no tiene jugadores vinculados (fue ingresada como placeholder)."""
+    for grupos in resultado_data.get('grupos_por_categoria', {}).values():
+        for grupo in grupos:
+            for pareja in grupo.get('parejas', []):
+                if str(pareja.get('id')) == str(pareja_id):
+                    return not pareja.get('jugador1_id') and not pareja.get('jugador2_id')
+    return False
+
+
 @grupos_bp.route('/asignar-pareja-a-grupo', methods=['POST'])
 def asignar_pareja_a_grupo():
     data = request.json
-    if storage.get_fase() == 'torneo' and data.get('pareja_a_remover_id'):
-        return jsonify({'error': 'El torneo ya está activo. No se puede reemplazar parejas en grupos.'}), 403
+    pareja_a_remover_id = data.get('pareja_a_remover_id')
+    if storage.get_fase() == 'torneo' and pareja_a_remover_id:
+        datos_check = obtener_datos_desde_token()
+        if not _es_placeholder(datos_check.get('resultado_algoritmo', {}), pareja_a_remover_id):
+            return jsonify({'error': 'El torneo ya está activo. Solo se pueden reemplazar parejas sin jugadores vinculados.'}), 403
     pareja_id = data.get('pareja_id')
     grupo_id = data.get('grupo_id')
     categoria = data.get('categoria')

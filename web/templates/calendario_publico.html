@@ -353,6 +353,7 @@
                     </button>
                 </li>
                 {% endif %}
+                {% if mostrar_finales %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {% if not dias_fase_grupos %}active{% endif %}" id="tab-finales"
                             data-bs-toggle="tab" data-bs-target="#panel-finales"
@@ -360,6 +361,7 @@
                         <i class="bi bi-trophy me-1"></i>Fases Finales
                     </button>
                 </li>
+                {% endif %}
             </ul>
 
             {% if es_jugador and has_resultado %}
@@ -478,6 +480,7 @@
         </div>
         {% endif %}
 
+        {% if mostrar_finales %}
         {# ── FASES FINALES ── #}
         <div class="tab-pane fade {% if not dias_fase_grupos %}show active{% endif %}"
              id="panel-finales" role="tabpanel">
@@ -631,6 +634,7 @@
             </div>{# /cal-scroll-inner #}
             </div>{# /cal-scroll-wrapper #}
         </div>
+        {% endif %}{# /mostrar_finales #}
 
     </div>
 
@@ -895,17 +899,18 @@ function detenerPollingFinales() {
 }
 
 // Cargar al hacer clic en el tab finales — siempre refresca para mostrar resultados nuevos
-document.getElementById('tab-finales').addEventListener('shown.bs.tab', function () {
-    if (document.getElementById('finales-calendar-content')) {
-        cargarFinalesCalendar();
-        iniciarPollingFinales();
-    }
-});
-
-// Detener polling al salir del tab finales
-document.getElementById('tab-finales').addEventListener('hidden.bs.tab', function () {
-    detenerPollingFinales();
-});
+const _tabFinalesEl = document.getElementById('tab-finales');
+if (_tabFinalesEl) {
+    _tabFinalesEl.addEventListener('shown.bs.tab', function () {
+        if (document.getElementById('finales-calendar-content')) {
+            cargarFinalesCalendar();
+            iniciarPollingFinales();
+        }
+    });
+    _tabFinalesEl.addEventListener('hidden.bs.tab', function () {
+        detenerPollingFinales();
+    });
+}
 
 // Si el tab de finales ya está activo al cargar (no hay fase de grupos)
 (function() {

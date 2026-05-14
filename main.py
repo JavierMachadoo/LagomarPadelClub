@@ -120,6 +120,7 @@ def crear_app():
             torneo_tiene_datos=tiene_datos,
             fase_torneo=fase,
             proximo_torneo=torneo.get('proximo_torneo'),
+            mostrar_finales=torneo.get('mostrar_finales', True),
         )
 
     # Middleware: Verificar autenticación
@@ -243,6 +244,7 @@ def crear_app():
         response = make_response(render_template('dashboard.html',
                              resultado=resultado,
                              categorias=categorias_torneo,
+                             franjas=FRANJAS_HORARIAS,
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,

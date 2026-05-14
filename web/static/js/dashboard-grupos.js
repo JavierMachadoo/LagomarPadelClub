@@ -175,26 +175,8 @@ function intercambiarParejaEnSlot(parejaId, grupoOrigen, grupoDestino, slotDesti
     };
 })();
 
-// Función para cargar franjas horarias en el modal
 document.addEventListener('DOMContentLoaded', function() {
     inicializarDragAndDrop();
-
-    const franjasContainer = document.getElementById('franjasModalContainer');
-    const franjas = [
-        "Jueves 18:00", "Jueves 20:00",
-        "Viernes 18:00", "Viernes 21:00",
-        "Sábado 09:00", "Sábado 12:00", "Sábado 16:00", "Sábado 19:00"
-    ];
-
-    franjas.forEach((franja, idx) => {
-        const div = document.createElement('div');
-        div.className = 'form-check';
-        div.innerHTML = `
-            <input class="form-check-input" type="checkbox" value="${franja}" id="franjaModal${idx}" name="franjas">
-            <label class="form-check-label" for="franjaModal${idx}">${franja}</label>
-        `;
-        franjasContainer.appendChild(div);
-    });
 
     // Cargar parejas no asignadas para cada categoría visible
     const categorias = ['Cuarta', 'Quinta', 'Sexta', 'Séptima', 'Tercera', 'Octava'];
@@ -440,74 +422,6 @@ function confirmarAsignacionManual(parejaId, categoria) {
     })
     .catch(error => {
         Toast.error('Error al asignar pareja');
-    });
-}
-
-function agregarParejaDesdeModal() {
-    const form = document.getElementById('formAgregarParejaModal');
-    const nombre = document.getElementById('nombreModal').value.trim();
-    const telefono = document.getElementById('telefonoModal').value.trim();
-    const categoria = document.getElementById('categoriaModal').value;
-
-    const franjasChecked = Array.from(document.querySelectorAll('#franjasModalContainer input[type="checkbox"]:checked'))
-        .map(cb => cb.value);
-
-    if (!nombre) {
-        Toast.error('El nombre es obligatorio');
-        return;
-    }
-
-    if (franjasChecked.length === 0) {
-        Toast.error('Selecciona al menos una franja horaria');
-        return;
-    }
-
-    fetch('/api/agregar-pareja', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            nombre: nombre,
-            telefono: telefono || 'Sin teléfono',
-            categoria: categoria,
-            franjas: franjasChecked,
-            desde_resultados: true
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            Toast.success(data.mensaje + ' - Agregada a parejas no asignadas');
-
-            // Actualizar estadísticas si están disponibles
-            if (data.estadisticas) {
-                actualizarEstadisticas(data.estadisticas);
-            }
-
-            // Cerrar modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalAgregarPareja'));
-            modal.hide();
-
-            // Limpiar formulario
-            form.reset();
-
-            // Actualizar la categoría correspondiente para reflejar la nueva pareja
-            if (data.desde_resultados) {
-                actualizarCategoria(categoria);
-            } else {
-                // Si no hay resultados, redirigir a datos
-                Toast.info('Redirigiendo para re-ejecutar el algoritmo...');
-                setTimeout(() => {
-                    window.location.href = '/datos';
-                }, 1000);
-            }
-        } else {
-            Toast.error('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        Toast.error('Error al agregar pareja');
     });
 }
 

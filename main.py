@@ -120,6 +120,7 @@ def crear_app():
             torneo_tiene_datos=tiene_datos,
             fase_torneo=fase,
             proximo_torneo=torneo.get('proximo_torneo'),
+            mostrar_finales=torneo.get('mostrar_finales', True),
         )
 
     # Middleware: Verificar autenticación

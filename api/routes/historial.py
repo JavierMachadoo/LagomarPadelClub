@@ -554,3 +554,22 @@ def detalle_torneo(torneo_id):
         drive_folder_id=torneo.get('drive_folder_id'),
         torneo_id=torneo_id,
     )
+
+
+@historial_bp.route('/api/admin/toggle-finales', methods=['POST'])
+def toggle_finales():
+    """Alterna la visibilidad pública de las Fases Finales (tab + horarios en bracket)."""
+    autenticado, error = verificar_autenticacion_api(roles_permitidos=['admin'])
+    if not autenticado:
+        return error
+
+    torneo = storage.cargar()
+    nuevo_valor = not torneo.get('mostrar_finales', True)
+    torneo['mostrar_finales'] = nuevo_valor
+    try:
+        storage.guardar_con_version(torneo)
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
+
+    logger.info('Visibilidad finales cambiada a: %s', nuevo_valor)
+    return jsonify({'mostrar_finales': nuevo_valor})

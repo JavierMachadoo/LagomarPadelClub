@@ -66,6 +66,12 @@
                                     onclick="terminarTorneo()">
                                 <i class="bi bi-trophy-fill me-2"></i>Terminar Torneo
                             </button>
+                            <button class="btn px-4 py-2 fw-bold" id="btnToggleFinales"
+                                    style="border-radius:30px; {% if mostrar_finales %}background:#fef9c3; color:#92400e; border:2px solid #f59e0b;{% else %}background:#dcfce7; color:#166534; border:2px solid #22c55e;{% endif %}"
+                                    onclick="toggleFinales()">
+                                <i class="bi bi-eye{% if not mostrar_finales %}-slash{% endif %} me-2"></i>
+                                {{ 'Ocultar Finales' if mostrar_finales else 'Mostrar Finales' }}
+                            </button>
                             {% endif %}
                         </div>
                     </div>
@@ -1887,6 +1893,29 @@ async function ejecutarCambioFase() {
         Toast.error('Error de conexión');
         btn.disabled = false;
         btn.innerHTML = 'Confirmar';
+    }
+}
+
+async function toggleFinales() {
+    const btn = document.getElementById('btnToggleFinales');
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/api/admin/toggle-finales', { method: 'POST' });
+        const data = await resp.json();
+        if (resp.ok) {
+            const visible = data.mostrar_finales;
+            btn.innerHTML = `<i class="bi bi-eye${visible ? '' : '-slash'} me-2"></i>${visible ? 'Ocultar Finales' : 'Mostrar Finales'}`;
+            btn.style.cssText = visible
+                ? 'border-radius:30px; background:#fef9c3; color:#92400e; border:2px solid #f59e0b;'
+                : 'border-radius:30px; background:#dcfce7; color:#166534; border:2px solid #22c55e;';
+            Toast.success(visible ? 'Finales visibles para los jugadores' : 'Finales ocultas para los jugadores');
+        } else {
+            Toast.error(data.error || 'Error al cambiar visibilidad');
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+    } finally {
+        btn.disabled = false;
     }
 }
 </script>

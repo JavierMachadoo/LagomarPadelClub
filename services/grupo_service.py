@@ -14,6 +14,7 @@ sincronizar_con_storage_y_token().
 """
 
 import logging
+from typing import Optional
 
 from core import Pareja, AlgoritmoGrupos, ResultadoAlgoritmo, Grupo
 from utils import CalendarioBuilder
@@ -97,6 +98,10 @@ def _cargar_inscripciones_supabase() -> list:
                 'categoria':           insc['categoria'],
                 'franjas_disponibles': insc.get('franjas_disponibles') or [],
                 'inscripcion_id':      insc['id'],
+                # IMPORTANTE: en la tabla `inscripciones` la columna del primer jugador se llama
+                # `jugador_id` (sin "1"), por compatibilidad histórica. NO renombrar.
+                'jugador1_id':         insc.get('jugador_id'),
+                'jugador2_id':         insc.get('jugador2_id'),
             })
         return result
     except Exception as e:
@@ -576,6 +581,34 @@ def remover_pareja_de_grupo(
     return recalcular_estadisticas(resultado_data)
 
 
+def _aplicar_update_pareja(
+    pareja_dict: dict,
+    *,
+    nombre: str,
+    telefono: str,
+    categoria: str,
+    franjas: list,
+    jugador1_id: Optional[str],
+    jugador2_id: Optional[str],
+) -> None:
+    """Muta pareja_dict in-place con los campos actualizados.
+
+    Reglas para jugador IDs:
+    - None → no sobreescribe (edición legacy/parcial sin cambio de jugador)
+    - '' (string vacío) → normaliza a None (formulario envió campo vacío)
+    - cualquier otro str → aplica directo
+    """
+    pareja_dict['nombre']              = nombre
+    pareja_dict['telefono']            = telefono
+    pareja_dict['categoria']           = categoria
+    pareja_dict['franjas_disponibles'] = franjas
+
+    if jugador1_id is not None:
+        pareja_dict['jugador1_id'] = jugador1_id or None  # '' → None
+    if jugador2_id is not None:
+        pareja_dict['jugador2_id'] = jugador2_id or None  # '' → None
+
+
 def editar_pareja(
     datos: dict,
     pareja_id: int,
@@ -583,6 +616,8 @@ def editar_pareja(
     telefono: str,
     categoria: str,
     franjas: list,
+    jugador1_id: Optional[str] = None,
+    jugador2_id: Optional[str] = None,
 ) -> str:
     """Edita los datos de una pareja (en grupos, sin asignar y blob base).
 
@@ -635,22 +670,33 @@ def editar_pareja(
         pareja_encontrada['categoria'] = categoria
         parejas_sin_asignar.append(pareja_encontrada)
 
-    pareja_encontrada.update({
-        'nombre':              nombre,
-        'telefono':            telefono,
-        'categoria':           categoria,
-        'franjas_disponibles': franjas,
-    })
+    # Nivel 1: mutar pareja_encontrada (por referencia, cubre también grupos_por_categoria)
+    _aplicar_update_pareja(
+        pareja_encontrada,
+        nombre=nombre, telefono=telefono, categoria=categoria, franjas=franjas,
+        jugador1_id=jugador1_id, jugador2_id=jugador2_id,
+    )
 
+    # Nivel 2: sincronizar la lista canónica datos['parejas']
     parejas_base = datos.get('parejas', [])
     updated = False
     for pb in parejas_base:
         if pb['id'] == pareja_id:
-            pb.update({'nombre': nombre, 'telefono': telefono, 'categoria': categoria, 'franjas_disponibles': franjas})
+            _aplicar_update_pareja(
+                pb,
+                nombre=nombre, telefono=telefono, categoria=categoria, franjas=franjas,
+                jugador1_id=jugador1_id, jugador2_id=jugador2_id,
+            )
             updated = True
             break
     if not updated:
-        parejas_base.append({'id': pareja_id, 'nombre': nombre, 'telefono': telefono, 'categoria': categoria, 'franjas_disponibles': franjas})
+        nueva = {'id': pareja_id, 'nombre': nombre, 'telefono': telefono,
+                 'categoria': categoria, 'franjas_disponibles': franjas}
+        if jugador1_id is not None:
+            nueva['jugador1_id'] = jugador1_id or None
+        if jugador2_id is not None:
+            nueva['jugador2_id'] = jugador2_id or None
+        parejas_base.append(nueva)
     datos['parejas'] = parejas_base
 
     if grupo_contenedor and not cambio_categoria:

@@ -164,11 +164,13 @@ def obtener_parejas_no_asignadas(categoria):
 @api_bp.route('/editar-pareja', methods=['POST'])
 def editar_pareja():
     data = request.json
-    pareja_id = data.get('pareja_id')
-    nombre = data.get('nombre')
-    telefono = data.get('telefono')
-    categoria = data.get('categoria')
-    franjas = data.get('franjas', [])
+    pareja_id   = data.get('pareja_id')
+    nombre      = data.get('nombre')
+    telefono    = data.get('telefono')
+    categoria   = data.get('categoria')
+    franjas     = data.get('franjas', [])
+    jugador1_id = data.get('jugador1_id')   # None si no viene (edición legacy)
+    jugador2_id = data.get('jugador2_id')   # None si no viene
 
     if not all([pareja_id, nombre, categoria]):
         return jsonify({'error': 'Faltan parametros requeridos'}), 400
@@ -179,6 +181,8 @@ def editar_pareja():
     try:
         mensaje = grupo_service.editar_pareja(
             datos_actuales, pareja_id, nombre, telefono, categoria, franjas,
+            jugador1_id=jugador1_id,
+            jugador2_id=jugador2_id,
         )
     except ServiceError as e:
         return jsonify({'error': e.message}), e.status_code

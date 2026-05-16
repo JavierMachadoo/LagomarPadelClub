@@ -284,10 +284,43 @@
                 <div class="modal-body">
                     <form id="formEditarPareja">
                         <input type="hidden" id="editarParejaId">
+                        <input type="hidden" id="editarParejaJugador1Id">
+                        <input type="hidden" id="editarParejaJugador2Id">
+                        <!-- Nombre se recomputa en JS al seleccionar jugadores -->
+                        <input type="hidden" id="editarParejaNombre">
+
                         <div class="mb-3">
-                            <label for="editarParejaNombre" class="form-label">Nombre de la Pareja *</label>
-                            <input type="text" class="form-control" id="editarParejaNombre" required>
+                            <label class="form-label">Jugador 1 *</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <div id="editarParejaJugador1Display" class="form-control bg-light flex-grow-1">—</div>
+                                <button type="button" class="btn btn-outline-primary btn-sm"
+                                        onclick="abrirBuscadorJugadorEditPareja(1)">
+                                    <i class="bi bi-search"></i> Cambiar
+                                </button>
+                            </div>
+                            <div id="editarParejaJugador1Buscador" class="position-relative mt-2 d-none">
+                                <input type="text" class="form-control" id="inputJugadorEditPareja1"
+                                       placeholder="Buscar jugador del catálogo…" autocomplete="off">
+                                <div id="dropdownJugadorEditPareja1" class="dropdown-jugadores d-none"></div>
+                            </div>
                         </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Jugador 2 *</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <div id="editarParejaJugador2Display" class="form-control bg-light flex-grow-1">—</div>
+                                <button type="button" class="btn btn-outline-primary btn-sm"
+                                        onclick="abrirBuscadorJugadorEditPareja(2)">
+                                    <i class="bi bi-search"></i> Cambiar
+                                </button>
+                            </div>
+                            <div id="editarParejaJugador2Buscador" class="position-relative mt-2 d-none">
+                                <input type="text" class="form-control" id="inputJugadorEditPareja2"
+                                       placeholder="Buscar jugador del catálogo…" autocomplete="off">
+                                <div id="dropdownJugadorEditPareja2" class="dropdown-jugadores d-none"></div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="editarParejaTelefono" class="form-label">Teléfono</label>
                             <input type="tel" class="form-control" id="editarParejaTelefono">
@@ -1021,6 +1054,12 @@
                                             <div class="flex-grow-1">
                                                 <div class="fw-bold text-truncate {{ text_class }}" title="{{ pareja.nombre }}">
                                                     {{ slot_num + 1 }}. {{ pareja.nombre }}
+                                                    {% if es_admin and (not pareja.jugador1_id or not pareja.jugador2_id) %}
+                                                    <span class="badge bg-danger ms-1" style="font-size:0.6rem"
+                                                          title="Sin jugador del catálogo asignado — los resultados no sumarán al ranking">
+                                                        <i class="bi bi-exclamation-triangle-fill"></i> Sin jugador
+                                                    </span>
+                                                    {% endif %}
                                                 </div>
                                                 <small class="text-muted d-block mt-1">
                                                     <i class="bi bi-clock"></i> {{ pareja.franjas_disponibles|join(', ') if pareja.franjas_disponibles else 'Sin horarios' }}

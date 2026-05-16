@@ -517,6 +517,9 @@
                                         {% elif resultado and pareja.fuera_de_horario %}
                                         <span class="badge bg-warning text-dark" style="font-size:0.62rem"><i class="bi bi-exclamation-circle-fill"></i> Fuera horario</span>
                                         {% endif %}
+                                        {% if not pareja.jugador1_id or not pareja.jugador2_id %}
+                                        <span class="badge bg-danger" style="font-size:0.62rem"><i class="bi bi-exclamation-triangle-fill"></i> Sin jugador</span>
+                                        {% endif %}
                                     </div>
                                 </div>
                                 <div class="pareja-row-actions">
@@ -555,7 +558,7 @@
                                 {% endif %}
                                 <tr class="{{ clase_estado }}" data-id="{{ pareja.id }}" data-categoria="{{ pareja.categoria }}">
                                     <td>{{ loop.index }}</td>
-                                    <td><strong>{{ icono_estado|safe }}{{ pareja.nombre }}</strong></td>
+                                    <td><strong>{{ icono_estado|safe }}{{ pareja.nombre }}{% if not pareja.jugador1_id or not pareja.jugador2_id %}<i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Sin jugador del catálogo asignado — los resultados no sumarán al ranking"></i>{% endif %}</strong></td>
                                     <td>{{ pareja.telefono }}</td>
                                     <td>
                                         <span class="badge bg-{{ pareja.categoria|lower }}">
@@ -1503,7 +1506,7 @@ function renderizarTablaParejas(parejas) {
             
             tr.innerHTML = `
                 <td>${index + 1}</td>
-                <td><strong>${iconoEstado}${escapeHtml(pareja.nombre)}</strong></td>
+                <td><strong>${iconoEstado}${escapeHtml(pareja.nombre)}${(!pareja.jugador1_id || !pareja.jugador2_id) ? '<i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Sin jugador del catálogo asignado — los resultados no sumarán al ranking"></i>' : ''}</strong></td>
                 <td>${escapeHtml(pareja.telefono)}</td>
                 <td>
                     <span class="badge bg-${categoriaClass}">
@@ -1540,6 +1543,9 @@ function renderizarTablaParejas(parejas) {
                 } else if (pareja.fuera_de_horario) {
                     alertBadge = '<span class="badge bg-warning text-dark" style="font-size:0.62rem"><i class="bi bi-exclamation-circle-fill"></i> Fuera horario</span>';
                 }
+            }
+            if (!pareja.jugador1_id || !pareja.jugador2_id) {
+                alertBadge += '<span class="badge bg-danger" style="font-size:0.62rem"><i class="bi bi-exclamation-triangle-fill"></i> Sin jugador</span>';
             }
 
             const row = document.createElement('div');

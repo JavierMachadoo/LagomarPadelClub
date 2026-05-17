@@ -1236,7 +1236,11 @@ function crearJugadorInline(numero, texto) {
     }
 }
 
+let _creandoJugador = false;
+
 function _crearJugador(numero, nombre, apellido) {
+    if (_creandoJugador) return;
+    _creandoJugador = true;
     fetch('/api/jugadores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1251,7 +1255,8 @@ function _crearJugador(numero, nombre, apellido) {
             Toast.error(j.error || 'Error al crear jugador');
         }
     })
-    .catch(() => Toast.error('Error al crear jugador'));
+    .catch(() => Toast.error('Error al crear jugador'))
+    .finally(() => { _creandoJugador = false; });
 }
 
 ['1', '2'].forEach(n => {

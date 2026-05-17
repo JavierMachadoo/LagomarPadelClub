@@ -31,6 +31,26 @@ def crear_jugador():
     apellido = data.get('apellido', '').strip()
     if not nombre or not apellido:
         return jsonify({'error': 'nombre y apellido son obligatorios'}), 400
+
+    # Idempotency: same exact name created in the last 30s → return existing (prevents double-submit)
+    if jugadores_storage._use_supabase:
+        try:
+            from datetime import datetime, timezone, timedelta
+            from utils.supabase_client import get_supabase_admin
+            threshold = (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat()
+            sb = get_supabase_admin()
+            reciente = (sb.table('jugadores')
+                        .select('*')
+                        .ilike('nombre', nombre)
+                        .ilike('apellido', apellido)
+                        .gte('created_at', threshold)
+                        .limit(1)
+                        .execute())
+            if reciente.data:
+                return jsonify(reciente.data[0]), 200
+        except Exception:
+            pass
+
     try:
         jugador = jugadores_storage.crear(
             nombre=nombre,
@@ -92,7 +112,10 @@ def sugerencias_vinculacion():
         ]
 
         sugerencias.sort(key=lambda x: x['score'], reverse=True)
-        return jsonify({'sugerencias': sugerencias}), 200
+        matched_ids = {s['catalogo']['id'] for s in sugerencias}
+        sin_coincidencias = [j for j in admin_creados if j.get('id') not in matched_ids]
+        sin_coincidencias.sort(key=lambda j: (j.get('apellido', ''), j.get('nombre', '')))
+        return jsonify({'sugerencias': sugerencias, 'sin_coincidencias': sin_coincidencias}), 200
 
     except Exception:
         logger.exception('Error al calcular sugerencias de vinculación')
@@ -120,11 +143,14 @@ def duplicados_catalogo():
 
         todos = jugadores_storage.listar(activos_only=True)
         admin_creados = [j for j in todos if j.get('id') not in auth_ids and not j.get('usuario_id')]
+        registrados = [j for j in todos if j.get('id') in auth_ids and not j.get('usuario_id')]
 
         def nombre_full(j):
             return f"{j.get('nombre', '')} {j.get('apellido', '')}".strip().lower()
 
         UMBRAL = 0.75
+        rechazados = jugadores_storage.listar_rechazos()
+
         duplicados = []
         for i in range(len(admin_creados)):
             for k in range(i + 1, len(admin_creados)):
@@ -132,15 +158,23 @@ def duplicados_catalogo():
                 score = SequenceMatcher(None, nombre_full(a), nombre_full(b)).ratio()
                 if score >= UMBRAL:
                     duplicados.append({'catalogo': a, 'registrado': b, 'score': round(score * 100)})
-
-        rechazados = jugadores_storage.listar_rechazos()
         duplicados = [
             d for d in duplicados
             if frozenset((d['catalogo']['id'], d['registrado']['id'])) not in rechazados
         ]
-
         duplicados.sort(key=lambda x: x['score'], reverse=True)
-        return jsonify({'duplicados': duplicados}), 200
+
+        dup_reg = []
+        for i in range(len(registrados)):
+            for k in range(i + 1, len(registrados)):
+                a, b = registrados[i], registrados[k]
+                score = SequenceMatcher(None, nombre_full(a), nombre_full(b)).ratio()
+                if score >= UMBRAL:
+                    dup_reg.append({'a': a, 'b': b, 'score': round(score * 100)})
+        dup_reg = [d for d in dup_reg if frozenset((d['a']['id'], d['b']['id'])) not in rechazados]
+        dup_reg.sort(key=lambda x: x['score'], reverse=True)
+
+        return jsonify({'duplicados': duplicados, 'duplicados_registrados': dup_reg}), 200
 
     except Exception:
         logger.exception('Error al calcular duplicados del catálogo')

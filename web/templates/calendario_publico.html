@@ -110,11 +110,24 @@
         top: 126px; /* navbar(68px) + phase-nav(~58px) */
         z-index: 40;
         background: var(--brand-bg);
+        /* Box-shadow sólida hacia abajo: extiende el fondo 6px para tapar el gap visual
+           contra .canchas-header-sticky-wrap cuando ambos están pinneados */
+        box-shadow: 0 6px 0 0 var(--brand-bg);
         padding: 0.3rem 0 0.4rem;
         display: flex; flex-direction: column; gap: 0.4rem;
         margin: 1.5rem 0 0.5rem;
-        overflow: hidden;
     }
+    /* Wrapper sticky único para el header de canchas.
+       Siempre visible y siempre sticky — JS sincroniza translateX con el scroll horizontal del wrapper hermano. */
+    .canchas-header-sticky-wrap {
+        position: sticky;
+        top: 170px; /* navbar(68) + phase-nav(58) + dia-sticky-top-row(~44) */
+        z-index: 39;
+        background: var(--brand-bg);
+        overflow: hidden;
+        padding-bottom: 0.5rem;
+    }
+    .canchas-header-sticky { will-change: transform; margin-bottom: 0; }
     .dia-sticky:first-child { margin-top: 0; }
     .dia-sticky-top-row { display: flex; align-items: center; gap: 0.85rem; }
     .dia-sticky-label {
@@ -137,8 +150,6 @@
     .dia-sep-line { flex: 1; height: 1px; background: var(--brand-border); }
 
     /* ── Cabecera de canchas ── */
-    /* cal-scroll-inner: fit-content para que no se expanda al ancho del viewport;
-       el scroll wrapper absorbe el desborde horizontal */
     .cal-scroll-inner { width: fit-content; margin: 0 auto; }
     .canchas-header {
         display: grid; grid-template-columns: minmax(400px, auto) minmax(400px, auto);
@@ -152,6 +163,7 @@
     @media (max-width: 767px) {
         .canchas-header { grid-template-columns: 400px 400px; margin-left: 0; margin-right: 0; }
     }
+
 
     /* ── Franja horaria ── */
     .franja-block { margin-bottom: 1.25rem; }
@@ -372,25 +384,22 @@
         <div class="tab-pane fade show active" id="panel-grupos" role="tabpanel">
 
             {% for dia in dias_fase_grupos %}
-            {# dia-sticky FUERA del scroll-wrapper: sticky funciona sin conflicto con overflow-x #}
+            {# dia-sticky y header-sticky-wrap como hermanos: cada uno con su propio sticky #}
             <div class="dia-sticky">
                 <div class="dia-sticky-top-row">
                     <div class="dia-sticky-label">{{ dia }}</div>
                     <div class="dia-sticky-line"></div>
                 </div>
-                <div class="canchas-header">
-                    <div class="canchas-header-item">
-                        <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1
-                    </div>
-                    <div class="canchas-header-item">
-                        <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2
-                    </div>
+            </div>
+            <div class="canchas-header-sticky-wrap">
+                <div class="canchas-header canchas-header-sticky">
+                    <div class="canchas-header-item"><i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1</div>
+                    <div class="canchas-header-item"><i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2</div>
                 </div>
             </div>
 
             <div class="cal-scroll-wrapper">
             <div class="cal-scroll-inner">
-
             {% for hora in horas_orden %}
                 {% if hora in resultado.calendario[dia] %}
                 {% set canchas = resultado.calendario[dia][hora] %}
@@ -483,18 +492,15 @@
                     <div class="dia-sticky-label">Domingo</div>
                     <div class="dia-sticky-line"></div>
                 </div>
-                <div class="canchas-header">
-                    <div class="canchas-header-item">
-                        <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1
-                    </div>
-                    <div class="canchas-header-item">
-                        <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2
-                    </div>
+            </div>
+            <div class="canchas-header-sticky-wrap">
+                <div class="canchas-header canchas-header-sticky">
+                    <div class="canchas-header-item"><i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1</div>
+                    <div class="canchas-header-item"><i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2</div>
                 </div>
             </div>
             <div class="cal-scroll-wrapper">
             <div class="cal-scroll-inner">
-
             {# Mapa de nombre legible de fase para el badge #}
             {% set fase_label = {
                 'Octavos de Final': 'Octavos',
@@ -968,14 +974,23 @@ if (_tabFinalesEl) {
         }
     };
 
-    // Sync horizontal scroll → translateX on sticky cancha header
+})();
+
+// ── Header sticky de canchas: sincroniza translateX con el scrollLeft del wrapper ──
+// IIFE independiente: corre siempre, sin depender del botón "Mis Partidos".
+(function () {
     document.querySelectorAll('.cal-scroll-wrapper').forEach(wrapper => {
-        const sticky = wrapper.previousElementSibling;
-        const header = sticky?.querySelector('.canchas-header');
+        const stickyWrap = wrapper.previousElementSibling;
+        if (!stickyWrap?.classList.contains('canchas-header-sticky-wrap')) return;
+        const header = stickyWrap.querySelector('.canchas-header-sticky');
         if (!header) return;
-        wrapper.addEventListener('scroll', () => {
+
+        const syncTranslate = () => {
             header.style.transform = `translateX(-${wrapper.scrollLeft}px)`;
-        }, { passive: true });
+        };
+
+        wrapper.addEventListener('scroll', syncTranslate, { passive: true });
+        syncTranslate(); // posición inicial
     });
 })();
 </script>

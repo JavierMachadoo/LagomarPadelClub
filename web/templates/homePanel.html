@@ -352,7 +352,7 @@
                                     <div class="position-relative">
                                         <input type="text" class="form-control" name="jugador1"
                                                id="inputJugador1"
-                                               placeholder="Buscar en catálogo o escribir nombre"
+                                               placeholder="Buscar en catálogo"
                                                autocomplete="off" required>
                                         <input type="hidden" name="jugador1_id" id="jugador1Id">
                                         <div id="dropdownJugador1" class="jugador-dropdown d-none"></div>
@@ -365,7 +365,7 @@
                                     <div class="position-relative">
                                         <input type="text" class="form-control" name="jugador2"
                                                id="inputJugador2"
-                                               placeholder="Buscar en catálogo o escribir nombre"
+                                               placeholder="Buscar en catálogo"
                                                autocomplete="off" required>
                                         <input type="hidden" name="jugador2_id" id="jugador2Id">
                                         <div id="dropdownJugador2" class="jugador-dropdown d-none"></div>
@@ -1195,7 +1195,7 @@ function _renderDropdown(numero, q, jugadores) {
     jugadores.slice(0, 8).forEach(j => {
         const item = document.createElement('div');
         item.className = 'jd-item';
-        item.textContent = j.nombre + ' ' + j.apellido + (j.telefono ? ' · ' + j.telefono : '');
+        item.textContent = j.nombre + ' ' + (j.apellido || '');
         item.addEventListener('mousedown', e => {
             e.preventDefault();
             seleccionarJugador(numero, j.id, j.nombre + ' ' + j.apellido);
@@ -1287,6 +1287,17 @@ document.getElementById('formAgregarPareja').addEventListener('submit', function
 
     if (!jugador1) {
         Toast.error('El nombre del Jugador 1 es obligatorio');
+        return;
+    }
+
+    if (!jugador1Id) {
+        Toast.error('Seleccioná un jugador del catálogo');
+        document.getElementById('inputJugador1').focus();
+        return;
+    }
+    if (!jugador2Id) {
+        Toast.error('Seleccioná un jugador del catálogo');
+        document.getElementById('inputJugador2').focus();
         return;
     }
 

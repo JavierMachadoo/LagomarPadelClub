@@ -854,21 +854,45 @@
             </div>
             <form id="formAgregarParejaRapida">
             <div class="modal-body">
-                <div class="alert alert-warning py-2 mb-3">
-                    <i class="bi bi-clock-history me-2"></i>
-                    <small><strong>Esta pareja queda como A CONFIRMAR</strong> — se ingresa como texto libre, sin cuenta de jugador.</small>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Jugador 1</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <div id="rapidaJugador1Display" class="form-control bg-light flex-grow-1">
+                            <span class="text-danger fw-bold">A confirmar</span>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                onclick="abrirBuscadorJugadorRapida(1)">
+                            <i class="bi bi-search"></i> Seleccionar
+                        </button>
+                    </div>
+                    <input type="hidden" id="rapidaJugador1Id" value="">
+                    <input type="hidden" id="rapidaJugador1Nombre" value="">
+                    <input type="hidden" id="rapidaJugador1Telefono" value="">
+                    <div id="rapidaJugador1Buscador" class="position-relative mt-2 d-none">
+                        <input type="text" class="form-control form-control-sm"
+                               id="rapidaJugador1Input" placeholder="Buscar jugador..." autocomplete="off">
+                        <div id="dropdownJugadorRapida1" class="dropdown-jugadores d-none"></div>
+                    </div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Nombre de la pareja <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="rapidaNombre"
-                           placeholder="Ej: García / López" required>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Teléfono</label>
-                    <input type="text" class="form-control" id="rapidaTelefono"
-                           placeholder="Ej: 099123456">
+                    <label class="form-label fw-bold">Jugador 2</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <div id="rapidaJugador2Display" class="form-control bg-light flex-grow-1">
+                            <span class="text-danger fw-bold">A confirmar</span>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                onclick="abrirBuscadorJugadorRapida(2)">
+                            <i class="bi bi-search"></i> Seleccionar
+                        </button>
+                    </div>
+                    <input type="hidden" id="rapidaJugador2Id" value="">
+                    <input type="hidden" id="rapidaJugador2Nombre" value="">
+                    <div id="rapidaJugador2Buscador" class="position-relative mt-2 d-none">
+                        <input type="text" class="form-control form-control-sm"
+                               id="rapidaJugador2Input" placeholder="Buscar jugador..." autocomplete="off">
+                        <div id="dropdownJugadorRapida2" class="dropdown-jugadores d-none"></div>
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -1663,18 +1687,21 @@
 document.getElementById('formAgregarParejaRapida').addEventListener('submit', function(e) {
     e.preventDefault();
 
-    const nombre = document.getElementById('rapidaNombre').value.trim();
-    const telefono = document.getElementById('rapidaTelefono').value.trim();
+    const j1Id     = document.getElementById('rapidaJugador1Id').value.trim() || null;
+    const j2Id     = document.getElementById('rapidaJugador2Id').value.trim() || null;
+    const j1Nombre = document.getElementById('rapidaJugador1Nombre').value.trim() || 'A confirmar';
+    const j2Nombre = document.getElementById('rapidaJugador2Nombre').value.trim() || 'A confirmar';
+    const telefono = document.getElementById('rapidaJugador1Telefono').value.trim() || '';
+    const nombre   = `${j1Nombre} / ${j2Nombre}`;
     const categoria = document.getElementById('rapidaCategoria').value;
     const franjas = [...document.querySelectorAll('.rapida-franja:checked')].map(cb => cb.value);
 
-    if (!nombre) { Toast.error('El nombre de la pareja es obligatorio'); return; }
     if (franjas.length === 0) { Toast.error('Seleccioná al menos una franja horaria'); return; }
 
     fetch('/api/agregar-pareja', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, telefono: telefono || 'Sin teléfono', categoria, franjas })
+        body: JSON.stringify({ jugador1_id: j1Id, jugador2_id: j2Id, nombre, telefono, categoria, franjas })
     })
     .then(r => r.json())
     .then(data => {
@@ -1687,6 +1714,25 @@ document.getElementById('formAgregarParejaRapida').addEventListener('submit', fu
         }
     })
     .catch(() => Toast.error('Error al agregar pareja'));
+});
+
+// Reset modal state on close
+document.getElementById('modalAgregarParejaRapida').addEventListener('hidden.bs.modal', function() {
+    ['rapidaJugador1Id', 'rapidaJugador1Nombre', 'rapidaJugador1Telefono',
+     'rapidaJugador2Id', 'rapidaJugador2Nombre'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    [1, 2].forEach(n => {
+        const display = document.getElementById(`rapidaJugador${n}Display`);
+        if (display) display.innerHTML = '<span class="text-danger fw-bold">A confirmar</span>';
+        const buscador = document.getElementById(`rapidaJugador${n}Buscador`);
+        if (buscador) buscador.classList.add('d-none');
+        const dropdown = document.getElementById(`dropdownJugadorRapida${n}`);
+        if (dropdown) { dropdown.innerHTML = ''; dropdown.classList.add('d-none'); }
+        const input = document.getElementById(`rapidaJugador${n}Input`);
+        if (input) { input.value = ''; input._rapidaListenerAttached = false; }
+    });
 });
 </script>
 <script>

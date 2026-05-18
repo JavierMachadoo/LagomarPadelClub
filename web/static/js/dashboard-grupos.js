@@ -696,6 +696,7 @@ function abrirModalEditarGrupo(button) {
 
             const grupo = data.grupo;
             const parejas = grupo.parejas || [];
+            const hasResults = !!(grupo.resultados && Object.keys(grupo.resultados).length > 0);
 
             // Mostrar las parejas del grupo
             const contenedorParejas = document.getElementById('parejasDelGrupo');
@@ -724,6 +725,7 @@ function abrirModalEditarGrupo(button) {
                                     data-jugador2-id="${pareja.jugador2_id || ''}"
                                     data-jugador1-nombre="${pareja.jugador1 || ''}"
                                     data-jugador2-nombre="${pareja.jugador2 || ''}"
+                                    data-has-results="${hasResults}"
                                     onclick="editarParejaDesdeGrupo(this)"
                                     title="Editar">
                                 <i class="bi bi-pencil-fill"></i>
@@ -762,6 +764,7 @@ function editarParejaDesdeGrupo(button) {
     const jugador2Id    = button.getAttribute('data-jugador2-id') || '';
     const jugador1Nombre = button.getAttribute('data-jugador1-nombre') || '';
     const jugador2Nombre = button.getAttribute('data-jugador2-nombre') || '';
+    const hasResults    = button.getAttribute('data-has-results') === 'true';
 
     document.getElementById('editarParejaId').value    = id;
     document.getElementById('editarParejaNombre').value = nombre;
@@ -777,6 +780,12 @@ function editarParejaDesdeGrupo(button) {
     // Cerrar buscadores si estaban abiertos
     document.getElementById('editarParejaJugador1Buscador').classList.add('d-none');
     document.getElementById('editarParejaJugador2Buscador').classList.add('d-none');
+
+    // Ocultar o mostrar botones "Cambiar" según si el grupo tiene resultados
+    const cambiarBtns = document.querySelectorAll('#modalEditarPareja button[onclick*="abrirBuscadorJugadorEditPareja"]');
+    cambiarBtns.forEach(btn => {
+        btn.style.display = hasResults ? 'none' : '';
+    });
 
     // Limpiar checkboxes
     document.querySelectorAll('#modalEditarPareja input[type="checkbox"]').forEach(cb => cb.checked = false);
@@ -1087,10 +1096,11 @@ function _buscarJugadoresEditPareja(numero, q) {
                 return;
             }
             dropdown.innerHTML = jugadores.map(j => {
-                const nombreCompleto = j.nombre_completo || j.nombre || '';
+                const nombreCompleto = ((j.nombre || '') + ' ' + (j.apellido || '')).trim();
                 return `<div class="dropdown-jugadores-item"
                              data-jugador-id="${_escapeHtmlEditPareja(j.id)}"
                              data-jugador-nombre="${_escapeHtmlEditPareja(nombreCompleto)}"
+                             data-jugador-telefono="${_escapeHtmlEditPareja(j.telefono || '')}"
                              data-jugador-numero="${numero}"
                              onclick="seleccionarJugadorEditParejaDesdeEl(this)">
                     ${_escapeHtmlEditPareja(nombreCompleto)}
@@ -1124,6 +1134,69 @@ function seleccionarJugadorEditPareja(numero, id, nombreCompleto) {
     if (j1 !== sinAsignar && j2 !== sinAsignar) {
         document.getElementById('editarParejaNombre').value = `${j1} / ${j2}`;
     }
+}
+
+// ==================== PICKER RÁPIDA (quick-add modal) ====================
+let _rapidaSearchTimeout = null;
+
+function abrirBuscadorJugadorRapida(numero) {
+    const buscador = document.getElementById(`rapidaJugador${numero}Buscador`);
+    if (!buscador) return;
+    buscador.classList.remove('d-none');
+    const input = document.getElementById(`rapidaJugador${numero}Input`);
+    if (input && !input._rapidaListenerAttached) {
+        input._rapidaListenerAttached = true;
+        input.addEventListener('input', () => {
+            clearTimeout(_rapidaSearchTimeout);
+            _rapidaSearchTimeout = setTimeout(() => {
+                _buscarJugadoresRapida(numero, input.value.trim());
+            }, 300);
+        });
+    }
+    if (input) input.focus();
+}
+
+function _buscarJugadoresRapida(numero, q) {
+    const dropdown = document.getElementById(`dropdownJugadorRapida${numero}`);
+    if (!dropdown) return;
+    if (q.length < 2) { dropdown.innerHTML = ''; dropdown.classList.add('d-none'); return; }
+    fetch('/api/jugadores?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            const jugadores = data.jugadores || [];
+            if (jugadores.length === 0) {
+                dropdown.innerHTML = '<div class="dropdown-jugadores-item text-muted">Sin resultados</div>';
+                dropdown.classList.remove('d-none');
+                return;
+            }
+            dropdown.innerHTML = jugadores.map(j => {
+                const nombre = ((j.nombre || '') + ' ' + (j.apellido || '')).trim();
+                return `<div class="dropdown-jugadores-item"
+                             data-jugador-id="${nombre ? j.id : ''}"
+                             onclick="seleccionarJugadorRapida(${numero}, '${(j.id || '').replace(/'/g, "\\'")}', '${nombre.replace(/'/g, "\\'")}', '${(j.telefono || '').replace(/'/g, "\\'")}')">
+                    ${nombre}
+                </div>`;
+            }).join('');
+            dropdown.classList.remove('d-none');
+        })
+        .catch(() => dropdown.classList.add('d-none'));
+}
+
+function seleccionarJugadorRapida(numero, id, nombre, telefono) {
+    document.getElementById(`rapidaJugador${numero}Id`).value = id;
+    document.getElementById(`rapidaJugador${numero}Nombre`).value = nombre;
+    if (numero === 1) {
+        document.getElementById('rapidaJugador1Telefono').value = telefono || '';
+    }
+    const display = document.getElementById(`rapidaJugador${numero}Display`);
+    if (display) {
+        display.innerHTML = '';
+        display.textContent = nombre;
+    }
+    const buscador = document.getElementById(`rapidaJugador${numero}Buscador`);
+    if (buscador) buscador.classList.add('d-none');
+    const dropdown = document.getElementById(`dropdownJugadorRapida${numero}`);
+    if (dropdown) { dropdown.innerHTML = ''; dropdown.classList.add('d-none'); }
 }
 
 // ==================== FUNCIONES PARA FINALES ====================

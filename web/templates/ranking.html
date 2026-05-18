@@ -30,12 +30,28 @@
     }
 
     /* Tabs de categoría */
+    .cat-tabs-wrapper {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    .cat-tabs-wrapper::after {
+        content: '';
+        position: absolute;
+        right: 0; top: 0; bottom: 0;
+        width: 40px;
+        background: linear-gradient(to right, transparent, var(--brand-bg));
+        pointer-events: none;
+    }
     .cat-tabs {
         display: flex;
         gap: 0.5rem;
-        flex-wrap: wrap;
-        margin-bottom: 1.5rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 2px;
     }
+    .cat-tabs::-webkit-scrollbar { display: none; }
+    .cat-tab { flex-shrink: 0; }
     .cat-tab {
         padding: 0.4rem 1.1rem;
         border-radius: 9999px;
@@ -190,6 +206,7 @@
             {% if ranking %}
 
             <!-- Tabs de categoría -->
+            <div class="cat-tabs-wrapper">
             <div class="cat-tabs" id="catTabs">
                 {% for cat, entries in ranking.items() %}
                 <button class="cat-tab {% if loop.first %}active{% endif %}"
@@ -200,6 +217,7 @@
                                  margin-left:0.35rem;">({{ entries|length }})</span>
                 </button>
                 {% endfor %}
+            </div>
             </div>
 
             <!-- Tablas por categoría -->

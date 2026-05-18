@@ -30,6 +30,12 @@ flask_session/
 # Environment variables
 .env
 
+# Claude Code local config (per-developer permissions)
+.claude/settings.local.json
+
+# ATL skill registry (tool-generated, not source of truth)
+.atl/
+
 # OS
 .DS_Store
 Thumbs.db

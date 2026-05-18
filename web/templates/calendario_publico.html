@@ -110,10 +110,24 @@
         top: 126px; /* navbar(68px) + phase-nav(~58px) */
         z-index: 40;
         background: var(--brand-bg);
+        /* Box-shadow sólida hacia abajo: extiende el fondo 6px para tapar el gap visual
+           contra .canchas-header-sticky-wrap cuando ambos están pinneados */
+        box-shadow: 0 6px 0 0 var(--brand-bg);
         padding: 0.3rem 0 0.4rem;
         display: flex; flex-direction: column; gap: 0.4rem;
         margin: 1.5rem 0 0.5rem;
     }
+    /* Wrapper sticky único para el header de canchas.
+       Siempre visible y siempre sticky — JS sincroniza translateX con el scroll horizontal del wrapper hermano. */
+    .canchas-header-sticky-wrap {
+        position: sticky;
+        top: 170px; /* navbar(68) + phase-nav(58) + dia-sticky-top-row(~44) */
+        z-index: 39;
+        background: var(--brand-bg);
+        overflow: hidden;
+        padding-bottom: 0.5rem;
+    }
+    .canchas-header-sticky { will-change: transform; margin-bottom: 0; }
     .dia-sticky:first-child { margin-top: 0; }
     .dia-sticky-top-row { display: flex; align-items: center; gap: 0.85rem; }
     .dia-sticky-label {
@@ -123,25 +137,6 @@
         letter-spacing: 0.6px; white-space: nowrap;
     }
     .dia-sticky-line { flex: 1; height: 1px; background: var(--brand-border); }
-    /* Segunda fila: misma lógica de centrado que cal-scroll-inner (width:fit-content + margin:auto)
-       y mismas columnas que canchas-grid (minmax = hora-box + gap + partido-card min-width) */
-    .dia-sticky-canchas-row {
-        display: grid;
-        grid-template-columns: minmax(340px, auto) minmax(340px, auto);
-        gap: 0.75rem; width: fit-content; margin: 0 auto;
-    }
-    .dia-cancha-slot { display: flex; justify-content: center; align-items: center; }
-    .dia-cancha-label {
-        display: inline-flex; align-items: center; gap: 0.4rem;
-        background: var(--brand-black); color: #e5e7eb;
-        font-size: 0.75rem; font-weight: 800;
-        padding: 0.35rem 0.9rem; border-radius: 12px;
-        text-transform: uppercase; letter-spacing: 0.7px; white-space: nowrap;
-    }
-    .dia-cancha-dot {
-        width: 8px; height: 8px; border-radius: 50%;
-        background: var(--brand-green); flex-shrink: 0;
-    }
 
     /* ── Separador de día simple (JS / finales) ── */
     .dia-sep { display: flex; align-items: center; gap: 0.85rem; margin: 1.75rem 0 1rem; }
@@ -155,16 +150,20 @@
     .dia-sep-line { flex: 1; height: 1px; background: var(--brand-border); }
 
     /* ── Cabecera de canchas ── */
-    /* cal-scroll-inner: fit-content para que no se expanda al ancho del viewport;
-       el scroll wrapper absorbe el desborde horizontal */
     .cal-scroll-inner { width: fit-content; margin: 0 auto; }
-    .canchas-header { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem; }
+    .canchas-header {
+        display: grid; grid-template-columns: minmax(400px, auto) minmax(400px, auto);
+        gap: 0.75rem; margin-bottom: 0.5rem; width: fit-content; margin-left: auto; margin-right: auto;
+    }
     .canchas-header-item {
-        font-size: 0.7rem; font-weight: 800; color: #9ca3af; text-transform: uppercase;
+        font-size: 0.7rem; font-weight: 800; color: var(--brand-black); text-transform: uppercase;
         letter-spacing: 0.9px; text-align: center; display: flex;
         align-items: center; justify-content: center; gap: 0.35rem; padding: 0.25rem 0;
     }
-    /* canchas-header visible en mobile dentro del scroll wrapper */
+    @media (max-width: 767px) {
+        .canchas-header { grid-template-columns: 400px 400px; margin-left: 0; margin-right: 0; }
+    }
+
 
     /* ── Franja horaria ── */
     .franja-block { margin-bottom: 1.25rem; }
@@ -194,7 +193,7 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         border-top: 3px solid #e5e7eb;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
-        min-width: 340px;
+        min-width: 400px;
         display: flex; overflow: hidden;
     }
     .partido-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.1); }
@@ -203,7 +202,7 @@
         align-items: center; justify-content: center; min-height: 90px; box-shadow: none;
     }
     .partido-card.vacio span { color: #d1d5db; font-size: 0.82rem; font-weight: 500; }
-    .partido-card.partido-tbd { opacity: 0.72; }
+    .partido-card.partido-tbd { }
 
     /* ── Strip vertical de hora ── */
     .hora-strip {
@@ -236,7 +235,7 @@
     .match-row {
         display: flex; align-items: center; gap: 0.5rem;
     }
-    .equipo { font-weight: 700; font-size: 0.88rem; color: var(--brand-black); line-height: 1.3; white-space: nowrap; flex: 1; }
+    .equipo { font-weight: 700; font-size: 0.88rem; color: var(--brand-black); line-height: 1.3; white-space: nowrap; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .equipo.equipo-tbd { color: #9ca3af; font-style: italic; font-weight: 600; }
     .match-row-divider { height: 1px; background: rgba(0,0,0,0.08); }
     .score-cells { display: flex; gap: 0.25rem; flex-shrink: 0; }
@@ -250,7 +249,10 @@
 
     /* ── Mobile: ocultar labels de cancha (son la fuente del overflow horizontal de página) ── */
     @media (max-width: 767px) {
-        .dia-sticky-canchas-row { display: none; }
+        /* Columnas fijas → todas las cards iguales; margen 0 → el contenido arranca en el borde izquierdo */
+        .cal-scroll-inner { margin: 0; }
+        .canchas-grid { grid-template-columns: 400px 400px; }
+        .partido-card { width: 400px; min-width: unset; }
     }
 
     /* Clip sin BFC: no rompe position:sticky pero evita scroll horizontal de página */
@@ -382,21 +384,22 @@
         <div class="tab-pane fade show active" id="panel-grupos" role="tabpanel">
 
             {% for dia in dias_fase_grupos %}
-            {# dia-sticky FUERA del scroll-wrapper: sticky funciona sin conflicto con overflow-x #}
+            {# dia-sticky y header-sticky-wrap como hermanos: cada uno con su propio sticky #}
             <div class="dia-sticky">
                 <div class="dia-sticky-top-row">
                     <div class="dia-sticky-label">{{ dia }}</div>
                     <div class="dia-sticky-line"></div>
                 </div>
-                <div class="dia-sticky-canchas-row">
-                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 1</span></div>
-                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 2</span></div>
+            </div>
+            <div class="canchas-header-sticky-wrap">
+                <div class="canchas-header canchas-header-sticky">
+                    <div class="canchas-header-item"><i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1</div>
+                    <div class="canchas-header-item"><i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2</div>
                 </div>
             </div>
 
             <div class="cal-scroll-wrapper">
             <div class="cal-scroll-inner">
-
             {% for hora in horas_orden %}
                 {% if hora in resultado.calendario[dia] %}
                 {% set canchas = resultado.calendario[dia][hora] %}
@@ -489,22 +492,15 @@
                     <div class="dia-sticky-label">Domingo</div>
                     <div class="dia-sticky-line"></div>
                 </div>
-                <div class="dia-sticky-canchas-row">
-                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 1</span></div>
-                    <div class="dia-cancha-slot"><span class="dia-cancha-label"><span class="dia-cancha-dot"></span>Cancha 2</span></div>
+            </div>
+            <div class="canchas-header-sticky-wrap">
+                <div class="canchas-header canchas-header-sticky">
+                    <div class="canchas-header-item"><i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1</div>
+                    <div class="canchas-header-item"><i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2</div>
                 </div>
             </div>
             <div class="cal-scroll-wrapper">
             <div class="cal-scroll-inner">
-            <div class="canchas-header">
-                <div class="canchas-header-item">
-                    <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 1
-                </div>
-                <div class="canchas-header-item">
-                    <i class="bi bi-square-fill" style="color:var(--brand-green);font-size:.42rem;"></i>Cancha 2
-                </div>
-            </div>
-
             {# Mapa de nombre legible de fase para el badge #}
             {% set fase_label = {
                 'Octavos de Final': 'Octavos',
@@ -977,6 +973,25 @@ if (_tabFinalesEl) {
             btn.classList.remove('activo');
         }
     };
+
+})();
+
+// ── Header sticky de canchas: sincroniza translateX con el scrollLeft del wrapper ──
+// IIFE independiente: corre siempre, sin depender del botón "Mis Partidos".
+(function () {
+    document.querySelectorAll('.cal-scroll-wrapper').forEach(wrapper => {
+        const stickyWrap = wrapper.previousElementSibling;
+        if (!stickyWrap?.classList.contains('canchas-header-sticky-wrap')) return;
+        const header = stickyWrap.querySelector('.canchas-header-sticky');
+        if (!header) return;
+
+        const syncTranslate = () => {
+            header.style.transform = `translateX(-${wrapper.scrollLeft}px)`;
+        };
+
+        wrapper.addEventListener('scroll', syncTranslate, { passive: true });
+        syncTranslate(); // posición inicial
+    });
 })();
 </script>
 {% endblock %}

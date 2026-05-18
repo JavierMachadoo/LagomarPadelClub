@@ -352,7 +352,7 @@
                                     <div class="position-relative">
                                         <input type="text" class="form-control" name="jugador1"
                                                id="inputJugador1"
-                                               placeholder="Buscar en catálogo o escribir nombre"
+                                               placeholder="Buscar en catálogo"
                                                autocomplete="off" required>
                                         <input type="hidden" name="jugador1_id" id="jugador1Id">
                                         <div id="dropdownJugador1" class="jugador-dropdown d-none"></div>
@@ -365,7 +365,7 @@
                                     <div class="position-relative">
                                         <input type="text" class="form-control" name="jugador2"
                                                id="inputJugador2"
-                                               placeholder="Buscar en catálogo o escribir nombre"
+                                               placeholder="Buscar en catálogo"
                                                autocomplete="off" required>
                                         <input type="hidden" name="jugador2_id" id="jugador2Id">
                                         <div id="dropdownJugador2" class="jugador-dropdown d-none"></div>
@@ -517,6 +517,9 @@
                                         {% elif resultado and pareja.fuera_de_horario %}
                                         <span class="badge bg-warning text-dark" style="font-size:0.62rem"><i class="bi bi-exclamation-circle-fill"></i> Fuera horario</span>
                                         {% endif %}
+                                        {% if not pareja.jugador1_id or not pareja.jugador2_id %}
+                                        <span class="badge bg-danger" style="font-size:0.62rem"><i class="bi bi-exclamation-triangle-fill"></i> Sin jugador</span>
+                                        {% endif %}
                                     </div>
                                 </div>
                                 <div class="pareja-row-actions">
@@ -555,7 +558,7 @@
                                 {% endif %}
                                 <tr class="{{ clase_estado }}" data-id="{{ pareja.id }}" data-categoria="{{ pareja.categoria }}">
                                     <td>{{ loop.index }}</td>
-                                    <td><strong>{{ icono_estado|safe }}{{ pareja.nombre }}</strong></td>
+                                    <td><strong>{{ icono_estado|safe }}{{ pareja.nombre }}{% if not pareja.jugador1_id or not pareja.jugador2_id %}<i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Sin jugador del catálogo asignado — los resultados no sumarán al ranking"></i>{% endif %}</strong></td>
                                     <td>{{ pareja.telefono }}</td>
                                     <td>
                                         <span class="badge bg-{{ pareja.categoria|lower }}">
@@ -1192,7 +1195,7 @@ function _renderDropdown(numero, q, jugadores) {
     jugadores.slice(0, 8).forEach(j => {
         const item = document.createElement('div');
         item.className = 'jd-item';
-        item.textContent = j.nombre + ' ' + j.apellido + (j.telefono ? ' · ' + j.telefono : '');
+        item.textContent = j.nombre + ' ' + (j.apellido || '');
         item.addEventListener('mousedown', e => {
             e.preventDefault();
             seleccionarJugador(numero, j.id, j.nombre + ' ' + j.apellido);
@@ -1233,7 +1236,11 @@ function crearJugadorInline(numero, texto) {
     }
 }
 
+let _creandoJugador = false;
+
 function _crearJugador(numero, nombre, apellido) {
+    if (_creandoJugador) return;
+    _creandoJugador = true;
     fetch('/api/jugadores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1248,7 +1255,8 @@ function _crearJugador(numero, nombre, apellido) {
             Toast.error(j.error || 'Error al crear jugador');
         }
     })
-    .catch(() => Toast.error('Error al crear jugador'));
+    .catch(() => Toast.error('Error al crear jugador'))
+    .finally(() => { _creandoJugador = false; });
 }
 
 ['1', '2'].forEach(n => {
@@ -1279,6 +1287,17 @@ document.getElementById('formAgregarPareja').addEventListener('submit', function
 
     if (!jugador1) {
         Toast.error('El nombre del Jugador 1 es obligatorio');
+        return;
+    }
+
+    if (!jugador1Id) {
+        Toast.error('Seleccioná un jugador del catálogo');
+        document.getElementById('inputJugador1').focus();
+        return;
+    }
+    if (!jugador2Id) {
+        Toast.error('Seleccioná un jugador del catálogo');
+        document.getElementById('inputJugador2').focus();
         return;
     }
 
@@ -1503,7 +1522,7 @@ function renderizarTablaParejas(parejas) {
             
             tr.innerHTML = `
                 <td>${index + 1}</td>
-                <td><strong>${iconoEstado}${escapeHtml(pareja.nombre)}</strong></td>
+                <td><strong>${iconoEstado}${escapeHtml(pareja.nombre)}${(!pareja.jugador1_id || !pareja.jugador2_id) ? '<i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Sin jugador del catálogo asignado — los resultados no sumarán al ranking"></i>' : ''}</strong></td>
                 <td>${escapeHtml(pareja.telefono)}</td>
                 <td>
                     <span class="badge bg-${categoriaClass}">
@@ -1540,6 +1559,9 @@ function renderizarTablaParejas(parejas) {
                 } else if (pareja.fuera_de_horario) {
                     alertBadge = '<span class="badge bg-warning text-dark" style="font-size:0.62rem"><i class="bi bi-exclamation-circle-fill"></i> Fuera horario</span>';
                 }
+            }
+            if (!pareja.jugador1_id || !pareja.jugador2_id) {
+                alertBadge += '<span class="badge bg-danger" style="font-size:0.62rem"><i class="bi bi-exclamation-triangle-fill"></i> Sin jugador</span>';
             }
 
             const row = document.createElement('div');

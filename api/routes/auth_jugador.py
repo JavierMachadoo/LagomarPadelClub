@@ -66,11 +66,12 @@ def register():
     """
     Registra un nuevo jugador.
 
-    Body JSON: { email, password, nombre, apellido, telefono? }
+    Body JSON: { email, password, nombre, apellido, telefono?, invite_token? }
 
     Flujo:
-      1. Crea usuario en Supabase Auth (anon key es suficiente para sign_up)
-      2. Inserta perfil en tabla `jugadores` con service_role (bypasea RLS)
+      1. Crea usuario en Supabase Auth con Admin API (service_role).
+      2. El perfil en `jugadores` se crea en /auth/callback una vez confirmado el email.
+         Si el email ya existe sin perfil (registro parcial), completa o reenvía confirmación.
     """
     data = request.get_json(silent=True) or {}
     email        = data.get("email", "").strip()
@@ -137,8 +138,16 @@ def register():
                 raise
 
             # Email ya existe en auth.users — distinguir casos:
-            all_users = sb_admin.auth.admin.list_users()
-            existing = next((u for u in all_users if u.email == email), None)
+            existing = None
+            page = 1
+            while not existing:
+                batch = sb_admin.auth.admin.list_users(page=page, per_page=50)
+                if not batch:
+                    break
+                existing = next((u for u in batch if u.email == email), None)
+                if len(batch) < 50:
+                    break
+                page += 1
             if not existing:
                 return jsonify({"error": "Este email ya está registrado"}), 409
 

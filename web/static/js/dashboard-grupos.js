@@ -1162,16 +1162,15 @@ function abrirBuscadorJugadorRapida(numero) {
     if (!buscador) return;
     buscador.classList.remove('d-none');
     const input = document.getElementById(`rapidaJugador${numero}Input`);
-    if (input && !input._rapidaListenerAttached) {
-        input._rapidaListenerAttached = true;
-        input.addEventListener('input', () => {
+    if (input) {
+        input.oninput = () => {
             clearTimeout(_rapidaSearchTimeout);
             _rapidaSearchTimeout = setTimeout(() => {
                 _buscarJugadoresRapida(numero, input.value.trim());
             }, 300);
-        });
+        };
+        input.focus();
     }
-    if (input) input.focus();
 }
 
 function _buscarJugadoresRapida(numero, q) {

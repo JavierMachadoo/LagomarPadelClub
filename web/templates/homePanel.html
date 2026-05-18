@@ -1198,7 +1198,7 @@ function _renderDropdown(numero, q, jugadores) {
         item.textContent = j.nombre + ' ' + (j.apellido || '');
         item.addEventListener('mousedown', e => {
             e.preventDefault();
-            seleccionarJugador(numero, j.id, j.nombre + ' ' + j.apellido);
+            seleccionarJugador(numero, j.id, j.nombre + ' ' + (j.apellido || ''));
         });
         dropdown.appendChild(item);
     });
@@ -1249,8 +1249,8 @@ function _crearJugador(numero, nombre, apellido) {
     .then(r => r.json())
     .then(j => {
         if (j.id) {
-            seleccionarJugador(numero, j.id, j.nombre + ' ' + j.apellido);
-            Toast.success('Jugador ' + j.nombre + ' ' + j.apellido + ' creado en el catálogo');
+            seleccionarJugador(numero, j.id, j.nombre + ' ' + (j.apellido || ''));
+            Toast.success('Jugador ' + j.nombre + ' ' + (j.apellido || '') + ' creado en el catálogo');
         } else {
             Toast.error(j.error || 'Error al crear jugador');
         }

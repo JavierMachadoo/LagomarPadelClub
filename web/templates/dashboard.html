@@ -1735,7 +1735,7 @@ document.getElementById('modalAgregarParejaRapida').addEventListener('hidden.bs.
         const dropdown = document.getElementById(`dropdownJugadorRapida${n}`);
         if (dropdown) { dropdown.innerHTML = ''; dropdown.classList.add('d-none'); }
         const input = document.getElementById(`rapidaJugador${n}Input`);
-        if (input) { input.value = ''; input._rapidaListenerAttached = false; }
+        if (input) { input.value = ''; input.oninput = null; }
     });
 });
 </script>

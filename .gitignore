@@ -25,7 +25,14 @@ env/
 app.log
 data/torneos/*.json
 !data/torneos/.gitkeep
+data/uploads/
 flask_session/
+
+# Test cache
+.pytest_cache/
+
+# Tool-generated settings
+.pi/
 
 # Environment variables
 .env

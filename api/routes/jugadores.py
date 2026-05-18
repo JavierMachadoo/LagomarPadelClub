@@ -43,6 +43,7 @@ def crear_jugador():
                         .select('*')
                         .ilike('nombre', nombre)
                         .ilike('apellido', apellido)
+                        .eq('activo', True)
                         .gte('created_at', threshold)
                         .limit(1)
                         .execute())

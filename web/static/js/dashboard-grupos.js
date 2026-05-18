@@ -770,6 +770,7 @@ function editarParejaDesdeGrupo(button) {
     document.getElementById('editarParejaNombre').value = nombre;
     document.getElementById('editarParejaTelefono').value = telefono;
     document.getElementById('editarParejaCategoria').value = categoria;
+    document.getElementById('editarParejaHasResults').value = hasResults ? 'true' : 'false';
 
     // Poblar jugadores
     document.getElementById('editarParejaJugador1Id').value = jugador1Id;
@@ -977,13 +978,16 @@ function confirmarEditarPareja() {
     const nombre     = document.getElementById('editarParejaNombre').value.trim();
     const telefono   = document.getElementById('editarParejaTelefono').value.trim();
     const categoria  = document.getElementById('editarParejaCategoria').value;
-    const jugador1Id = document.getElementById('editarParejaJugador1Id').value || null;
-    const jugador2Id = document.getElementById('editarParejaJugador2Id').value || null;
+    const jugador1Id  = document.getElementById('editarParejaJugador1Id').value || null;
+    const jugador2Id  = document.getElementById('editarParejaJugador2Id').value || null;
+    const hasResults  = document.getElementById('editarParejaHasResults').value === 'true';
 
     const franjasChecked = Array.from(document.querySelectorAll('#editarParejaFranjasContainer input[type="checkbox"]:checked'))
         .map(cb => cb.value);
 
-    if (!jugador1Id || !jugador2Id) {
+    // Legacy pairs (created before catalog existed) that already have results can be saved without IDs.
+    // When hasResults is false the admin must link both players before committing.
+    if (!hasResults && (!jugador1Id || !jugador2Id)) {
         Toast.error('Debés seleccionar ambos jugadores del catálogo');
         return;
     }
@@ -1042,10 +1046,10 @@ function confirmarEditarPareja() {
     });
 }
 
-// ==================== BUSCADOR DE JUGADORES (EDITAR PAREJA) ====================
-// DUPLICADO de homePanel.html — sincronizar manualmente si cambia la API de jugadores.
+// ==================== BUSCADOR DE JUGADORES — helpers compartidos ====================
+// homePanel.html usa un patrón distinto (mousedown + crear inline) — no se unifica aquí.
 
-function _escapeHtmlEditPareja(str) {
+function _escapeHtml(str) {
     if (!str) return '';
     return String(str)
         .replace(/&/g, '&amp;')
@@ -1054,6 +1058,53 @@ function _escapeHtmlEditPareja(str) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
+/**
+ * Fetch jugadores del catálogo y renderiza resultados en `dropdownEl`.
+ * @param {HTMLElement} dropdownEl  — el contenedor del dropdown
+ * @param {string}      q           — texto de búsqueda (mínimo 2 caracteres)
+ * @param {object}      opts
+ *   @param {string}  opts.handlerFn  — nombre de la función global onclick (recibe el elemento)
+ *   @param {number}  opts.numero     — 1 o 2 (jugador dentro del modal)
+ *   @param {boolean} opts.showEmail  — mostrar email en el ítem
+ */
+function _fetchJugadoresDropdown(dropdownEl, q, opts) {
+    if (!dropdownEl) return;
+    if (!q || q.length < 2) {
+        dropdownEl.innerHTML = '';
+        dropdownEl.classList.add('d-none');
+        return;
+    }
+    fetch('/api/jugadores?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            const jugadores = data.jugadores || [];
+            if (jugadores.length === 0) {
+                dropdownEl.innerHTML = '<div class="dropdown-jugadores-item text-muted">Sin resultados</div>';
+                dropdownEl.classList.remove('d-none');
+                return;
+            }
+            dropdownEl.innerHTML = jugadores.map(j => {
+                const nombre = ((j.nombre || '') + ' ' + (j.apellido || '')).trim();
+                return `<div class="dropdown-jugadores-item"
+                             data-jugador-id="${_escapeHtml(j.id)}"
+                             data-jugador-nombre="${_escapeHtml(nombre)}"
+                             data-jugador-telefono="${_escapeHtml(j.telefono || '')}"
+                             data-jugador-numero="${opts.numero}"
+                             onclick="${opts.handlerFn}(this)">
+                    ${_escapeHtml(nombre)}
+                    ${opts.showEmail && j.email ? `<small class="text-muted ms-1">(${_escapeHtml(j.email)})</small>` : ''}
+                </div>`;
+            }).join('');
+            dropdownEl.classList.remove('d-none');
+        })
+        .catch(() => {
+            dropdownEl.innerHTML = '<div class="dropdown-jugadores-item text-danger">Error al buscar</div>';
+            dropdownEl.classList.remove('d-none');
+        });
+}
+
+// ==================== BUSCADOR — EDITAR PAREJA ====================
 
 let _editParejaSearchTimeout = null;
 
@@ -1077,49 +1128,16 @@ function abrirBuscadorJugadorEditPareja(numero) {
 }
 
 function _buscarJugadoresEditPareja(numero, q) {
-    const dropdown = document.getElementById(`dropdownJugadorEditPareja${numero}`);
-    if (!dropdown) return;
-
-    if (!q || q.length < 2) {
-        dropdown.classList.add('d-none');
-        dropdown.innerHTML = '';
-        return;
-    }
-
-    fetch(`/api/jugadores?q=${encodeURIComponent(q)}`)
-        .then(r => r.json())
-        .then(data => {
-            const jugadores = data.jugadores || [];
-            if (jugadores.length === 0) {
-                dropdown.innerHTML = '<div class="dropdown-jugadores-item text-muted">Sin resultados</div>';
-                dropdown.classList.remove('d-none');
-                return;
-            }
-            dropdown.innerHTML = jugadores.map(j => {
-                const nombreCompleto = ((j.nombre || '') + ' ' + (j.apellido || '')).trim();
-                return `<div class="dropdown-jugadores-item"
-                             data-jugador-id="${_escapeHtmlEditPareja(j.id)}"
-                             data-jugador-nombre="${_escapeHtmlEditPareja(nombreCompleto)}"
-                             data-jugador-telefono="${_escapeHtmlEditPareja(j.telefono || '')}"
-                             data-jugador-numero="${numero}"
-                             onclick="seleccionarJugadorEditParejaDesdeEl(this)">
-                    ${_escapeHtmlEditPareja(nombreCompleto)}
-                    ${j.email ? `<small class="text-muted ms-1">(${_escapeHtmlEditPareja(j.email)})</small>` : ''}
-                </div>`;
-            }).join('');
-            dropdown.classList.remove('d-none');
-        })
-        .catch(() => {
-            dropdown.innerHTML = '<div class="dropdown-jugadores-item text-danger">Error al buscar</div>';
-            dropdown.classList.remove('d-none');
-        });
+    _fetchJugadoresDropdown(
+        document.getElementById(`dropdownJugadorEditPareja${numero}`),
+        q,
+        { handlerFn: 'seleccionarJugadorEditParejaDesdeEl', showEmail: true, numero }
+    );
 }
 
 function seleccionarJugadorEditParejaDesdeEl(el) {
     const numero = parseInt(el.getAttribute('data-jugador-numero'));
-    const id = el.getAttribute('data-jugador-id');
-    const nombreCompleto = el.getAttribute('data-jugador-nombre');
-    seleccionarJugadorEditPareja(numero, id, nombreCompleto);
+    seleccionarJugadorEditPareja(numero, el.getAttribute('data-jugador-id'), el.getAttribute('data-jugador-nombre'));
 }
 
 function seleccionarJugadorEditPareja(numero, id, nombreCompleto) {
@@ -1127,7 +1145,6 @@ function seleccionarJugadorEditPareja(numero, id, nombreCompleto) {
     document.getElementById(`editarParejaJugador${numero}Display`).textContent = nombreCompleto;
     document.getElementById(`editarParejaJugador${numero}Buscador`).classList.add('d-none');
 
-    // Recomputar nombre de pareja
     const j1 = document.getElementById('editarParejaJugador1Display').textContent;
     const j2 = document.getElementById('editarParejaJugador2Display').textContent;
     const sinAsignar = '— Sin asignar —';
@@ -1136,7 +1153,8 @@ function seleccionarJugadorEditPareja(numero, id, nombreCompleto) {
     }
 }
 
-// ==================== PICKER RÁPIDA (quick-add modal) ====================
+// ==================== BUSCADOR — AGREGAR PAREJA RÁPIDA ====================
+
 let _rapidaSearchTimeout = null;
 
 function abrirBuscadorJugadorRapida(numero) {
@@ -1157,44 +1175,29 @@ function abrirBuscadorJugadorRapida(numero) {
 }
 
 function _buscarJugadoresRapida(numero, q) {
-    const dropdown = document.getElementById(`dropdownJugadorRapida${numero}`);
-    if (!dropdown) return;
-    if (q.length < 2) { dropdown.innerHTML = ''; dropdown.classList.add('d-none'); return; }
-    fetch('/api/jugadores?q=' + encodeURIComponent(q))
-        .then(r => r.json())
-        .then(data => {
-            const jugadores = data.jugadores || [];
-            if (jugadores.length === 0) {
-                dropdown.innerHTML = '<div class="dropdown-jugadores-item text-muted">Sin resultados</div>';
-                dropdown.classList.remove('d-none');
-                return;
-            }
-            dropdown.innerHTML = jugadores.map(j => {
-                const nombre = ((j.nombre || '') + ' ' + (j.apellido || '')).trim();
-                return `<div class="dropdown-jugadores-item"
-                             data-jugador-id="${nombre ? j.id : ''}"
-                             onclick="seleccionarJugadorRapida(${numero}, '${(j.id || '').replace(/'/g, "\\'")}', '${nombre.replace(/'/g, "\\'")}', '${(j.telefono || '').replace(/'/g, "\\'")}')">
-                    ${nombre}
-                </div>`;
-            }).join('');
-            dropdown.classList.remove('d-none');
-        })
-        .catch(() => dropdown.classList.add('d-none'));
+    _fetchJugadoresDropdown(
+        document.getElementById(`dropdownJugadorRapida${numero}`),
+        q,
+        { handlerFn: 'seleccionarJugadorRapidaDesdeEl', showEmail: false, numero }
+    );
 }
 
-function seleccionarJugadorRapida(numero, id, nombre, telefono) {
-    document.getElementById(`rapidaJugador${numero}Id`).value = id;
-    document.getElementById(`rapidaJugador${numero}Nombre`).value = nombre;
-    if (numero === 1) {
-        document.getElementById('rapidaJugador1Telefono').value = telefono || '';
-    }
+function seleccionarJugadorRapidaDesdeEl(el) {
+    const numero   = parseInt(el.getAttribute('data-jugador-numero'));
+    const id       = el.getAttribute('data-jugador-id');
+    const nombre   = el.getAttribute('data-jugador-nombre');
+    const telefono = el.getAttribute('data-jugador-telefono') || '';
+
+    document.getElementById(`rapidaJugador${numero}Id`).value     = id;
+    document.getElementById(`rapidaJugador${numero}Nombre`).value  = nombre;
+    document.getElementById(`rapidaJugador${numero}Telefono`).value = telefono;
+
     const display = document.getElementById(`rapidaJugador${numero}Display`);
-    if (display) {
-        display.innerHTML = '';
-        display.textContent = nombre;
-    }
+    if (display) display.textContent = nombre;
+
     const buscador = document.getElementById(`rapidaJugador${numero}Buscador`);
     if (buscador) buscador.classList.add('d-none');
+
     const dropdown = document.getElementById(`dropdownJugadorRapida${numero}`);
     if (dropdown) { dropdown.innerHTML = ''; dropdown.classList.add('d-none'); }
 }

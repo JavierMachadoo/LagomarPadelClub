@@ -286,6 +286,7 @@
                         <input type="hidden" id="editarParejaId">
                         <input type="hidden" id="editarParejaJugador1Id">
                         <input type="hidden" id="editarParejaJugador2Id">
+                        <input type="hidden" id="editarParejaHasResults" value="false">
                         <!-- Nombre se recomputa en JS al seleccionar jugadores -->
                         <input type="hidden" id="editarParejaNombre">
 
@@ -888,6 +889,7 @@
                     </div>
                     <input type="hidden" id="rapidaJugador2Id" value="">
                     <input type="hidden" id="rapidaJugador2Nombre" value="">
+                    <input type="hidden" id="rapidaJugador2Telefono" value="">
                     <div id="rapidaJugador2Buscador" class="position-relative mt-2 d-none">
                         <input type="text" class="form-control form-control-sm"
                                id="rapidaJugador2Input" placeholder="Buscar jugador..." autocomplete="off">
@@ -1691,7 +1693,9 @@ document.getElementById('formAgregarParejaRapida').addEventListener('submit', fu
     const j2Id     = document.getElementById('rapidaJugador2Id').value.trim() || null;
     const j1Nombre = document.getElementById('rapidaJugador1Nombre').value.trim() || 'A confirmar';
     const j2Nombre = document.getElementById('rapidaJugador2Nombre').value.trim() || 'A confirmar';
-    const telefono = document.getElementById('rapidaJugador1Telefono').value.trim() || '';
+    const telefono = document.getElementById('rapidaJugador1Telefono').value.trim()
+                 || document.getElementById('rapidaJugador2Telefono').value.trim()
+                 || '';
     const nombre   = `${j1Nombre} / ${j2Nombre}`;
     const categoria = document.getElementById('rapidaCategoria').value;
     const franjas = [...document.querySelectorAll('.rapida-franja:checked')].map(cb => cb.value);
@@ -1719,7 +1723,7 @@ document.getElementById('formAgregarParejaRapida').addEventListener('submit', fu
 // Reset modal state on close
 document.getElementById('modalAgregarParejaRapida').addEventListener('hidden.bs.modal', function() {
     ['rapidaJugador1Id', 'rapidaJugador1Nombre', 'rapidaJugador1Telefono',
-     'rapidaJugador2Id', 'rapidaJugador2Nombre'].forEach(id => {
+     'rapidaJugador2Id', 'rapidaJugador2Nombre', 'rapidaJugador2Telefono'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });

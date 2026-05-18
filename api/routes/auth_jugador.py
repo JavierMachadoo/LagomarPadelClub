@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 from flask import Blueprint, request, jsonify, make_response, current_app, redirect, session, url_for
 
 from config.settings import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, ADMIN_USERNAME, ADMIN_PASSWORD
+from utils.auth_helpers import crear_perfil_jugador, auto_aceptar_invitacion_post_registro
 from utils.rate_limiter import limiter
 from utils.input_validation import validar_longitud, MAX_NOMBRE, MAX_TELEFONO, MAX_EMAIL, MAX_PASSWORD
 
@@ -98,134 +99,82 @@ def register():
     if error_len:
         return jsonify({"error": error_len}), 400
 
+    # El perfil en `jugadores` se crea en /auth/callback una vez confirmado el email.
+    # Hasta ese momento, auth.users existe pero la tabla jugadores no tiene la fila.
+    # Esto evita perfiles huérfanos cuando hay duplicados no confirmados.
+    profile_metadata = {
+        "nombre":       nombre,
+        "apellido":     apellido,
+        "telefono":     telefono or None,
+        "invite_token": invite_token or None,
+    }
+
     try:
-        # 1. Crear usuario en Supabase Auth usando Admin API (SERVICE_ROLE_KEY).
-        # sign_up() con anon_key puede devolver un user ID ficticio cuando el email
-        # ya existe (Supabase lo hace para no revelar si el email está registrado),
-        # lo que causa FK violation al insertar en jugadores. La Admin API es
-        # síncrona y lanza excepción explícita si el email ya existe.
         sb_admin = _get_supabase_admin()
-        user_id = None
         try:
             auth_response = sb_admin.auth.admin.create_user({
-                "email":          email,
-                "password":       password,
-                "email_confirm":  False,  # False = requiere confirmación de email (no auto-confirmar)
+                "email":         email,
+                "password":      password,
+                "email_confirm": False,
+                "user_metadata": profile_metadata,
             })
             if not auth_response.user:
                 return jsonify({"error": "No se pudo crear el usuario"}), 400
-            user_id = str(auth_response.user.id)
 
-            # admin.create_user NO dispara el email de confirmación automáticamente.
-            # Hay que pedirlo explícitamente vía resend() con el cliente anon.
+            # admin.create_user no dispara el email — pedirlo explícitamente.
             try:
                 sb_anon = _get_supabase_anon()
                 sb_anon.auth.resend({"type": "signup", "email": email})
             except Exception as resend_err:
                 logger.warning("No se pudo enviar email de confirmación a %s: %s", email, resend_err)
 
+            logger.info("Jugador registrado (pendiente confirmación): %s", email)
+            return jsonify({"message": "Registro exitoso. Revisa tu email para confirmar tu cuenta."}), 201
+
         except Exception as create_err:
             err_str = str(create_err)
             if "already registered" not in err_str and "already been registered" not in err_str:
                 raise
 
-            # Registro parcial: el usuario existe en auth.users pero sin perfil.
-            # Buscamos su ID para completar el perfil en jugadores.
+            # Email ya existe en auth.users — distinguir casos:
             all_users = sb_admin.auth.admin.list_users()
             existing = next((u for u in all_users if u.email == email), None)
             if not existing:
                 return jsonify({"error": "Este email ya está registrado"}), 409
 
-            existing_profile = sb_admin.table("jugadores").select("id").eq("id", str(existing.id)).execute()
-            if existing_profile.data:
-                # Tiene perfil completo — email genuinamente duplicado
-                return jsonify({"error": "Este email ya está registrado"}), 409
+            existing_id = str(existing.id)
 
-            # Sin perfil → completar registro parcial
-            user_id = str(existing.id)
-            logger.warning("Completando registro parcial para %s (%s)", email, user_id)
-
-        # 2. Insertar perfil en tabla jugadores
-        sb_admin.table("jugadores").insert({
-            "id":       user_id,
-            "nombre":   nombre,
-            "apellido": apellido,
-            "telefono": telefono or None,
-        }).execute()
-
-        logger.info("Jugador registrado: %s (%s)", email, user_id)
-
-        # 3. Si hay invite_token, auto-aceptar la invitación después del registro
-        if invite_token:
-            try:
-                _auto_aceptar_invitacion_post_registro(sb_admin, invite_token, user_id, f"{nombre} {apellido}".strip())
-                logger.info("Invitación auto-aceptada post-registro: token=%s, jugador=%s", invite_token, user_id)
-            except Exception as e:
-                logger.warning("No se pudo auto-aceptar invitación post-registro: %s", e)
-                # No bloquear el registro si falla la invitación
-
-        return jsonify({"message": "Registro exitoso. Revisa tu email para confirmar tu cuenta."}), 201
+            if existing.email_confirmed_at:
+                # Email confirmado — si tiene perfil, es duplicado real
+                existing_profile = sb_admin.table("jugadores").select("id").eq("id", existing_id).execute()
+                if existing_profile.data:
+                    return jsonify({"error": "Este email ya está registrado"}), 409
+                # Confirmado pero sin perfil (callback falló antes) → crear perfil directamente
+                crear_perfil_jugador(sb_admin, existing_id, nombre, apellido, telefono)
+                if invite_token:
+                    try:
+                        auto_aceptar_invitacion_post_registro(sb_admin, invite_token, existing_id, f"{nombre} {apellido}".strip())
+                    except Exception as e:
+                        logger.warning("No se pudo auto-aceptar invitación: %s", e)
+                return jsonify({"message": "Registro completado. Ya podés iniciar sesión."}), 200
+            else:
+                # No confirmado → actualizar metadata y reenviar confirmación
+                sb_admin.auth.admin.update_user_by_id(existing_id, {"user_metadata": profile_metadata})
+                try:
+                    sb_anon = _get_supabase_anon()
+                    sb_anon.auth.resend({"type": "signup", "email": email})
+                except Exception as resend_err:
+                    logger.warning("No se pudo reenviar confirmación a %s: %s", email, resend_err)
+                return jsonify({"message": "Ya te registraste. Te reenviamos el email de confirmación."}), 200
 
     except Exception as e:
         logger.error("Error en registro de jugador: %s", e)
-        # Supabase devuelve mensajes descriptivos, los exponemos con cuidado
         error_msg = str(e)
         if "already registered" in error_msg or "already been registered" in error_msg:
             return jsonify({"error": "Este email ya está registrado"}), 409
         if "SUPABASE_SERVICE_ROLE_KEY no está configurada" in error_msg or "SUPABASE_ANON_KEY no está configurada" in error_msg:
             return jsonify({"error": error_msg}), 500
         return jsonify({"error": "Error al registrar. Intenta de nuevo."}), 500
-
-
-def _auto_aceptar_invitacion_post_registro(sb, token: str, jugador_id: str, nombre_jugador: str) -> None:
-    """Auto-acepta una invitación pendiente después del registro.
-    Se llama opcionalmente — no debe bloquear el flujo principal de registro."""
-    from datetime import datetime, timezone
-
-    token_resp = (sb.table('invitacion_tokens')
-                  .select('inscripcion_id, expira_at, usado')
-                  .eq('token', token)
-                  .execute())
-
-    if not token_resp.data:
-        return
-
-    token_data = token_resp.data[0]
-    if token_data['usado']:
-        return
-
-    expira = datetime.fromisoformat(token_data['expira_at'].replace('Z', '+00:00'))
-    if datetime.now(timezone.utc) > expira:
-        return
-
-    # Obtener la inscripción
-    ins_resp = (sb.table('inscripciones')
-                .select('*')
-                .eq('id', token_data['inscripcion_id'])
-                .eq('estado', 'pendiente_companero')
-                .execute())
-
-    if not ins_resp.data:
-        return
-
-    inscripcion = ins_resp.data[0]
-
-    # Verificar que no sea la propia inscripción
-    if inscripcion['jugador_id'] == jugador_id:
-        return
-
-    # Verificar que si tiene jugador2_id especificado, coincida
-    if inscripcion.get('jugador2_id') and inscripcion['jugador2_id'] != jugador_id:
-        return
-
-    # Aceptar
-    sb.table('inscripciones').update({
-        'jugador2_id': jugador_id,
-        'integrante2': nombre_jugador,
-        'estado':      'confirmado',
-    }).eq('id', inscripcion['id']).execute()
-
-    sb.table('invitacion_tokens').update({'usado': True}).eq('token', token).execute()
 
 
 def _login_admin_fallback(usuario, password, cookie_max_age=None, token_exp_hours=2):

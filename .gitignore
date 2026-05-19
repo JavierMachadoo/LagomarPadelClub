@@ -25,10 +25,23 @@ env/
 app.log
 data/torneos/*.json
 !data/torneos/.gitkeep
+data/uploads/
 flask_session/
+
+# Test cache
+.pytest_cache/
+
+# Tool-generated settings
+.pi/
 
 # Environment variables
 .env
+
+# Claude Code local config (per-developer permissions)
+.claude/settings.local.json
+
+# ATL skill registry (tool-generated, not source of truth)
+.atl/
 
 # OS
 .DS_Store

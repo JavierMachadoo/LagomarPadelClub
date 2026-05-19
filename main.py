@@ -24,6 +24,7 @@ from config import (
 from config.settings import BASE_DIR, DEBUG, SUPABASE_SERVICE_ROLE_KEY
 from utils.template_helpers import build_franjas_finales
 from utils.supabase_client import get_supabase_admin, get_supabase_anon
+from utils.auth_helpers import crear_perfil_jugador, auto_aceptar_invitacion_post_registro
 from api import api_bp, grupos_bp, resultados_bp, calendario_bp
 from api.routes.finales import finales_bp
 from api.routes.auth_jugador import auth_jugador_bp
@@ -506,14 +507,32 @@ def crear_app():
                 jwt_token = auth_response.session.access_token
 
                 sb_admin = get_supabase_admin()
-                perfil   = sb_admin.table('jugadores').select('nombre,apellido,telefono').eq('id', user.id).single().execute()
-                nombre   = ''
-                apellido = ''
-                telefono = ''
+
+                # Crear perfil en jugadores si aún no existe (registro diferido:
+                # el perfil se materializa aquí, no en el POST /api/auth/registro).
+                meta     = user.user_metadata or {}
+                nombre   = meta.get('nombre', '')
+                apellido = meta.get('apellido', '')
+                telefono = meta.get('telefono') or ''
+                crear_perfil_jugador(sb_admin, str(user.id), nombre, apellido, telefono)
+
+                invite_token = meta.get('invite_token') or ''
+                if invite_token:
+                    try:
+                        auto_aceptar_invitacion_post_registro(
+                            sb_admin, invite_token, str(user.id),
+                            f"{nombre} {apellido}".strip()
+                        )
+                        logger.info("Invitación auto-aceptada post-confirmación: token=%s, jugador=%s", invite_token, user.id)
+                    except Exception as inv_err:
+                        logger.warning("No se pudo auto-aceptar invitación: %s", inv_err)
+
+                # Leer perfil actualizado para el JWT
+                perfil = sb_admin.table('jugadores').select('nombre,apellido,telefono').eq('id', str(user.id)).maybe_single().execute()
                 if perfil.data:
-                    nombre   = perfil.data.get('nombre', '')
-                    apellido = perfil.data.get('apellido', '')
-                    telefono = perfil.data.get('telefono') or ''
+                    nombre   = perfil.data.get('nombre', nombre)
+                    apellido = perfil.data.get('apellido', apellido)
+                    telefono = perfil.data.get('telefono') or telefono
 
                 jwt_handler = app.jwt_handler
                 token_data = {

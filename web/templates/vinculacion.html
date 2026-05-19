@@ -180,6 +180,20 @@
             </p>
         </div>
 
+        <!-- Sección 1b: Catálogo sin vinculación posible -->
+        <h5 class="fw-bold mb-3 mt-5" style="color:var(--brand-black);">
+            <i class="bi bi-question-circle me-2 text-secondary"></i>Catálogo sin vinculación posible
+        </h5>
+        <p class="text-muted small mb-3">Jugadores creados por el admin sin cuenta registrada y sin coincidencia de nombre suficiente para sugerir un vínculo automático.</p>
+
+        <div id="lista-sin-coincidencias" style="display:none;"></div>
+
+        <div id="estado-vacio-sc" class="empty-state" style="display:none;">
+            <i class="bi bi-check2-circle"></i>
+            <strong>Sin jugadores huérfanos</strong>
+            <p class="mt-1 small">Todos los del catálogo tienen sugerencia de vínculo o ya están vinculados.</p>
+        </div>
+
         <!-- Sección 2: Duplicados dentro del catálogo -->
         <h5 class="fw-bold mb-3 mt-5" style="color:var(--brand-black);">
             <i class="bi bi-people-fill me-2 text-warning"></i>Posibles duplicados en el catálogo
@@ -198,6 +212,20 @@
             <p class="mt-1 small">
                 No se encontraron entradas similares en el catálogo.
             </p>
+        </div>
+
+        <!-- Sección 3: Duplicados entre registrados -->
+        <h5 class="fw-bold mb-3 mt-5" style="color:var(--brand-black);">
+            <i class="bi bi-person-exclamation me-2 text-danger"></i>Posibles duplicados entre registrados
+        </h5>
+        <p class="text-muted small mb-3">Cuentas registradas con nombres similares — podrían ser la misma persona con dos emails distintos.</p>
+
+        <div id="lista-dreg" style="display:none;"></div>
+
+        <div id="estado-vacio-dreg" class="empty-state" style="display:none;">
+            <i class="bi bi-check2-circle"></i>
+            <strong>Sin duplicados entre registrados</strong>
+            <p class="mt-1 small">No se encontraron cuentas registradas con nombres similares.</p>
         </div>
 
     </div>
@@ -281,11 +309,33 @@ function scoreClass(s) {
         const sugs = data.sugerencias || [];
         if (sugs.length === 0) {
             vacio.style.display = 'block';
-            return;
+        } else {
+            lista.style.display = 'block';
+            sugs.forEach(s => lista.appendChild(crearTarjeta(s)));
         }
 
-        lista.style.display = 'block';
-        sugs.forEach(s => lista.appendChild(crearTarjeta(s)));
+        // Sin coincidencias: admin-creados que no tienen match ≥ umbral con ningún registrado
+        const listaSC  = document.getElementById('lista-sin-coincidencias');
+        const vacioSC  = document.getElementById('estado-vacio-sc');
+        const sinCoinc = data.sin_coincidencias || [];
+        if (sinCoinc.length === 0) {
+            vacioSC.style.display = 'block';
+        } else {
+            listaSC.style.display = 'block';
+            sinCoinc.forEach(j => {
+                const div = document.createElement('div');
+                div.className = 'sug-card';
+                const nombre = esc(`${j.nombre || ''} ${j.apellido || ''}`.trim());
+                div.innerHTML = `
+                    <div class="sug-body d-flex align-items-center gap-2">
+                        <div class="jugador-bloque">
+                            <div class="etiqueta">Sin cuenta vinculada</div>
+                            <div class="nombre">${nombre}</div>
+                        </div>
+                    </div>`;
+                listaSC.appendChild(div);
+            });
+        }
 
     } catch {
         carga.style.display = 'none';
@@ -397,9 +447,6 @@ function eliminarTarjeta(card) {
                 </div>
             </div>
             <div class="sug-actions">
-                <button class="btn-confirmar" onclick="fusionarDup(this)">
-                    <i class="bi bi-intersect me-1"></i>Fusionar (son la misma persona)
-                </button>
                 <button class="btn-descartar" onclick="descartarDup(this)">
                     No son la misma persona
                 </button>
@@ -422,11 +469,52 @@ function eliminarTarjeta(card) {
         const dups = data.duplicados || [];
         if (dups.length === 0) {
             vacio.style.display = 'block';
-            return;
+        } else {
+            lista.style.display = 'block';
+            dups.forEach(d => lista.appendChild(crearTarjetaDup(d)));
         }
 
-        lista.style.display = 'block';
-        dups.forEach(d => lista.appendChild(crearTarjetaDup(d)));
+        // Duplicados entre registrados (auth vs auth, mismo nombre)
+        const listaDReg = document.getElementById('lista-dreg');
+        const vacioDReg = document.getElementById('estado-vacio-dreg');
+        const dReg = data.duplicados_registrados || [];
+        if (dReg.length === 0) {
+            vacioDReg.style.display = 'block';
+        } else {
+            listaDReg.style.display = 'block';
+            dReg.forEach(d => {
+                const div = document.createElement('div');
+                div.className = 'sug-card';
+                div.dataset.catalogoId   = d.a.id;
+                div.dataset.registradoId = d.b.id;
+                const nombreA = esc(`${d.a.nombre || ''} ${d.a.apellido || ''}`.trim());
+                const nombreB = esc(`${d.b.nombre || ''} ${d.b.apellido || ''}`.trim());
+                div.innerHTML = `
+                    <div class="sug-body d-flex align-items-center gap-2">
+                        <div class="jugador-bloque">
+                            <div class="etiqueta">Registrado A</div>
+                            <div class="nombre">${nombreA}</div>
+                        </div>
+                        <div class="score-col">
+                            <span class="score-badge ${scoreClass(d.score)}">${d.score}%</span>
+                            <span class="sug-arrow">⟷</span>
+                        </div>
+                        <div class="jugador-bloque">
+                            <div class="etiqueta">Registrado B</div>
+                            <div class="nombre">${nombreB}</div>
+                        </div>
+                    </div>
+                    <div class="sug-actions">
+                        <button class="btn-confirmar" onclick="fusionarDup(this)">
+                            <i class="bi bi-intersect me-1"></i>Fusionar (son la misma persona)
+                        </button>
+                        <button class="btn-descartar" onclick="descartarDup(this)">
+                            No son la misma persona
+                        </button>
+                    </div>`;
+                listaDReg.appendChild(div);
+            });
+        }
 
     } catch {
         carga.style.display = 'none';
@@ -496,11 +584,12 @@ async function descartarDup(btn) {
 function eliminarTarjetaDup(card) {
     card.classList.add('removing');
     card.addEventListener('transitionend', () => {
+        const lista = card.parentElement;
         card.remove();
-        const lista = document.getElementById('lista-duplicados');
-        if (!lista.querySelector('.sug-card')) {
+        if (lista && !lista.querySelector('.sug-card')) {
             lista.style.display = 'none';
-            document.getElementById('estado-vacio-dup').style.display = 'block';
+            const vacioId = lista.id === 'lista-duplicados' ? 'estado-vacio-dup' : 'estado-vacio-dreg';
+            document.getElementById(vacioId).style.display = 'block';
         }
     }, { once: true });
 }

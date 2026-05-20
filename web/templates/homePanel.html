@@ -1365,7 +1365,10 @@ document.getElementById('formCrearJugador').addEventListener('submit', async fun
 
     const nombre = document.getElementById('inputNombreJugador').value.trim();
     const apellido = document.getElementById('inputApellidoJugador').value.trim();
-    if (!nombre || !apellido) return;
+    if (!nombre || !apellido) {
+        Toast.error('Ingresá nombre y apellido del jugador');
+        return;
+    }
 
     try {
         const resp = await fetch('/api/jugadores?q=' + encodeURIComponent(nombre + ' ' + apellido));

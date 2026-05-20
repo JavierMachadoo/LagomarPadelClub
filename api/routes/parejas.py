@@ -201,8 +201,8 @@ def editar_pareja():
     franjas     = data.get('franjas', [])
     jugador1_id = data.get('jugador1_id')   # None si no viene (edición legacy)
     jugador2_id = data.get('jugador2_id')   # None si no viene
-    jugador1    = data.get('jugador1', '').strip() or None
-    jugador2    = data.get('jugador2', '').strip() or None
+    jugador1    = data['jugador1'].strip() if 'jugador1' in data else None
+    jugador2    = data['jugador2'].strip() if 'jugador2' in data else None
 
     if not all([pareja_id, nombre, categoria]):
         return jsonify({'error': 'Faltan parametros requeridos'}), 400

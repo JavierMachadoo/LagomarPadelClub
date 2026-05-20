@@ -9,7 +9,10 @@ Rutas:
 import logging
 from collections import defaultdict
 
-from flask import Blueprint, jsonify, render_template
+from io import BytesIO
+
+from flask import Blueprint, jsonify, render_template, send_file
+from openpyxl import Workbook
 
 
 
@@ -126,6 +129,40 @@ def _calcular_ranking() -> dict:
     return {cat: ranking[cat] for cat in CATEGORIAS if cat in ranking}
 
 
+def _build_ranking_workbook(ranking: dict) -> BytesIO:
+    """Construye un workbook Excel a partir del dict de ranking.
+
+    - Una hoja por categoría con columnas: Posición, Nombre, Apellido, Puntos, Torneos, Mejor Resultado.
+    - Si ranking está vacío, genera una hoja 'Sin datos' con mensaje informativo.
+    - Retorna BytesIO listo para ser consumido por send_file.
+    """
+    wb = Workbook()
+    wb.remove(wb.active)  # eliminar hoja vacía por defecto
+
+    if not ranking:
+        ws = wb.create_sheet('Sin datos')
+        ws.append(['No hay torneos finalizados'])
+    else:
+        headers = ['Posición', 'Nombre', 'Apellido', 'Puntos', 'Torneos', 'Mejor Resultado']
+        for cat, entries in ranking.items():
+            ws = wb.create_sheet(cat[:31])
+            ws.append(headers)
+            for e in entries:
+                ws.append([
+                    e['posicion'],
+                    e['nombre'],
+                    e['apellido'],
+                    e['puntos'],
+                    e['torneos'],
+                    e['mejor_resultado'],
+                ])
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
 @ranking_bp.route('/api/ranking')
 def api_ranking():
     try:
@@ -149,4 +186,26 @@ def ranking_publico():
         ranking=ranking,
         colores=COLORES_CATEGORIA,
         emojis=EMOJI_CATEGORIA,
+    )
+
+
+@ranking_bp.route('/api/admin/ranking/export')
+def exportar_ranking():
+    """Exporta el ranking acumulado como archivo Excel (.xlsx).
+
+    Sólo accesible para administradores — protegido por el middleware
+    before_request de main.py (prefijo /api/admin/ NO está en la whitelist).
+    """
+    try:
+        ranking = _calcular_ranking()
+    except Exception as exc:
+        logger.exception('Error al exportar ranking')
+        return jsonify({'error': str(exc)}), 500
+
+    buf = _build_ranking_workbook(ranking)
+    return send_file(
+        buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='ranking.xlsx',
     )

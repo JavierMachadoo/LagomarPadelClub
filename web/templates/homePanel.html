@@ -423,10 +423,17 @@
                     <div class="manual-card">
                         <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                             <h3 class="mb-0">Inscripciones recibidas</h3>
-                            <button class="btn btn-sm btn-outline-secondary rounded-pill"
-                                    onclick="cargarInscripciones()">
-                                <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
-                            </button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-secondary rounded-pill"
+                                        onclick="cargarInscripciones()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+                                </button>
+                                <button class="btn btn-sm btn-primary rounded-pill"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalCrearJugador">
+                                    <i class="bi bi-person-plus me-1"></i>Crear Jugador
+                                </button>
+                            </div>
                         </div>
 
                         <div id="inscripcionesContainer">
@@ -608,6 +615,73 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-success" onclick="ejecutarAbrirInscripciones()">
                     <i class="bi bi-door-open me-1"></i>Sí, abrir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Crear Jugador -->
+<div class="modal fade" id="modalCrearJugador" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-person-plus text-primary me-2"></i>
+                    Crear Jugador
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formCrearJugador" novalidate>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="inputNombreJugador" class="form-label fw-semibold">Nombre</label>
+                        <input type="text"
+                               class="form-control"
+                               id="inputNombreJugador"
+                               placeholder="Nombre del jugador"
+                               required
+                               minlength="1">
+                        <div class="invalid-feedback">Ingresá el nombre.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="inputApellidoJugador" class="form-label fw-semibold">Apellido</label>
+                        <input type="text"
+                               class="form-control"
+                               id="inputApellidoJugador"
+                               placeholder="Apellido del jugador"
+                               required
+                               minlength="1">
+                        <div class="invalid-feedback">Ingresá el apellido.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-person-plus me-1"></i>Crear
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Confirmar jugador duplicado -->
+<div class="modal fade" id="modalConfirmarDuplicado" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold">
+                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Jugador duplicado
+                </h6>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="mb-0 small" id="textoDuplicado"></p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning btn-sm fw-semibold" id="btnConfirmarDuplicado">
+                    Sí, crear igual
                 </button>
             </div>
         </div>
@@ -1259,6 +1333,63 @@ function _crearJugador(numero, nombre, apellido) {
     .finally(() => { _creandoJugador = false; });
 }
 
+// ── Crear Jugador Standalone (modal #modalCrearJugador) ───────────────────────
+let _creandoJugadorModal = false;
+
+async function _postCrearJugador(nombre, apellido) {
+    _creandoJugadorModal = true;
+    try {
+        const r = await fetch('/api/jugadores', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, apellido })
+        });
+        const j = await r.json();
+        if (j.id) {
+            Toast.success('Jugador ' + j.nombre + ' ' + (j.apellido || '') + ' creado');
+            bootstrap.Modal.getInstance(document.getElementById('modalCrearJugador')).hide();
+            document.getElementById('formCrearJugador').reset();
+        } else {
+            Toast.error(j.error || 'Error al crear el jugador');
+        }
+    } catch {
+        Toast.error('Error al crear el jugador');
+    } finally {
+        _creandoJugadorModal = false;
+    }
+}
+
+document.getElementById('formCrearJugador').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (_creandoJugadorModal) return;
+
+    const nombre = document.getElementById('inputNombreJugador').value.trim();
+    const apellido = document.getElementById('inputApellidoJugador').value.trim();
+    if (!nombre || !apellido) return;
+
+    try {
+        const resp = await fetch('/api/jugadores?q=' + encodeURIComponent(nombre + ' ' + apellido));
+        const data = await resp.json();
+        const existe = (data.jugadores || []).some(j =>
+            j.nombre.toLowerCase() === nombre.toLowerCase() &&
+            j.apellido.toLowerCase() === apellido.toLowerCase()
+        );
+        if (existe) {
+            document.getElementById('textoDuplicado').textContent =
+                'Ya existe un jugador llamado "' + nombre + ' ' + apellido + '". ¿Querés crearlo igual?';
+            const modalDup = new bootstrap.Modal(document.getElementById('modalConfirmarDuplicado'));
+            modalDup.show();
+            document.getElementById('btnConfirmarDuplicado').onclick = () => {
+                modalDup.hide();
+                _postCrearJugador(nombre, apellido);
+            };
+            return;
+        }
+    } catch { /* si falla la búsqueda, seguimos sin chequeo */ }
+
+    _postCrearJugador(nombre, apellido);
+});
+
 ['1', '2'].forEach(n => {
     const input = document.getElementById('inputJugador' + n);
     if (!input) return;
@@ -1792,8 +1923,13 @@ async function cargarInscripciones() {
         const mobileCards = lista.map(i => {
             const estadoBadge = ESTADOS_BADGE[i.estado] || 'bg-secondary';
             const nombre2 = i.integrante2 ? `<div class="insc-row-nombre-2">${escapeHtml(i.integrante2)}</div>` : '';
+            const franjasHtml = (i.franjas_disponibles && i.franjas_disponibles.length)
+                ? i.franjas_disponibles.map(escapeHtml).join(', ')
+                : '<span class="text-muted">Sin franjas</span>';
             return `
-            <div class="insc-row-mobile">
+            <div class="insc-row-mobile"
+                 onclick="this.querySelector('.insc-row-franjas').classList.toggle('d-none'); const btn = this.querySelector('.insc-toggle-btn'); btn.textContent = btn.textContent.includes('▼') ? 'Ocultar ▲' : 'Ver detalle ▼';"
+                 style="cursor:pointer;">
                 <div class="insc-row-accent ${i.estado || ''}"></div>
                 <div class="insc-row-content">
                     <div class="insc-row-nombre">${escapeHtml(i.integrante1 || '')}</div>
@@ -1803,10 +1939,19 @@ async function cargarInscripciones() {
                         <span class="badge bg-primary">${escapeHtml(i.categoria || '')}</span>
                         ${i.telefono ? `<span class="meta-text"><i class="bi bi-telephone"></i> ${escapeHtml(i.telefono)}</span>` : ''}
                     </div>
-                    <button class="btn btn-sm btn-outline-danger rounded-pill mt-2"
-                            onclick="eliminarInscripcion('${escapeHtml(i.id)}')">
-                        <i class="bi bi-trash me-1"></i>Eliminar
-                    </button>
+                    <div class="insc-row-franjas d-none mt-2">
+                        <small class="text-muted"><i class="bi bi-clock me-1"></i>${franjasHtml}</small>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill insc-toggle-btn"
+                                onclick="event.stopPropagation(); this.closest('.insc-row-mobile').querySelector('.insc-row-franjas').classList.toggle('d-none'); this.textContent = this.textContent.includes('▼') ? 'Ocultar ▲' : 'Ver detalle ▼';">
+                            Ver detalle ▼
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger rounded-pill"
+                                onclick="event.stopPropagation(); eliminarInscripcion('${escapeHtml(i.id)}')">
+                            <i class="bi bi-trash me-1"></i>Eliminar
+                        </button>
+                    </div>
                 </div>
             </div>`;
         }).join('');

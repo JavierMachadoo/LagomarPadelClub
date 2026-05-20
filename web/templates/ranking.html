@@ -183,11 +183,19 @@
     <div class="ranking-header">
         <div class="container">
             <div class="ranking-header-label"><i class="bi bi-trophy me-1"></i>Ranking</div>
-            <div>
-                <h1>Ranking Anual</h1>
-                <p class="text-muted mb-0" style="font-size:0.9rem; margin-top:0.4rem;">
-                    Puntos acumulados por jugador
-                </p>
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <h1>Ranking Anual</h1>
+                    <p class="text-muted mb-0" style="font-size:0.9rem; margin-top:0.4rem;">
+                        Puntos acumulados por jugador
+                    </p>
+                </div>
+                {% if es_admin %}
+                <a href="/api/admin/ranking/export"
+                   class="btn btn-success btn-sm align-self-center">
+                    <i class="bi bi-file-earmark-excel me-1"></i>Exportar Excel
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>

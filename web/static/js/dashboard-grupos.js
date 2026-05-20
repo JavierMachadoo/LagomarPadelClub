@@ -1002,6 +1002,13 @@ function confirmarEditarPareja() {
         return;
     }
 
+    const jugador1Nombre = jugador1Id
+        ? document.getElementById('editarParejaJugador1Display').textContent
+        : '';
+    const jugador2Nombre = jugador2Id
+        ? document.getElementById('editarParejaJugador2Display').textContent
+        : '';
+
     fetch('/api/editar-pareja', {
         method: 'POST',
         headers: {
@@ -1015,6 +1022,8 @@ function confirmarEditarPareja() {
             franjas:     franjasChecked,
             jugador1_id: jugador1Id,
             jugador2_id: jugador2Id,
+            jugador1:    jugador1Nombre,
+            jugador2:    jugador2Nombre,
         })
     })
     .then(response => response.json())
@@ -1151,6 +1160,26 @@ function seleccionarJugadorEditPareja(numero, id, nombreCompleto) {
     if (j1 !== sinAsignar && j2 !== sinAsignar) {
         document.getElementById('editarParejaNombre').value = `${j1} / ${j2}`;
     }
+
+    const categoria  = document.getElementById('editarParejaCategoria').value;
+    const parejaId   = document.getElementById('editarParejaId').value;
+    if (id && categoria) {
+        const params = new URLSearchParams({ jugador_id: id, categoria });
+        if (parejaId) params.set('excluir_pareja_id', parejaId);
+        fetch(`/api/jugador-en-categoria?${params}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.ocupado) {
+                    Toast.error(`${nombreCompleto} ya está en "${data.pareja_nombre}" (${categoria})`);
+                    document.getElementById(`editarParejaJugador${numero}Id`).value = '';
+                    document.getElementById(`editarParejaJugador${numero}Display`).textContent = 'A confirmar';
+                    const newJ1 = document.getElementById('editarParejaJugador1Display').textContent;
+                    const newJ2 = document.getElementById('editarParejaJugador2Display').textContent;
+                    document.getElementById('editarParejaNombre').value = `${newJ1} / ${newJ2}`;
+                }
+            })
+            .catch(() => {});
+    }
 }
 
 // ==================== BUSCADOR — AGREGAR PAREJA RÁPIDA ====================
@@ -1181,6 +1210,14 @@ function _buscarJugadoresRapida(numero, q) {
     );
 }
 
+function _limpiarSeleccionRapida(numero) {
+    document.getElementById(`rapidaJugador${numero}Id`).value      = '';
+    document.getElementById(`rapidaJugador${numero}Nombre`).value   = '';
+    document.getElementById(`rapidaJugador${numero}Telefono`).value = '';
+    const display = document.getElementById(`rapidaJugador${numero}Display`);
+    if (display) display.textContent = 'A confirmar';
+}
+
 function seleccionarJugadorRapidaDesdeEl(el) {
     const numero   = parseInt(el.getAttribute('data-jugador-numero'));
     const id       = el.getAttribute('data-jugador-id');
@@ -1199,6 +1236,19 @@ function seleccionarJugadorRapidaDesdeEl(el) {
 
     const dropdown = document.getElementById(`dropdownJugadorRapida${numero}`);
     if (dropdown) { dropdown.innerHTML = ''; dropdown.classList.add('d-none'); }
+
+    const categoria = document.getElementById('rapidaCategoria').value;
+    if (id && categoria) {
+        fetch(`/api/jugador-en-categoria?jugador_id=${encodeURIComponent(id)}&categoria=${encodeURIComponent(categoria)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.ocupado) {
+                    Toast.error(`${nombre} ya está en "${data.pareja_nombre}" (${categoria})`);
+                    _limpiarSeleccionRapida(numero);
+                }
+            })
+            .catch(() => {});
+    }
 }
 
 // ==================== FUNCIONES PARA FINALES ====================
@@ -1703,7 +1753,10 @@ function actualizarGrupos(categoria, grupos) {
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
                                 <div class="fw-bold text-truncate ${textClass}" title="${pareja.nombre}">
-                                    ${slot + 1}. ${pareja.nombre}
+                                    ${slot + 1}.
+                                    <span class="${pareja.jugador1_id ? '' : 'text-danger'}">${pareja.jugador1 || 'A confirmar'}</span>
+                                    /
+                                    <span class="${pareja.jugador2_id ? '' : 'text-danger'}">${pareja.jugador2 || 'A confirmar'}</span>
                                 </div>
                                 <small class="text-muted d-block mt-1">
                                     <i class="bi bi-clock"></i> ${franjasPareja.join(', ') || 'Sin horarios'}

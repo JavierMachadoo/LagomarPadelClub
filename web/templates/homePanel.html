@@ -1380,6 +1380,7 @@ document.getElementById('formCrearJugador').addEventListener('submit', async fun
             const modalDup = new bootstrap.Modal(document.getElementById('modalConfirmarDuplicado'));
             modalDup.show();
             document.getElementById('btnConfirmarDuplicado').onclick = () => {
+                if (_creandoJugadorModal) return;
                 modalDup.hide();
                 _postCrearJugador(nombre, apellido);
             };

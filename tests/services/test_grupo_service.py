@@ -21,6 +21,8 @@ from services.grupo_service import (
     remover_pareja_de_grupo,
     regenerar_calendario,
     eliminar_grupo,
+    _aplicar_update_pareja,
+    editar_pareja,
 )
 from services.exceptions import ServiceError
 from tests.conftest import crear_pareja, crear_grupo_dict
@@ -417,3 +419,117 @@ class TestEliminarGrupo:
             eliminar_grupo(resultado_data, grupo_id=5, categoria='Cuarta')
         assert '5' not in resultado_data['partidos_por_grupo']
         assert '9' in resultado_data['partidos_por_grupo']
+
+
+# ── _aplicar_update_pareja ───────────────────────────────────────────────────
+
+class TestAplicarUpdatePareja:
+
+    def _base(self) -> dict:
+        return {
+            'nombre': 'Vieja Pareja',
+            'telefono': '000',
+            'categoria': 'Cuarta',
+            'franjas_disponibles': [],
+            'jugador1': 'Juan',
+            'jugador2': 'Pedro',
+            'jugador1_id': 'id-juan',
+            'jugador2_id': 'id-pedro',
+        }
+
+    def test_empty_string_jugador1_fallback_a_confirmar(self):
+        p = self._base()
+        _aplicar_update_pareja(p, nombre='X', telefono='1', categoria='Cuarta',
+                               franjas=[], jugador1_id=None, jugador2_id=None,
+                               jugador1='', jugador2=None)
+        assert p['jugador1'] == 'A confirmar'
+
+    def test_empty_string_jugador2_fallback_a_confirmar(self):
+        p = self._base()
+        _aplicar_update_pareja(p, nombre='X', telefono='1', categoria='Cuarta',
+                               franjas=[], jugador1_id=None, jugador2_id=None,
+                               jugador1=None, jugador2='')
+        assert p['jugador2'] == 'A confirmar'
+
+    def test_none_jugador1_no_sobreescribe(self):
+        p = self._base()
+        _aplicar_update_pareja(p, nombre='X', telefono='1', categoria='Cuarta',
+                               franjas=[], jugador1_id=None, jugador2_id=None,
+                               jugador1=None, jugador2=None)
+        assert p['jugador1'] == 'Juan'
+
+    def test_none_jugador2_no_sobreescribe(self):
+        p = self._base()
+        _aplicar_update_pareja(p, nombre='X', telefono='1', categoria='Cuarta',
+                               franjas=[], jugador1_id=None, jugador2_id=None,
+                               jugador1=None, jugador2=None)
+        assert p['jugador2'] == 'Pedro'
+
+    def test_valor_valido_jugador1_se_aplica(self):
+        p = self._base()
+        _aplicar_update_pareja(p, nombre='X', telefono='1', categoria='Cuarta',
+                               franjas=[], jugador1_id=None, jugador2_id=None,
+                               jugador1='Carlos', jugador2=None)
+        assert p['jugador1'] == 'Carlos'
+
+    def test_valor_valido_jugador2_se_aplica(self):
+        p = self._base()
+        _aplicar_update_pareja(p, nombre='X', telefono='1', categoria='Cuarta',
+                               franjas=[], jugador1_id=None, jugador2_id=None,
+                               jugador1=None, jugador2='Maria')
+        assert p['jugador2'] == 'Maria'
+
+    def test_empty_string_id_normaliza_a_none(self):
+        p = self._base()
+        _aplicar_update_pareja(p, nombre='X', telefono='1', categoria='Cuarta',
+                               franjas=[], jugador1_id='', jugador2_id='')
+        assert p['jugador1_id'] is None
+        assert p['jugador2_id'] is None
+
+    def test_none_id_no_sobreescribe(self):
+        p = self._base()
+        _aplicar_update_pareja(p, nombre='X', telefono='1', categoria='Cuarta',
+                               franjas=[], jugador1_id=None, jugador2_id=None)
+        assert p['jugador1_id'] == 'id-juan'
+        assert p['jugador2_id'] == 'id-pedro'
+
+
+class TestEditarParejaPropaganombre:
+
+    def _datos_con_pareja_en_grupo(self) -> dict:
+        pareja = crear_pareja(id=10, categoria='Cuarta').to_dict()
+        pareja['jugador1'] = 'Juan'
+        pareja['jugador2'] = 'Pedro'
+        pareja['jugador1_id'] = 'id-juan'
+        pareja['jugador2_id'] = 'id-pedro'
+        grupo = crear_grupo_dict(grupo_id=1, categoria='Cuarta')
+        grupo['parejas'] = [pareja]
+        return {
+            'parejas': [pareja],
+            'resultado_algoritmo': {
+                'grupos_por_categoria': {'Cuarta': [grupo]},
+                'parejas_sin_asignar': [],
+                'calendario': {},
+            },
+        }
+
+    def test_jugador_vacio_propaga_a_confirmar_en_grupo(self):
+        datos = self._datos_con_pareja_en_grupo()
+        with patch('services.grupo_service.regenerar_calendario'):
+            editar_pareja(datos, pareja_id=10, nombre='NuevoNombre', telefono='123',
+                          categoria='Cuarta', franjas=['Viernes 18:00'],
+                          jugador1='', jugador2='', jugador1_id='id-juan', jugador2_id='id-pedro')
+        grupo_pareja = datos['resultado_algoritmo']['grupos_por_categoria']['Cuarta'][0]['parejas'][0]
+        assert grupo_pareja['jugador1'] == 'A confirmar'
+        assert grupo_pareja['jugador2'] == 'A confirmar'
+
+    def test_jugador_valido_propaga_nombre_en_grupo(self):
+        datos = self._datos_con_pareja_en_grupo()
+        with patch('services.grupo_service.regenerar_calendario'):
+            editar_pareja(datos, pareja_id=10, nombre='NuevoNombre', telefono='123',
+                          categoria='Cuarta', franjas=['Viernes 18:00'],
+                          jugador1='Carlos', jugador2='Maria',
+                          jugador1_id='id-juan', jugador2_id='id-pedro')
+        grupo_pareja = datos['resultado_algoritmo']['grupos_por_categoria']['Cuarta'][0]['parejas'][0]
+        assert grupo_pareja['jugador1'] == 'Carlos'
+        assert grupo_pareja['jugador2'] == 'Maria'

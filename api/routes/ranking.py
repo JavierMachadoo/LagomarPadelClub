@@ -200,7 +200,7 @@ def exportar_ranking():
         ranking = _calcular_ranking()
     except Exception as exc:
         logger.exception('Error al exportar ranking')
-        return jsonify({'error': str(exc)}), 500
+        return jsonify({'error': 'Error interno al exportar el ranking'}), 500
 
     buf = _build_ranking_workbook(ranking)
     return send_file(

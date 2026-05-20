@@ -1002,8 +1002,12 @@ function confirmarEditarPareja() {
         return;
     }
 
-    const jugador1Nombre = document.getElementById('editarParejaJugador1Display').textContent;
-    const jugador2Nombre = document.getElementById('editarParejaJugador2Display').textContent;
+    const jugador1Nombre = jugador1Id
+        ? document.getElementById('editarParejaJugador1Display').textContent
+        : '';
+    const jugador2Nombre = jugador2Id
+        ? document.getElementById('editarParejaJugador2Display').textContent
+        : '';
 
     fetch('/api/editar-pareja', {
         method: 'POST',

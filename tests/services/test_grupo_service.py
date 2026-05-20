@@ -239,12 +239,14 @@ class TestAgregarPareja:
         assert any(p['id'] == nueva['id'] for p in sin_asignar)
         assert stats is not None
 
-    def test_sin_desde_resultados_no_modifica_resultado(self):
+    def test_sin_desde_resultados_agrega_a_sin_asignar_pero_no_recalcula_stats(self):
         resultado_data = _resultado_con_grupos(1)
         datos = {'parejas': [], 'resultado_algoritmo': resultado_data}
         nueva, stats = agregar_pareja(datos, '', '', 'Test', '', 'Cuarta', ['Viernes 18:00'], False)
         assert stats is None
-        assert resultado_data['parejas_sin_asignar'] == []
+        assert any(p['id'] == nueva['id'] for p in resultado_data['parejas_sin_asignar'])
+        assert nueva['jugador1'] == 'A confirmar'
+        assert nueva['jugador2'] == 'A confirmar'
 
 
 # ── eliminar_pareja ───────────────────────────────────────────────────────────

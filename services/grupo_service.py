@@ -492,8 +492,8 @@ def agregar_pareja(
         'franjas_disponibles': franjas,
         'id':                 max_id + 1,
         'nombre':             nombre,
-        'jugador1':           jugador1 or nombre,
-        'jugador2':           jugador2,
+        'jugador1':           jugador1 or 'A confirmar',
+        'jugador2':           jugador2 or 'A confirmar',
         'telefono':           telefono or 'Sin telefono',
         'origen':             'manual',
         'jugador1_id':        jugador1_id,
@@ -503,12 +503,12 @@ def agregar_pareja(
     datos['parejas'] = parejas
 
     estadisticas = None
-    if desde_resultados:
-        resultado_data = datos.get('resultado_algoritmo')
-        if resultado_data:
-            resultado_data.get('parejas_sin_asignar', []).append(nueva_pareja)
+    resultado_data = datos.get('resultado_algoritmo')
+    if resultado_data:
+        resultado_data.setdefault('parejas_sin_asignar', []).append(nueva_pareja)
+        if desde_resultados:
             estadisticas = recalcular_estadisticas(resultado_data)
-            datos['resultado_algoritmo'] = resultado_data
+        datos['resultado_algoritmo'] = resultado_data
 
     return nueva_pareja, estadisticas
 
@@ -590,12 +590,14 @@ def _aplicar_update_pareja(
     franjas: list,
     jugador1_id: Optional[str],
     jugador2_id: Optional[str],
+    jugador1: Optional[str] = None,
+    jugador2: Optional[str] = None,
 ) -> None:
     """Muta pareja_dict in-place con los campos actualizados.
 
-    Reglas para jugador IDs:
+    Reglas para jugador IDs y nombres:
     - None → no sobreescribe (edición legacy/parcial sin cambio de jugador)
-    - '' (string vacío) → normaliza a None (formulario envió campo vacío)
+    - '' (string vacío) → normaliza a None/fallback (formulario envió campo vacío)
     - cualquier otro str → aplica directo
     """
     pareja_dict['nombre']              = nombre
@@ -607,6 +609,10 @@ def _aplicar_update_pareja(
         pareja_dict['jugador1_id'] = jugador1_id or None  # '' → None
     if jugador2_id is not None:
         pareja_dict['jugador2_id'] = jugador2_id or None  # '' → None
+    if jugador1 is not None:
+        pareja_dict['jugador1'] = jugador1 or 'A confirmar'
+    if jugador2 is not None:
+        pareja_dict['jugador2'] = jugador2 or 'A confirmar'
 
 
 def editar_pareja(
@@ -618,6 +624,8 @@ def editar_pareja(
     franjas: list,
     jugador1_id: Optional[str] = None,
     jugador2_id: Optional[str] = None,
+    jugador1: Optional[str] = None,
+    jugador2: Optional[str] = None,
 ) -> str:
     """Edita los datos de una pareja (en grupos, sin asignar y blob base).
 
@@ -675,6 +683,7 @@ def editar_pareja(
         pareja_encontrada,
         nombre=nombre, telefono=telefono, categoria=categoria, franjas=franjas,
         jugador1_id=jugador1_id, jugador2_id=jugador2_id,
+        jugador1=jugador1, jugador2=jugador2,
     )
 
     # Nivel 2: sincronizar la lista canónica datos['parejas']
@@ -686,6 +695,7 @@ def editar_pareja(
                 pb,
                 nombre=nombre, telefono=telefono, categoria=categoria, franjas=franjas,
                 jugador1_id=jugador1_id, jugador2_id=jugador2_id,
+                jugador1=jugador1, jugador2=jugador2,
             )
             updated = True
             break

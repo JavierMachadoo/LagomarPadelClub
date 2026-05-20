@@ -161,6 +161,36 @@ def obtener_parejas_no_asignadas(categoria):
     return jsonify({'success': True, 'parejas': parejas, 'total': len(parejas)})
 
 
+@api_bp.route('/jugador-en-categoria', methods=['GET'])
+def jugador_en_categoria():
+    jugador_id = request.args.get('jugador_id', '').strip()
+    categoria = request.args.get('categoria', '').strip()
+    excluir_pareja_id = request.args.get('excluir_pareja_id', type=int)
+
+    if not jugador_id or not categoria:
+        return jsonify({'error': 'jugador_id y categoria son requeridos'}), 400
+
+    resultado_data = obtener_datos_desde_token().get('resultado_algoritmo')
+    if not resultado_data:
+        return jsonify({'ocupado': False})
+
+    todas_las_parejas = []
+    for grupos in resultado_data.get('grupos_por_categoria', {}).values():
+        for grupo in grupos:
+            todas_las_parejas.extend(grupo.get('parejas', []))
+    todas_las_parejas.extend(resultado_data.get('parejas_sin_asignar', []))
+
+    for pareja in todas_las_parejas:
+        if pareja.get('categoria') != categoria:
+            continue
+        if excluir_pareja_id and pareja.get('id') == excluir_pareja_id:
+            continue
+        if pareja.get('jugador1_id') == jugador_id or pareja.get('jugador2_id') == jugador_id:
+            return jsonify({'ocupado': True, 'pareja_nombre': pareja.get('nombre', '')})
+
+    return jsonify({'ocupado': False})
+
+
 @api_bp.route('/editar-pareja', methods=['POST'])
 def editar_pareja():
     data = request.json
@@ -171,6 +201,8 @@ def editar_pareja():
     franjas     = data.get('franjas', [])
     jugador1_id = data.get('jugador1_id')   # None si no viene (edición legacy)
     jugador2_id = data.get('jugador2_id')   # None si no viene
+    jugador1    = data['jugador1'].strip() if 'jugador1' in data else None
+    jugador2    = data['jugador2'].strip() if 'jugador2' in data else None
 
     if not all([pareja_id, nombre, categoria]):
         return jsonify({'error': 'Faltan parametros requeridos'}), 400
@@ -183,6 +215,8 @@ def editar_pareja():
             datos_actuales, pareja_id, nombre, telefono, categoria, franjas,
             jugador1_id=jugador1_id,
             jugador2_id=jugador2_id,
+            jugador1=jugador1,
+            jugador2=jugador2,
         )
     except ServiceError as e:
         return jsonify({'error': e.message}), e.status_code

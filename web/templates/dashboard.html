@@ -1079,7 +1079,9 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
                                                 <div class="fw-bold text-truncate {{ text_class }}" title="{{ pareja.nombre }}">
-                                                    {{ slot_num + 1 }}. {{ pareja.nombre }}
+                                                    {% set j1_c = '' if pareja.jugador1_id else 'text-danger' %}
+                                                    {% set j2_c = '' if pareja.jugador2_id else 'text-danger' %}
+                                                    {{ slot_num + 1 }}. <span class="{{ j1_c }}">{{ pareja.jugador1 or 'A confirmar' }}</span> / <span class="{{ j2_c }}">{{ pareja.jugador2 or 'A confirmar' }}</span>
                                                     {% if es_admin and (not pareja.jugador1_id or not pareja.jugador2_id) %}
                                                     <span class="badge bg-danger ms-1" style="font-size:0.6rem"
                                                           title="Sin jugador del catálogo asignado — los resultados no sumarán al ranking">
@@ -1705,7 +1707,7 @@ document.getElementById('formAgregarParejaRapida').addEventListener('submit', fu
     fetch('/api/agregar-pareja', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jugador1_id: j1Id, jugador2_id: j2Id, nombre, telefono, categoria, franjas })
+        body: JSON.stringify({ jugador1_id: j1Id, jugador2_id: j2Id, jugador1: j1Nombre, jugador2: j2Nombre, nombre, telefono, categoria, franjas })
     })
     .then(r => r.json())
     .then(data => {

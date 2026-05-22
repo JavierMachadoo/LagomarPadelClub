@@ -170,10 +170,10 @@ class GeneradorFixtureFinales:
     #
     # Estructura:
     #
-    #   OF.1: 2°[idx2] vs 2°[idx3]          (2 peores segundos por adyacencia)
-    #   OF.2: 2°[idx0] vs 2°[idx1]          (2 peores segundos por adyacencia)
+    #   OF.1: 2°A vs 2°B (2dos de grupos A-D, rankeados por adyacencia)
+    #   OF.2: 2°C vs 2°D
     #
-    #   C.1:  1°[mejor] vs 2°[mejor_seg]    (mejor 1° vs mejor 2° directo)
+    #   C.1:  1°[mejor] vs 2°E              (2°E pasa siempre directo a cuartos)
     #   C.2:  1°[2do]   vs Ganador OF.1
     #   C.3:  1°[3ro]   vs Ganador OF.2
     #   C.4:  1°[4to]   vs 1°[5to]          (2 peores primeros entre sí)
@@ -189,17 +189,17 @@ class GeneradorFixtureFinales:
 
         fixture = FixtureFinales(categoria=categoria)
 
-        primeros = clasificados[1]   # en orden de grupo
-        segundos = clasificados[2]   # en orden de grupo
+        primeros = clasificados[1]   # en orden de grupo (A, B, C, D, E)
+        segundos = clasificados[2]   # en orden de grupo (A, B, C, D, E)
 
-        # --- Rankear cross-grupo ---
+        # --- Rankear cross-grupo (solo para primeros y 2dos de octavos) ---
         primeros_rankeados = CalculadorClasificacion.rankear_clasificados(primeros) if primeros else primeros
-        segundos_rankeados = CalculadorClasificacion.rankear_clasificados(segundos) if segundos else segundos
 
-        # Mejor segundo → pasa directo a cuartos
-        mejor_segundo = segundos_rankeados[0] if len(segundos_rankeados) > 0 else None
-        # Los 4 peores segundos van a octavos (en orden de ranking: peores primero para cruces por adyacencia)
-        segundos_octavos = segundos_rankeados[1:] if len(segundos_rankeados) > 1 else []
+        # 2°E pasa directo a cuartos (índice 4 = último grupo en orden alfabético)
+        # 2°A, 2°B, 2°C, 2°D van a octavos (índices 0-3)
+        segundo_e = segundos[4] if len(segundos) > 4 else None
+        segundos_a_d = segundos[:4] if len(segundos) >= 4 else segundos
+        segundos_octavos = CalculadorClasificacion.rankear_clasificados(segundos_a_d) if segundos_a_d else []
 
         # 3 mejores primeros → esperan en C.1, C.2, C.3
         # 2 peores primeros → se enfrentan en C.4
@@ -231,12 +231,12 @@ class GeneradorFixtureFinales:
         fixture.octavos.append(of2)
 
         # --- Cuartos (4 partidos) ---
-        # C.1: mejor 1° vs mejor 2° (directo)
+        # C.1: mejor 1° vs 2°E (directo a cuartos por regla de grupo)
         c1 = PartidoFinal(id=f"{categoria}_cuartos_1", fase=FaseFinal.CUARTOS, numero_partido=1)
         c1.pareja1 = _pareja_o_none(top3_primeros, 0)
-        c1.pareja2 = mejor_segundo['pareja'] if mejor_segundo else None
+        c1.pareja2 = segundo_e['pareja'] if segundo_e else None
         c1.slot1_info = "Mejor 1°"
-        c1.slot2_info = "Mejor 2°"
+        c1.slot2_info = "2° Grupo E"
         fixture.cuartos.append(c1)
 
         # C.2: 2do mejor 1° vs Ganador OF.1

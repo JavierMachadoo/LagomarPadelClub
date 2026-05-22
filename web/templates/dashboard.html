@@ -737,6 +737,14 @@
                 {% endfor %}
             </div>
 
+            {% if es_admin %}
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn btn-regenerar" onclick="regenerarFixtures()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Regenerar Llaves
+                </button>
+            </div>
+            {% endif %}
+
             <!-- Contenedor de Llaves -->
             <div id="drawContainer" class="draw-container">
                 <div class="empty-state">

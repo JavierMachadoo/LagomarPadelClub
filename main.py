@@ -256,29 +256,7 @@ def crear_app():
 
     @app.route('/finales')
     def finales():
-        """Página de visualización de finales y calendario del domingo."""
-        datos = obtener_datos_torneo()
-        resultado = datos.get('resultado_algoritmo')
-        
-        if not resultado:
-            flash('Primero debes generar los grupos', 'warning')
-            return redirect(url_for('admin_panel'))
-        
-        torneo = storage.cargar()
-        fixtures = torneo.get('fixtures_finales', {})
-        tipo_torneo = torneo.get('tipo_torneo', 'fin1')
-        categorias_torneo = TIPOS_TORNEO.get(tipo_torneo, CATEGORIAS)
-        
-        response = make_response(render_template('finales.html',
-                             fixtures=fixtures,
-                             categorias=categorias_torneo,
-                             colores=COLORES_CATEGORIA,
-                             emojis=EMOJI_CATEGORIA,
-                             resultado=resultado,
-                             torneo=torneo,
-                             tipo_torneo=tipo_torneo))
-        
-        return response
+        return redirect(url_for('dashboard'))
     
     def _build_calendario_index(calendario: dict) -> dict:
         """Devuelve {partido_id: {cancha, hora_inicio}} a partir del calendario persistido."""

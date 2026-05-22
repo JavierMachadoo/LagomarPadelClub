@@ -184,7 +184,7 @@ class GeneradorFixtureFinales:
     #   F:    Ganador S.1 vs Ganador S.2
 
     @staticmethod
-    def _generar_5_grupos(categoria: str, clasificados: Dict, grupos_categoria: List[Grupo] = None) -> FixtureFinales:
+    def _generar_5_grupos(categoria: str, clasificados: Dict, grupos_categoria: List[Grupo]) -> FixtureFinales:
         fixture = FixtureFinales(categoria=categoria)
 
         primeros = clasificados[1]

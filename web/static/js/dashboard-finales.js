@@ -266,14 +266,18 @@ function regenerarFixtures() {
         '¿Regenerar las llaves? Esto actualizará las parejas clasificadas basándose en las posiciones actuales de los grupos.',
         async () => {
             try {
-                const response = await fetch('/api/finales/fixtures/regenerar', { method: 'POST' });
+                const response = await fetch('/api/finales/fixtures/regenerar', { method: 'POST', credentials: 'same-origin' });
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = '/login';
+                    return;
+                }
                 const data = await response.json();
                 if (data.success) {
                     Toast.success('Llaves regeneradas correctamente');
                     await cargarFixtures();
                     cargarCalendarioIndex();
                 } else {
-                    Toast.error('Error al regenerar: ' + data.message);
+                    Toast.error('Error al regenerar: ' + (data.message || data.error || 'Error desconocido'));
                 }
             } catch (error) {
                 console.error('Error:', error);

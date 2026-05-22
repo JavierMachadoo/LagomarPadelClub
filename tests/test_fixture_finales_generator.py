@@ -193,6 +193,34 @@ class TestGenerar5GruposBracketFijo:
         }
         assert id_2do_e not in ids_en_octavos
 
+    # ── Propagación de ganadores ───────────────────────────────────────────────
+
+    def test_of1_ganador_propaga_a_c2(self):
+        """El ganador de OF.1 se propaga a cuartos[1] (C.2) como pareja2."""
+        grupos = _cinco_grupos()
+        fixture = GeneradorFixtureFinales.generar_fixture(CATEGORIA, grupos)
+        of1 = fixture.octavos[0]
+        ganador_id = of1.pareja1.id
+
+        resultado = GeneradorFixtureFinales.actualizar_ganador_partido(fixture, of1.id, ganador_id)
+
+        assert resultado is True
+        assert fixture.cuartos[1].pareja2 is not None
+        assert fixture.cuartos[1].pareja2.id == ganador_id
+
+    def test_of2_ganador_propaga_a_c3(self):
+        """El ganador de OF.2 se propaga a cuartos[2] (C.3) como pareja2."""
+        grupos = _cinco_grupos()
+        fixture = GeneradorFixtureFinales.generar_fixture(CATEGORIA, grupos)
+        of2 = fixture.octavos[1]
+        ganador_id = of2.pareja1.id
+
+        resultado = GeneradorFixtureFinales.actualizar_ganador_partido(fixture, of2.id, ganador_id)
+
+        assert resultado is True
+        assert fixture.cuartos[2].pareja2 is not None
+        assert fixture.cuartos[2].pareja2.id == ganador_id
+
     # ── Estructura general ─────────────────────────────────────────────────────
 
     def test_estructura_5_grupos(self):

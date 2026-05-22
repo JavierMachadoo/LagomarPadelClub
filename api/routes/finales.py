@@ -17,7 +17,7 @@ finales_bp = Blueprint('finales', __name__, url_prefix='/api/finales')
 
 @finales_bp.before_request
 def verificar_auth():
-    authenticated, error_response = verificar_autenticacion_api(roles_permitidos=['admin', 'jugador'])
+    authenticated, error_response = verificar_autenticacion_api()
     if not authenticated:
         return error_response
 

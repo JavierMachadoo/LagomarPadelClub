@@ -153,7 +153,7 @@ def crear_app():
             return
 
         # Rutas accesibles por jugadores autenticados (no admin)
-        rutas_jugador = ['/dashboard', '/finales']
+        rutas_jugador = ['/dashboard']
         if g.es_jugador and any(request.path.startswith(r) for r in rutas_jugador):
             return
 

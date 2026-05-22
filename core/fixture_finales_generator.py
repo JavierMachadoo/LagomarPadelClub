@@ -103,7 +103,7 @@ class GeneradorFixtureFinales:
         if num_grupos == 2:
             return GeneradorFixtureFinales._generar_2_grupos(categoria, clasificados, grupos_categoria)
         elif num_grupos == 5:
-            return GeneradorFixtureFinales._generar_5_grupos(categoria, clasificados)
+            return GeneradorFixtureFinales._generar_5_grupos(categoria, clasificados, grupos_categoria)
         elif num_grupos == 3:
             return GeneradorFixtureFinales._generar_3_grupos(categoria, clasificados, grupos_categoria)
         else:
@@ -168,15 +168,15 @@ class GeneradorFixtureFinales:
     # 5 grupos: 2 octavos → 4 cuartos → 2 semis → final
     # ------------------------------------------------------------------
     #
-    # Estructura:
+    # Cruces fijos por letra de grupo (sin ranking cross-grupo):
     #
-    #   OF.1: 2°A vs 2°B (2dos de grupos A-D, rankeados por adyacencia)
-    #   OF.2: 2°C vs 2°D
+    #   OF.1: 2°C vs 2°D   → Ganador → C.2 pareja2
+    #   OF.2: 2°A vs 2°B   → Ganador → C.3 pareja2
     #
-    #   C.1:  1°[mejor] vs 2°E              (2°E pasa siempre directo a cuartos)
-    #   C.2:  1°[2do]   vs Ganador OF.1
-    #   C.3:  1°[3ro]   vs Ganador OF.2
-    #   C.4:  1°[4to]   vs 1°[5to]          (2 peores primeros entre sí)
+    #   C.1:  1°A vs 2°E
+    #   C.2:  1°B vs Ganador OF.1
+    #   C.3:  1°C vs Ganador OF.2
+    #   C.4:  1°D vs 1°E
     #
     #   S.1:  Ganador C.1 vs Ganador C.2
     #   S.2:  Ganador C.3 vs Ganador C.4
@@ -184,81 +184,81 @@ class GeneradorFixtureFinales:
     #   F:    Ganador S.1 vs Ganador S.2
 
     @staticmethod
-    def _generar_5_grupos(categoria: str, clasificados: Dict) -> FixtureFinales:
-        from core.clasificacion import CalculadorClasificacion
-
+    def _generar_5_grupos(categoria: str, clasificados: Dict, grupos_categoria: List[Grupo] = None) -> FixtureFinales:
         fixture = FixtureFinales(categoria=categoria)
 
-        primeros = clasificados[1]   # en orden de grupo (A, B, C, D, E)
-        segundos = clasificados[2]   # en orden de grupo (A, B, C, D, E)
+        primeros = clasificados[1]
+        segundos = clasificados[2]
 
-        # --- Rankear cross-grupo (solo para primeros y 2dos de octavos) ---
-        primeros_rankeados = CalculadorClasificacion.rankear_clasificados(primeros) if primeros else primeros
+        # Mapear grupo_id → clasificado para lookup por letra (A=idx0, B=idx1, …, E=idx4)
+        primeros_por_grupo = {p['grupo_id']: p for p in primeros}
+        segundos_por_grupo = {s['grupo_id']: s for s in segundos}
 
-        # 2°E pasa directo a cuartos (índice 4 = último grupo en orden alfabético)
-        # 2°A, 2°B, 2°C, 2°D van a octavos (índices 0-3)
-        segundo_e = segundos[4] if len(segundos) > 4 else None
-        segundos_a_d = segundos[:4] if len(segundos) >= 4 else segundos
-        segundos_octavos = CalculadorClasificacion.rankear_clasificados(segundos_a_d) if segundos_a_d else []
+        def _id(idx):
+            return grupos_categoria[idx].id if grupos_categoria and idx < len(grupos_categoria) else None
 
-        # 3 mejores primeros → esperan en C.1, C.2, C.3
-        # 2 peores primeros → se enfrentan en C.4
-        top3_primeros = primeros_rankeados[:3] if len(primeros_rankeados) >= 3 else primeros_rankeados
-        bottom2_primeros = primeros_rankeados[3:5] if len(primeros_rankeados) >= 5 else primeros_rankeados[3:]
+        def _pareja(por_grupo, idx):
+            entry = por_grupo.get(_id(idx))
+            return entry['pareja'] if entry else None
+
+        primero_a = _pareja(primeros_por_grupo, 0)
+        primero_b = _pareja(primeros_por_grupo, 1)
+        primero_c = _pareja(primeros_por_grupo, 2)
+        primero_d = _pareja(primeros_por_grupo, 3)
+        primero_e = _pareja(primeros_por_grupo, 4)
+
+        segundo_a = _pareja(segundos_por_grupo, 0)
+        segundo_b = _pareja(segundos_por_grupo, 1)
+        segundo_c = _pareja(segundos_por_grupo, 2)
+        segundo_d = _pareja(segundos_por_grupo, 3)
+        segundo_e = _pareja(segundos_por_grupo, 4)
 
         # --- Octavos (2 partidos) ---
-        # Cruces por adyacencia: los 4 segundos que van a octavos se enfrentan de a pares
-        # OF.1: pos 0 vs pos 1 (de los 4 que van a octavos, los peores)
-        # OF.2: pos 2 vs pos 3
-        def _pareja_o_none(lista, idx):
-            return lista[idx]['pareja'] if idx < len(lista) else None
-
-        def _info_o_vacio(lista, idx, label):
-            return label if idx < len(lista) else ""
-
+        # OF.1: 2°C vs 2°D  →  ganador alimenta C.2
         of1 = PartidoFinal(id=f"{categoria}_octavos_1", fase=FaseFinal.OCTAVOS, numero_partido=1)
-        of1.pareja1 = _pareja_o_none(segundos_octavos, 0)
-        of1.pareja2 = _pareja_o_none(segundos_octavos, 1)
-        of1.slot1_info = _info_o_vacio(segundos_octavos, 0, "2°")
-        of1.slot2_info = _info_o_vacio(segundos_octavos, 1, "2°")
+        of1.pareja1 = segundo_c
+        of1.pareja2 = segundo_d
+        of1.slot1_info = "2° C"
+        of1.slot2_info = "2° D"
         fixture.octavos.append(of1)
 
+        # OF.2: 2°A vs 2°B  →  ganador alimenta C.3
         of2 = PartidoFinal(id=f"{categoria}_octavos_2", fase=FaseFinal.OCTAVOS, numero_partido=2)
-        of2.pareja1 = _pareja_o_none(segundos_octavos, 2)
-        of2.pareja2 = _pareja_o_none(segundos_octavos, 3)
-        of2.slot1_info = _info_o_vacio(segundos_octavos, 2, "2°")
-        of2.slot2_info = _info_o_vacio(segundos_octavos, 3, "2°")
+        of2.pareja1 = segundo_a
+        of2.pareja2 = segundo_b
+        of2.slot1_info = "2° A"
+        of2.slot2_info = "2° B"
         fixture.octavos.append(of2)
 
         # --- Cuartos (4 partidos) ---
-        # C.1: mejor 1° vs 2°E (directo a cuartos por regla de grupo)
+        # C.1: 1°A vs 2°E
         c1 = PartidoFinal(id=f"{categoria}_cuartos_1", fase=FaseFinal.CUARTOS, numero_partido=1)
-        c1.pareja1 = _pareja_o_none(top3_primeros, 0)
-        c1.pareja2 = segundo_e['pareja'] if segundo_e else None
-        c1.slot1_info = "Mejor 1°"
-        c1.slot2_info = "2° Grupo E"
+        c1.pareja1 = primero_a
+        c1.pareja2 = segundo_e
+        c1.slot1_info = "1° A"
+        c1.slot2_info = "2° E"
         fixture.cuartos.append(c1)
 
-        # C.2: 2do mejor 1° vs Ganador OF.1
+        # C.2: 1°B vs Ganador OF.1
         c2 = PartidoFinal(id=f"{categoria}_cuartos_2", fase=FaseFinal.CUARTOS, numero_partido=2)
-        c2.pareja1 = _pareja_o_none(top3_primeros, 1)
-        c2.slot1_info = "2do mejor 1°"
+        c2.pareja1 = primero_b
+        c2.slot1_info = "1° B"
         c2.slot2_info = "Ganador OF.1"
         fixture.cuartos.append(c2)
 
-        # C.3: 3er mejor 1° vs Ganador OF.2
+        # C.3: 1°C vs Ganador OF.2
         c3 = PartidoFinal(id=f"{categoria}_cuartos_3", fase=FaseFinal.CUARTOS, numero_partido=3)
-        c3.pareja1 = _pareja_o_none(top3_primeros, 2)
-        c3.slot1_info = "3er mejor 1°"
+        c3.pareja1 = primero_c
+        c3.slot1_info = "1° C"
         c3.slot2_info = "Ganador OF.2"
         fixture.cuartos.append(c3)
 
-        # C.4: 4to mejor 1° vs 5to mejor 1° (2 peores primeros entre sí)
+        # C.4: 1°D vs 1°E
         c4 = PartidoFinal(id=f"{categoria}_cuartos_4", fase=FaseFinal.CUARTOS, numero_partido=4)
-        c4.pareja1 = _pareja_o_none(bottom2_primeros, 0)
-        c4.pareja2 = _pareja_o_none(bottom2_primeros, 1)
-        c4.slot1_info = "4to mejor 1°"
-        c4.slot2_info = "5to mejor 1°"
+        c4.pareja1 = primero_d
+        c4.pareja2 = primero_e
+        c4.slot1_info = "1° D"
+        c4.slot2_info = "1° E"
         fixture.cuartos.append(c4)
 
         # --- Semifinales ---

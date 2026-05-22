@@ -117,7 +117,7 @@ function renderizarFixture(categoria) {
     if (!fixture) { container.innerHTML = crearPartidosVacios(categoria); return; }
     let hasAnyRound = false;
     let columns = [];
-    if (fixture.octavos && fixture.octavos.length > 0) { hasAnyRound = true; columns.push(renderizarColumnaITF('Octavos de Final', fixture.octavos, categoria, true)); }
+    if (fixture.octavos && fixture.octavos.length > 0) { hasAnyRound = true; columns.push(renderizarColumnaITF('Octavos de Final', fixture.octavos, categoria, true, true)); }
     if (fixture.cuartos && fixture.cuartos.length > 0) { hasAnyRound = true; columns.push(renderizarColumnaITF('Cuartos de Final', fixture.cuartos, categoria, true)); }
     if (fixture.semifinales && fixture.semifinales.length > 0) { hasAnyRound = true; columns.push(renderizarColumnaITF('Semifinales', fixture.semifinales, categoria, true)); }
     if (fixture.final) { hasAnyRound = true; columns.push(renderizarColumnaITF('Final', [fixture.final], categoria, false)); }
@@ -153,13 +153,14 @@ function renderizarPartidoVacioITF() {
     return `<div class="match-wrapper"><div class="match-card-itf" style="cursor:default;"><div class="player-row-itf por-definir"><span class="player-name-itf">— Por definir —</span><span></span><div class="player-scores"></div></div><div class="player-row-itf por-definir"><span class="player-name-itf">— Por definir —</span><span></span><div class="player-scores"></div></div></div></div>`;
 }
 
-function renderizarColumnaITF(titulo, partidos, categoria, tieneSiguienteRonda = false) {
+function renderizarColumnaITF(titulo, partidos, categoria, tieneSiguienteRonda = false, isOctavos = false) {
     const hasNextClass = tieneSiguienteRonda ? 'has-next' : '';
+    const octavosClass = isOctavos ? 'octavos-col' : '';
     let headerExtra = '';
     if (titulo === 'Cuartos de Final') headerExtra = `<div class="position-badges"><small style="opacity:.85;font-size:.7rem;">Perdedores: 5° - 8° Lugar</small></div>`;
     else if (titulo === 'Semifinales') headerExtra = `<div class="position-badges"><small style="opacity:.9;font-size:.7rem;">Perdedores: 3° - 4° Lugar</small></div>`;
     else if (titulo === 'Final') headerExtra = `<div class="position-badges"><span class="badge bg-warning text-dark">🥇 1° Lugar</span><span class="badge bg-secondary">🥈 2° Lugar</span></div>`;
-    let html = `<div class="round-column ${hasNextClass}"><div class="round-header-itf">${titulo}${headerExtra}</div><div class="matches-column">`;
+    let html = `<div class="round-column ${hasNextClass} ${octavosClass}"><div class="round-header-itf">${titulo}${headerExtra}</div><div class="matches-column">`;
     partidos.forEach((partido, idx) => { html += renderizarPartidoITF(partido, categoria, tieneSiguienteRonda, idx); });
     html += `</div></div>`;
     return html;
@@ -219,14 +220,68 @@ function dibujarLineasConectoras() {
     for (let i = 0; i < columns.length - 1; i++) {
         const currentMatches = Array.from(columns[i].querySelectorAll('.match-wrapper'));
         const nextMatches = Array.from(columns[i + 1].querySelectorAll('.match-wrapper'));
-        for (let j = 0; j < nextMatches.length; j++) {
-            const match1 = currentMatches[j * 2];
-            const match2 = currentMatches[j * 2 + 1];
-            const nextMatch = nextMatches[j];
-            if (match1 && match2 && nextMatch) dibujarConexionBracket(svg, match1, match2, nextMatch, drawGrid);
+        if (currentMatches.length < nextMatches.length * 2) {
+            // Avance individual: octavos (2 partidos) → cuartos (4 partidos), offset 1 para saltar C.1
+            // También cubre 3 grupos: cuartos (2) → semis (2), mismo índice
+            const offset = nextMatches.length > currentMatches.length ? 1 : 0;
+            const totalLines = currentMatches.length;
+            for (let j = 0; j < totalLines; j++) {
+                const match = currentMatches[j];
+                const nextMatch = nextMatches[j + offset];
+                if (match && nextMatch) {
+                    const turnRatio = totalLines > 1 ? 0.3 + (j / (totalLines - 1)) * 0.4 : 0.5;
+                    dibujarConexionDirecta(svg, match, nextMatch, drawGrid, turnRatio);
+                }
+            }
+        } else {
+            for (let j = 0; j < nextMatches.length; j++) {
+                const match1 = currentMatches[j * 2];
+                const match2 = currentMatches[j * 2 + 1];
+                const nextMatch = nextMatches[j];
+                if (match1 && match2 && nextMatch) dibujarConexionBracket(svg, match1, match2, nextMatch, drawGrid);
+            }
         }
     }
     drawGrid.appendChild(svg);
+}
+
+function dibujarConexionDirecta(svg, match, nextMatch, container, turnRatio = 0.5) {
+    const svgNS = "http://www.w3.org/2000/svg";
+    const containerRect = container.getBoundingClientRect();
+    const rect = match.getBoundingClientRect();
+    const rectNext = nextMatch.getBoundingClientRect();
+    const x1 = rect.right - containerRect.left;
+    const y1 = rect.top + rect.height / 2 - containerRect.top;
+    const xNext = rectNext.left - containerRect.left;
+    const yNext = rectNext.top + rectNext.height / 2 - containerRect.top;
+    const xMid = x1 + (xNext - x1) * turnRatio;
+    const path = document.createElementNS(svgNS, "path");
+    path.setAttribute('d', `M ${x1} ${y1} L ${xMid} ${y1} L ${xMid} ${yNext} L ${xNext} ${yNext}`);
+    path.setAttribute('class', 'bracket-line');
+    svg.appendChild(path);
+}
+
+function regenerarFixtures() {
+    Confirmar.show(
+        '¿Regenerar las llaves? Esto actualizará las parejas clasificadas basándose en las posiciones actuales de los grupos.',
+        async () => {
+            try {
+                const response = await fetch('/api/finales/fixtures/regenerar', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    Toast.success('Llaves regeneradas correctamente');
+                    await cargarFixtures();
+                    cargarCalendarioIndex();
+                } else {
+                    Toast.error('Error al regenerar: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Toast.error('Error de conexión');
+            }
+        },
+        { titulo: 'Regenerar llaves', textoOk: 'Regenerar', claseOk: 'btn-warning text-dark' }
+    );
 }
 
 function dibujarConexionBracket(svg, match1, match2, nextMatch, container) {

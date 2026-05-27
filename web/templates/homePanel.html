@@ -1360,7 +1360,7 @@ function mostrarModalDuplicadosInline({ numero, nombre, apellido, coincidencias,
         titulo.textContent = (j.nombre || '') + ' ' + (j.apellido || '');
         const sub = document.createElement('div');
         sub.className = 'small text-muted';
-        sub.textContent = j.telefono || 'sin teléfono';
+        sub.textContent = (j.telefono || 'sin teléfono') + ' · ' + (j.email || '—');
         info.appendChild(titulo);
         info.appendChild(sub);
         const btn = document.createElement('button');

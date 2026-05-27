@@ -688,6 +688,37 @@
     </div>
 </div>
 
+<!-- Modal: Duplicados al crear inline (desde dropdown autocomplete) — search-first -->
+<div class="modal fade" id="modalDuplicadosInline" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold">
+                    <i class="bi bi-people-fill text-primary me-2"></i>
+                    <span id="dupInlineTitulo">Jugadores con ese nombre</span>
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="small text-muted mb-2" id="dupInlineSubtitulo">
+                    Encontramos jugadores existentes. ¿Querés usar uno o crear uno nuevo?
+                </p>
+                <ul class="list-group list-group-flush" id="dupInlineLista">
+                    <!-- items inyectados por JS -->
+                </ul>
+            </div>
+            <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                <button type="button" class="btn btn-link btn-sm text-decoration-none"
+                        data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning btn-sm fw-semibold"
+                        id="btnDupInlineCrearIgual">
+                    Crear nuevo de todos modos
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Confirmar Eliminar Pareja -->
 <div class="modal fade" id="modalConfirmarEliminar" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -1296,18 +1327,97 @@ function seleccionarJugador(numero, id, nombreCompleto) {
     document.getElementById('dropdownJugador' + numero).classList.add('d-none');
 }
 
-function crearJugadorInline(numero, texto) {
+// ── search-first ── helper: busca jugadores por nombre+apellido exacto (case-insensitive via storage)
+async function buscarJugadoresPorNombreApellido(nombre, apellido) {
+    const q = encodeURIComponent((nombre + ' ' + apellido).trim());
+    const resp = await fetch('/api/jugadores?q=' + q);
+    if (!resp.ok) throw new Error('search-failed');
+    const data = await resp.json();
+    const n = nombre.toLowerCase();
+    const a = apellido.toLowerCase();
+    return (data.jugadores || []).filter(j =>
+        (j.nombre || '').toLowerCase() === n &&
+        (j.apellido || '').toLowerCase() === a
+    );
+}
+
+// ── search-first ── helper: muestra modal con lista de coincidencias y acciones
+function mostrarModalDuplicadosInline({ numero, nombre, apellido, coincidencias, onUsarExistente, onCrearNuevo }) {
+    const lista = document.getElementById('dupInlineLista');
+    lista.innerHTML = '';
+    const top = coincidencias.slice(0, 5);
+
+    document.getElementById('dupInlineSubtitulo').textContent =
+        'Ya existe ' + (top.length === 1 ? 'un jugador' : top.length + ' jugadores') +
+        ' con el nombre "' + nombre + ' ' + apellido + '". ¿Querés usar uno o crear nuevo?';
+
+    top.forEach(j => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        const info = document.createElement('div');
+        const titulo = document.createElement('div');
+        titulo.className = 'fw-semibold';
+        titulo.textContent = (j.nombre || '') + ' ' + (j.apellido || '');
+        const sub = document.createElement('div');
+        sub.className = 'small text-muted';
+        sub.textContent = (j.telefono || 'sin teléfono') + ' · ' + (j.email || '—');
+        info.appendChild(titulo);
+        info.appendChild(sub);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline-primary';
+        btn.textContent = 'Usar este';
+        btn.addEventListener('click', () => {
+            modal.hide();
+            onUsarExistente(j);
+        });
+        li.appendChild(info);
+        li.appendChild(btn);
+        lista.appendChild(li);
+    });
+
+    const modal = new bootstrap.Modal(document.getElementById('modalDuplicadosInline'));
+    document.getElementById('btnDupInlineCrearIgual').onclick = () => {
+        modal.hide();
+        onCrearNuevo();
+    };
+    modal.show();
+}
+
+// ── search-first ── reemplaza crearJugadorInline con flujo search-first async
+async function crearJugadorInline(numero, texto) {
     const partes = texto.trim().split(/\s+/);
     const nombre = partes[0] || '';
-    const apellido = partes.slice(1).join(' ') || '';
+    let apellido = partes.slice(1).join(' ') || '';
     if (!nombre) { Toast.error('Escribí al menos el nombre'); return; }
     if (!apellido) {
         const ap = prompt('Apellido del jugador "' + nombre + '":');
         if (!ap || !ap.trim()) return;
-        _crearJugador(numero, nombre, ap.trim());
-    } else {
-        _crearJugador(numero, nombre, apellido);
+        apellido = ap.trim();
     }
+
+    let coincidencias = [];
+    try {
+        coincidencias = await buscarJugadoresPorNombreApellido(nombre, apellido);
+    } catch (_) {
+        console.error('[search-first] error al buscar jugador, creando directamente', _);
+        _crearJugador(numero, nombre, apellido);
+        return;
+    }
+
+    if (coincidencias.length === 0) {
+        _crearJugador(numero, nombre, apellido);
+        return;
+    }
+
+    mostrarModalDuplicadosInline({
+        numero, nombre, apellido, coincidencias,
+        onUsarExistente: (j) => seleccionarJugador(numero, j.id, j.nombre + ' ' + (j.apellido || '')),
+        onCrearNuevo: () => {
+            console.warn('[search-first] admin creó duplicado pese a', coincidencias.length, 'coincidencias para', nombre, apellido);
+            _crearJugador(numero, nombre, apellido);
+        }
+    });
 }
 
 let _creandoJugador = false;

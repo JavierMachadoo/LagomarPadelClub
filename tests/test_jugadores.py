@@ -282,6 +282,54 @@ class TestGetJugadores:
         assert resp.status_code == 200
         mock_jugadores_storage.listar.assert_called_once()
 
+    # ── search-first contract tests (spec: inscripcion-search-first) ──────────
+
+    def test_get_jugadores_q_retorna_jugador_existente(self, admin_cookie, mock_jugadores_storage):
+        """GET /api/jugadores?q=Laura+Garcia retorna 200 e incluye a Laura Garcia."""
+        laura = {
+            "id": "uuid-laura", "nombre": "Laura", "apellido": "Garcia",
+            "telefono": "600111222", "email": None, "usuario_id": None,
+            "activo": True, "created_at": None, "telefono_verificado": False,
+        }
+        mock_jugadores_storage.buscar.return_value = [laura]
+        resp = admin_cookie.get("/api/jugadores?q=Laura+Garcia")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "jugadores" in data
+        nombres = [(j["nombre"], j["apellido"]) for j in data["jugadores"]]
+        assert ("Laura", "Garcia") in nombres
+        mock_jugadores_storage.buscar.assert_called_once_with("Laura Garcia")
+
+    def test_get_jugadores_q_retorna_lista_vacia_sin_match(self, admin_cookie, mock_jugadores_storage):
+        """GET /api/jugadores?q=Inexistente+Apellido retorna 200 y jugadores == []."""
+        mock_jugadores_storage.buscar.return_value = []
+        resp = admin_cookie.get("/api/jugadores?q=Inexistente+Apellido")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["jugadores"] == []
+
+    def test_get_jugadores_q_case_insensitive_delega_a_storage(self, admin_cookie, mock_jugadores_storage):
+        """El endpoint pasa el query tal cual al storage; el storage hace el match case-insensitive."""
+        laura_lower = {
+            "id": "uuid-laura", "nombre": "Laura", "apellido": "Garcia",
+            "telefono": None, "email": None, "usuario_id": None,
+            "activo": True, "created_at": None, "telefono_verificado": False,
+        }
+        mock_jugadores_storage.buscar.return_value = [laura_lower]
+        resp = admin_cookie.get("/api/jugadores?q=laura+garcia")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert len(data["jugadores"]) == 1
+        mock_jugadores_storage.buscar.assert_called_once_with("laura garcia")
+
+    def test_get_jugadores_q_vacio_llama_listar_no_buscar(self, admin_cookie, mock_jugadores_storage):
+        """Cuando q es una cadena vacía, se llama listar() — no buscar()."""
+        mock_jugadores_storage.listar.return_value = []
+        resp = admin_cookie.get("/api/jugadores?q=")
+        assert resp.status_code == 200
+        mock_jugadores_storage.buscar.assert_not_called()
+        mock_jugadores_storage.listar.assert_called_once()
+
 
 # ── POST /api/agregar-pareja con jugador_ids ──────────────────────────────────
 

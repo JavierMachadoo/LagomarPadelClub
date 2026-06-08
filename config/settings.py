@@ -67,6 +67,7 @@ FRANJAS_A_HORAS_MAP = {
 TIPOS_TORNEO = {
     "fin1": ["Tercera", "Quinta", "Séptima"],         # 1er fin de semana
     "fin2": ["Cuarta", "Sexta", "Octava"],             # 2do fin de semana
+    "mixto": ["A", "B", "C"],                         # torneo mixto especial
 }
 
 COLORES_CATEGORIA = {
@@ -76,6 +77,9 @@ COLORES_CATEGORIA = {
     "Séptima": "#6f42c1",
     "Tercera": "#fd7e14",
     "Octava": "#dc3545",
+    "A": "#28a745",
+    "B": "#007bff",
+    "C": "#dc3545",
 }
 
 EMOJI_CATEGORIA = {
@@ -85,6 +89,9 @@ EMOJI_CATEGORIA = {
     "Séptima": "🟣",
     "Tercera": "🟠",
     "Octava": "🔴",
+    "A": "🟢",
+    "B": "🔵",
+    "C": "🔴",
 }
 
 NUM_CANCHAS_DEFAULT = 2

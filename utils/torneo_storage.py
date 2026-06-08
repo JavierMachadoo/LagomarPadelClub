@@ -98,6 +98,7 @@ class TorneoStorage:
             'estado': 'creando',
             'fase': 'espera',
             'tipo_torneo': 'fin1',
+            'cuenta_ranking': True,
             'torneo_id': str(uuid.uuid4()),
             'version': 0,
         }
@@ -311,13 +312,16 @@ class TorneoStorage:
         El nombre y tipo_torneo se guardan en el blob del torneo activo para que
         sobrevivan la transición a estado inscripcion (limpiar() los preserva).
         """
+        cuenta_ranking = tipo_torneo != 'mixto'
         torneo = self.cargar()
         torneo['nombre'] = nombre
         torneo['tipo_torneo'] = tipo_torneo
+        torneo['cuenta_ranking'] = cuenta_ranking
         torneo['proximo_torneo'] = {
             'fecha': fecha,
             'nombre': nombre,
             'tipo_torneo': tipo_torneo,
+            'cuenta_ranking': cuenta_ranking,
             'categorias': categorias or [],
             'descripcion': descripcion,
         }

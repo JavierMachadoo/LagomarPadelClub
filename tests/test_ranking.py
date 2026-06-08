@@ -142,7 +142,7 @@ class TestCalcularRankingLogica:
     def test_ordena_por_puntos_descendente(self):
         from api.routes.ranking import _calcular_ranking
         sb = _make_sb(
-            torneos_data=[{"id": "t1"}],
+            torneos_data=[{"id": "t1", "tipo": "fin1"}],
             puntos_data=[
                 {"jugador_id": "j1", "torneo_id": "t1", "categoria": "Cuarta",
                  "puntos": 50, "concepto": "serie"},
@@ -161,3 +161,43 @@ class TestCalcularRankingLogica:
         assert cuarta[0]["jugador_id"] == "j2"
         assert cuarta[0]["posicion"] == 1
         assert cuarta[1]["posicion"] == 2
+
+
+# ── _calcular_ranking mixto exclusion ────────────────────────────────────────
+
+class TestCalcularRankingMixtoExclusion:
+    def test_mixto_excluido_del_ranking(self):
+        from api.routes.ranking import _calcular_ranking
+        sb = _make_sb(
+            torneos_data=[
+                {"id": "t1", "tipo": "fin1"},
+                {"id": "t2", "tipo": "mixto"},
+            ],
+            puntos_data=[
+                {"jugador_id": "j1", "torneo_id": "t1", "categoria": "Cuarta",
+                 "puntos": 100, "concepto": "serie"},
+                {"jugador_id": "j1", "torneo_id": "t2", "categoria": "A",
+                 "puntos": 200, "concepto": "campeon"},
+            ],
+            jugadores_data=[{"id": "j1", "nombre": "Ana", "apellido": "García"}],
+        )
+        with patch("api.routes.ranking._use_supabase", return_value=True), \
+             patch("api.routes.ranking._sb", return_value=sb):
+            result = _calcular_ranking()
+        assert "A" not in result
+        assert result.get("Cuarta", [{}])[0]["puntos"] == 100
+
+    def test_sin_tipo_en_blob_no_rompe(self):
+        from api.routes.ranking import _calcular_ranking
+        sb = _make_sb(
+            torneos_data=[{"id": "t1"}],
+            puntos_data=[
+                {"jugador_id": "j1", "torneo_id": "t1", "categoria": "Cuarta",
+                 "puntos": 50, "concepto": "serie"},
+            ],
+            jugadores_data=[{"id": "j1", "nombre": "Ana", "apellido": "García"}],
+        )
+        with patch("api.routes.ranking._use_supabase", return_value=True), \
+             patch("api.routes.ranking._sb", return_value=sb):
+            result = _calcular_ranking()
+        assert result["Cuarta"][0]["puntos"] == 50

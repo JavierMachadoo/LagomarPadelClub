@@ -52,10 +52,10 @@ def _calcular_ranking() -> dict:
 
     sb = _sb()
 
-    # 1. Todos los torneos finalizados
+    # 1. Todos los torneos finalizados (excluye mixto — no acumulan ranking)
     torneos_resp = (
         sb.table('torneos')
-        .select('id')
+        .select('id, tipo')
         .eq('estado', 'finalizado')
         .execute()
     )
@@ -63,7 +63,9 @@ def _calcular_ranking() -> dict:
     if not torneos_finalizados:
         return {}
 
-    torneo_ids = [t['id'] for t in torneos_finalizados]
+    torneo_ids = [t['id'] for t in torneos_finalizados if t.get('tipo') != 'mixto']
+    if not torneo_ids:
+        return {}
 
     # 2. Puntos de esos torneos
     puntos_resp = (

@@ -239,7 +239,7 @@ def obtener_franjas_disponibles():
 def cambiar_tipo_torneo():
     data = request.json or {}
     tipo = data.get('tipo_torneo', 'fin1')
-    if tipo not in ('fin1', 'fin2', 'mixto'):
+    if tipo not in ('fin1', 'fin2'):
         return jsonify({'error': 'Tipo de torneo invalido'}), 400
     try:
         storage.set_tipo_torneo(tipo)

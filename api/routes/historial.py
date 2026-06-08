@@ -389,13 +389,11 @@ def terminar_torneo():
     tipo = torneo.get('tipo_torneo', 'fin1')
     nombre = torneo.get('nombre', '').strip() or f"Torneo {datetime.now().strftime('%d/%m/%Y')}"
 
-    cuenta_ranking = torneo.get('cuenta_ranking', True)
     datos_blob = {
         'resultado_algoritmo': torneo.get('resultado_algoritmo'),
         'fixtures_finales': torneo.get('fixtures_finales', {}),
         'calendario_finales': torneo.get('calendario_finales', {}),
         'tipo_torneo': tipo,
-        'cuenta_ranking': cuenta_ranking,
     }
     if _use_supabase():
         sb = _sb_admin()  # Una sola instancia para todo el bloque
@@ -417,11 +415,10 @@ def terminar_torneo():
         except Exception as e:
             logger.error('Error al poblar tablas relacionales para torneo %s: %s', torneo_id, e)
 
-        if cuenta_ranking:
-            try:
-                _calcular_y_guardar_puntos(sb, torneo_id, datos_blob)
-            except Exception as e:
-                logger.error('Error al calcular puntos para torneo %s: %s', torneo_id, e)
+        try:
+            _calcular_y_guardar_puntos(sb, torneo_id, datos_blob)
+        except Exception as e:
+            logger.error('Error al calcular puntos para torneo %s: %s', torneo_id, e)
     else:
         torneos = []
         if _HISTORIAL_FILE.exists():
@@ -502,8 +499,8 @@ def configurar_proximo_torneo():
         return jsonify({'error': 'El nombre es obligatorio'}), 400
     if not fecha:
         return jsonify({'error': 'La fecha es obligatoria'}), 400
-    if tipo_torneo not in ('fin1', 'fin2', 'mixto'):
-        return jsonify({'error': 'El tipo de torneo debe ser fin1, fin2 o mixto'}), 400
+    if tipo_torneo not in ('fin1', 'fin2'):
+        return jsonify({'error': 'El tipo de torneo debe ser fin1 o fin2'}), 400
 
     try:
         storage.set_proximo_torneo(fecha=fecha, nombre=nombre, tipo_torneo=tipo_torneo, descripcion=descripcion)

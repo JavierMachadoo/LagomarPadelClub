@@ -695,7 +695,7 @@
                 data-cat="{{ cat }}"
                 data-cat-color="{{ colores.get(cat, '#888888') }}"
                 onclick="gpSwitchCat('{{ cat }}', this)">
-            {{ emojis.get(cat, '') }} {{ cat }}
+            {{ emojis.get(cat, '') }} {{ display_names.get(cat, cat) }}
         </button>
         {% set ns_first_cat.done = true %}
         {% endif %}

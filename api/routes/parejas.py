@@ -248,6 +248,23 @@ def cambiar_tipo_torneo():
     return jsonify({'success': True, 'tipo_torneo': tipo})
 
 
+@api_bp.route('/admin/torneo-settings', methods=['POST'])
+def actualizar_torneo_settings():
+    data = request.json or {}
+    torneo = storage.cargar()
+    display_names = data['display_names'] if 'display_names' in data else torneo.get('display_names', {})
+    cuenta_ranking = data['cuenta_ranking'] if 'cuenta_ranking' in data else torneo.get('cuenta_ranking', True)
+    if not isinstance(display_names, dict):
+        return jsonify({'error': 'display_names debe ser un objeto'}), 400
+    if not isinstance(cuenta_ranking, bool):
+        return jsonify({'error': 'cuenta_ranking debe ser booleano'}), 400
+    try:
+        storage.set_torneo_settings(display_names, cuenta_ranking)
+    except ConflictError as e:
+        return jsonify({'error': str(e)}), 409
+    return jsonify({'success': True})
+
+
 @api_bp.route('/obtener-no-asignadas/<categoria>', methods=['GET'])
 def obtener_no_asignadas(categoria):
     resultado_dict = obtener_datos_desde_token().get('resultado_algoritmo')

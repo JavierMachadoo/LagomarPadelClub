@@ -100,6 +100,8 @@ class TorneoStorage:
             'tipo_torneo': 'fin1',
             'torneo_id': str(uuid.uuid4()),
             'version': 0,
+            'display_names': {},
+            'cuenta_ranking': True,
         }
 
     def _crear_torneo_default(self) -> None:
@@ -337,6 +339,13 @@ class TorneoStorage:
         """Cambia el tipo de torneo activo."""
         torneo = self.cargar()
         torneo['tipo_torneo'] = tipo
+        self.guardar_con_version(torneo)
+
+    def set_torneo_settings(self, display_names: dict, cuenta_ranking: bool) -> None:
+        """Actualiza display_names y cuenta_ranking del torneo activo."""
+        torneo = self.cargar()
+        torneo['display_names'] = display_names
+        torneo['cuenta_ranking'] = cuenta_ranking
         self.guardar_con_version(torneo)
 
 

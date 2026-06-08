@@ -411,6 +411,7 @@ def pagina_inscripcion():
         inscripcion_existente=None,  # se carga vía AJAX al montar la página
         categorias=categorias_torneo,
         franjas=FRANJAS_HORARIAS,
+        display_names=torneo.get('display_names', {}),
     ))
 
 

@@ -250,7 +250,7 @@
                     <select class="form-select" name="categoria" required>
                         <option value="" disabled selected>Seleccioná…</option>
                         {% for cat in categorias %}
-                        <option value="{{ cat }}">{{ cat }}</option>
+                        <option value="{{ cat }}">{{ display_names.get(cat, cat) }}</option>
                         {% endfor %}
                     </select>
                 </div>

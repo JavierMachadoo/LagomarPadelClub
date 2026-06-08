@@ -215,6 +215,9 @@ def _calcular_y_guardar_puntos(sb, torneo_id: str, datos_blob: dict) -> None:
     Lógica exclusiva: cada jugador recibe los puntos del máximo round alcanzado.
     Ambos integrantes de la pareja reciben los mismos puntos.
     """
+    if not datos_blob.get('cuenta_ranking', True):
+        return
+
     resultado = datos_blob.get('resultado_algoritmo') or {}
     grupos_por_categoria = resultado.get('grupos_por_categoria') or {}
     fixtures_finales = datos_blob.get('fixtures_finales') or {}
@@ -272,6 +275,19 @@ def _calcular_y_guardar_puntos(sb, torneo_id: str, datos_blob: dict) -> None:
         logger.info('No hay jugador_ids en el torneo %s — puntos_jugador vacío', torneo_id)
         return
 
+    # Validate jugador_ids against the jugadores table before the batch upsert.
+    # A single orphan auth-user ID (no matching jugadores row) causes a FK violation
+    # that silently kills the entire batch, leaving puntos_jugador empty for all categories.
+    all_ids = list({v['jugador_id'] for v in mejor.values()})
+    existing_resp = sb.table('jugadores').select('id').in_('id', all_ids).execute()
+    existing_ids = {row['id'] for row in (existing_resp.data or [])}
+    orphan_ids = set(all_ids) - existing_ids
+    if orphan_ids:
+        logger.warning(
+            'puntos_jugador: %d jugador_id(s) huérfanos ignorados en torneo %s: %s',
+            len(orphan_ids), torneo_id, orphan_ids,
+        )
+
     rows = [
         {
             'jugador_id': v['jugador_id'],
@@ -281,7 +297,12 @@ def _calcular_y_guardar_puntos(sb, torneo_id: str, datos_blob: dict) -> None:
             'concepto':   v['concepto'],
         }
         for v in mejor.values()
+        if v['jugador_id'] not in orphan_ids
     ]
+
+    if not rows:
+        logger.warning('puntos_jugador: todos los jugador_ids eran huérfanos — nada guardado para torneo %s', torneo_id)
+        return
 
     sb.table('puntos_jugador').upsert(rows, on_conflict='jugador_id,torneo_id,categoria').execute()
     logger.info('puntos_jugador: %d filas guardadas para torneo %s', len(rows), torneo_id)

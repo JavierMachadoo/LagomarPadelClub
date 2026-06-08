@@ -81,6 +81,40 @@
     </div>
     <!-- ── Fin Estado del Torneo ─────────────────────────────────────────────── -->
 
+    {% if fase_torneo in ('inscripcion', 'torneo') %}
+    <!-- ── Configuración especial del torneo ──────────────────────────────────── -->
+    <div class="container-fluid px-4 mb-3">
+        <div class="card border-0 shadow-sm" style="border-radius:16px;">
+            <div class="card-body py-3 px-4 d-flex flex-wrap align-items-center gap-3">
+                <span class="fw-semibold text-muted" style="font-size:0.85rem;">
+                    <i class="bi bi-sliders me-1"></i>Opciones del torneo
+                </span>
+                <div class="d-flex align-items-center gap-2">
+                    <span style="font-size:0.85rem;">Nombres de categoría:</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" id="btnNombresReales"
+                                class="btn btn-outline-secondary {% if not torneo.display_names %}active{% endif %}"
+                                onclick="aplicarDisplayNames('real')">Reales</button>
+                        <button type="button" id="btnNombresABC"
+                                class="btn btn-outline-secondary {% if torneo.display_names %}active{% endif %}"
+                                onclick="aplicarDisplayNames('abc')">A / B / C</button>
+                    </div>
+                </div>
+                <div class="vr d-none d-md-block"></div>
+                <div class="d-flex align-items-center gap-2">
+                    <span style="font-size:0.85rem;">¿Cuenta para ranking?</span>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               id="switchCuentaRanking"
+                               {% if torneo.get('cuenta_ranking', true) %}checked{% endif %}
+                               onchange="toggleCuentaRanking(this.checked)">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Modal de confirmación de cambio de fase -->
     <div class="modal fade" id="modalCambioFase" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -385,7 +419,7 @@
                                     </label>
                                     <select class="form-select" name="categoria" required>
                                         {% for cat in categorias %}
-                                        <option value="{{ cat }}">{{ cat }}</option>
+                                        <option value="{{ cat }}">{{ display_names.get(cat, cat) }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -516,7 +550,7 @@
                                 <div class="pareja-row-content">
                                     <div class="pareja-row-nombre">{{ pareja.nombre }}</div>
                                     <div class="pareja-row-meta">
-                                        <span class="badge bg-{{ cat_slug }}">{{ pareja.categoria }}</span>
+                                        <span class="badge bg-{{ cat_slug }}">{{ display_names.get(pareja.categoria, pareja.categoria) }}</span>
                                         <span class="meta-text"><i class="bi bi-telephone-fill"></i> {{ pareja.telefono }}</span>
                                         <span class="meta-text"><i class="bi bi-clock-fill"></i> {{ pareja.franjas_disponibles|length }}</span>
                                         {% if resultado and not pareja.esta_asignada %}
@@ -569,7 +603,7 @@
                                     <td>{{ pareja.telefono }}</td>
                                     <td>
                                         <span class="badge bg-{{ pareja.categoria|lower }}">
-                                            {{ pareja.categoria }}
+                                            {{ display_names.get(pareja.categoria, pareja.categoria) }}
                                         </span>
                                     </td>
                                     <td>
@@ -682,6 +716,37 @@
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-warning btn-sm fw-semibold" id="btnConfirmarDuplicado">
                     Sí, crear igual
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Duplicados al crear inline (desde dropdown autocomplete) — search-first -->
+<div class="modal fade" id="modalDuplicadosInline" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold">
+                    <i class="bi bi-people-fill text-primary me-2"></i>
+                    <span id="dupInlineTitulo">Jugadores con ese nombre</span>
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="small text-muted mb-2" id="dupInlineSubtitulo">
+                    Encontramos jugadores existentes. ¿Querés usar uno o crear uno nuevo?
+                </p>
+                <ul class="list-group list-group-flush" id="dupInlineLista">
+                    <!-- items inyectados por JS -->
+                </ul>
+            </div>
+            <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                <button type="button" class="btn btn-link btn-sm text-decoration-none"
+                        data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning btn-sm fw-semibold"
+                        id="btnDupInlineCrearIgual">
+                    Crear nuevo de todos modos
                 </button>
             </div>
         </div>
@@ -1296,18 +1361,97 @@ function seleccionarJugador(numero, id, nombreCompleto) {
     document.getElementById('dropdownJugador' + numero).classList.add('d-none');
 }
 
-function crearJugadorInline(numero, texto) {
+// ── search-first ── helper: busca jugadores por nombre+apellido exacto (case-insensitive via storage)
+async function buscarJugadoresPorNombreApellido(nombre, apellido) {
+    const q = encodeURIComponent((nombre + ' ' + apellido).trim());
+    const resp = await fetch('/api/jugadores?q=' + q);
+    if (!resp.ok) throw new Error('search-failed');
+    const data = await resp.json();
+    const n = nombre.toLowerCase();
+    const a = apellido.toLowerCase();
+    return (data.jugadores || []).filter(j =>
+        (j.nombre || '').toLowerCase() === n &&
+        (j.apellido || '').toLowerCase() === a
+    );
+}
+
+// ── search-first ── helper: muestra modal con lista de coincidencias y acciones
+function mostrarModalDuplicadosInline({ numero, nombre, apellido, coincidencias, onUsarExistente, onCrearNuevo }) {
+    const lista = document.getElementById('dupInlineLista');
+    lista.innerHTML = '';
+    const top = coincidencias.slice(0, 5);
+
+    document.getElementById('dupInlineSubtitulo').textContent =
+        'Ya existe ' + (top.length === 1 ? 'un jugador' : top.length + ' jugadores') +
+        ' con el nombre "' + nombre + ' ' + apellido + '". ¿Querés usar uno o crear nuevo?';
+
+    top.forEach(j => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        const info = document.createElement('div');
+        const titulo = document.createElement('div');
+        titulo.className = 'fw-semibold';
+        titulo.textContent = (j.nombre || '') + ' ' + (j.apellido || '');
+        const sub = document.createElement('div');
+        sub.className = 'small text-muted';
+        sub.textContent = (j.telefono || 'sin teléfono') + ' · ' + (j.email || '—');
+        info.appendChild(titulo);
+        info.appendChild(sub);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline-primary';
+        btn.textContent = 'Usar este';
+        btn.addEventListener('click', () => {
+            modal.hide();
+            onUsarExistente(j);
+        });
+        li.appendChild(info);
+        li.appendChild(btn);
+        lista.appendChild(li);
+    });
+
+    const modal = new bootstrap.Modal(document.getElementById('modalDuplicadosInline'));
+    document.getElementById('btnDupInlineCrearIgual').onclick = () => {
+        modal.hide();
+        onCrearNuevo();
+    };
+    modal.show();
+}
+
+// ── search-first ── reemplaza crearJugadorInline con flujo search-first async
+async function crearJugadorInline(numero, texto) {
     const partes = texto.trim().split(/\s+/);
     const nombre = partes[0] || '';
-    const apellido = partes.slice(1).join(' ') || '';
+    let apellido = partes.slice(1).join(' ') || '';
     if (!nombre) { Toast.error('Escribí al menos el nombre'); return; }
     if (!apellido) {
         const ap = prompt('Apellido del jugador "' + nombre + '":');
         if (!ap || !ap.trim()) return;
-        _crearJugador(numero, nombre, ap.trim());
-    } else {
-        _crearJugador(numero, nombre, apellido);
+        apellido = ap.trim();
     }
+
+    let coincidencias = [];
+    try {
+        coincidencias = await buscarJugadoresPorNombreApellido(nombre, apellido);
+    } catch (_) {
+        console.error('[search-first] error al buscar jugador, creando directamente', _);
+        _crearJugador(numero, nombre, apellido);
+        return;
+    }
+
+    if (coincidencias.length === 0) {
+        _crearJugador(numero, nombre, apellido);
+        return;
+    }
+
+    mostrarModalDuplicadosInline({
+        numero, nombre, apellido, coincidencias,
+        onUsarExistente: (j) => seleccionarJugador(numero, j.id, j.nombre + ' ' + (j.apellido || '')),
+        onCrearNuevo: () => {
+            console.warn('[search-first] admin creó duplicado pese a', coincidencias.length, 'coincidencias para', nombre, apellido);
+            _crearJugador(numero, nombre, apellido);
+        }
+    });
 }
 
 let _creandoJugador = false;
@@ -1520,6 +1664,32 @@ function cambiarTipoTorneo(tipo) {
         else Toast.error('Error al cambiar tipo de torneo');
     })
     .catch(() => Toast.error('Error al cambiar tipo de torneo'));
+}
+
+// ==================== TORNEO SETTINGS ====================
+const _DISPLAY_NAMES_FIN1 = {"Tercera":"A","Quinta":"B","Séptima":"C"};
+
+function aplicarDisplayNames(modo) {
+    const display_names = modo === 'abc' ? _DISPLAY_NAMES_FIN1 : {};
+    _saveTorneoSettings({ display_names });
+}
+
+function toggleCuentaRanking(checked) {
+    _saveTorneoSettings({ cuenta_ranking: checked });
+}
+
+function _saveTorneoSettings(patch) {
+    fetch('/api/admin/torneo-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) location.reload();
+        else Toast.error(data.error || 'Error al guardar configuración');
+    })
+    .catch(() => Toast.error('Error de conexión'));
 }
 
 // ==================== EJECUTAR ALGORITMO ====================

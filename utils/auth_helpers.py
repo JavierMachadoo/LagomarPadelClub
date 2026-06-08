@@ -56,13 +56,17 @@ def auto_aceptar_invitacion_post_registro(sb, token: str, jugador_id: str, nombr
 
 def crear_perfil_jugador(sb_admin, user_id: str, nombre: str, apellido: str, telefono: str | None) -> None:
     """Inserta el perfil en `jugadores` si todavía no existe."""
-    existing = sb_admin.table('jugadores').select('id').eq('id', user_id).execute()
+    existing = sb_admin.table('jugadores').select('id, usuario_id').eq('id', user_id).execute()
     if existing.data:
+        if not existing.data[0].get('usuario_id'):
+            sb_admin.table('jugadores').update({'usuario_id': user_id}).eq('id', user_id).execute()
+            logger.info('usuario_id parcheado para jugador %s', user_id)
         return
     sb_admin.table('jugadores').insert({
-        'id':       user_id,
-        'nombre':   nombre,
-        'apellido': apellido,
-        'telefono': telefono or None,
+        'id':         user_id,
+        'usuario_id': user_id,
+        'nombre':     nombre,
+        'apellido':   apellido,
+        'telefono':   telefono or None,
     }).execute()
     logger.info('Perfil creado para jugador %s', user_id)

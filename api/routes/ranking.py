@@ -52,14 +52,17 @@ def _calcular_ranking() -> dict:
 
     sb = _sb()
 
-    # 1. Todos los torneos finalizados
+    # 1. Todos los torneos finalizados que cuentan para el ranking
     torneos_resp = (
         sb.table('torneos')
-        .select('id')
+        .select('id, datos_blob')
         .eq('estado', 'finalizado')
         .execute()
     )
-    torneos_finalizados = torneos_resp.data or []
+    torneos_finalizados = [
+        t for t in (torneos_resp.data or {})
+        if (t.get('datos_blob') or {}).get('cuenta_ranking', True)
+    ]
     if not torneos_finalizados:
         return {}
 

@@ -216,7 +216,8 @@ def crear_app():
                              categorias=categorias_torneo,
                              franjas=FRANJAS_HORARIAS,
                              tipo_torneo=tipo_torneo,
-                             tipos_torneo=TIPOS_TORNEO))
+                             tipos_torneo=TIPOS_TORNEO,
+                             display_names=torneo.get('display_names', {})))
         
         return response
     
@@ -250,7 +251,8 @@ def crear_app():
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,
                              tipo_torneo=tipo_torneo,
-                             fixtures=fixtures))
+                             fixtures=fixtures,
+                             display_names=torneo.get('display_names', {})))
 
         return response
 
@@ -349,7 +351,8 @@ def crear_app():
                                          torneo=torneo,
                                          tipo_torneo=tipo_torneo,
                                          es_ultimo_torneo=True,
-                                         nombre_ultimo_torneo=archivado.get('nombre', '')))
+                                         nombre_ultimo_torneo=archivado.get('nombre', ''),
+                                         display_names=torneo.get('display_names', {})))
             return make_response(render_template('organizando.html', torneo=torneo))
 
         if fase != 'torneo':
@@ -393,7 +396,8 @@ def crear_app():
                              colores=COLORES_CATEGORIA,
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,
-                             tipo_torneo=tipo_torneo))
+                             tipo_torneo=tipo_torneo,
+                             display_names=torneo.get('display_names', {})))
 
     @app.route('/calendario')
     def calendario_publico():
@@ -425,7 +429,8 @@ def crear_app():
                                          tipo_torneo=tipo_torneo,
                                          franjas_finales=build_franjas_finales(cal_arch, datos_blob.get('fixtures_finales', {})),
                                          es_ultimo_torneo=True,
-                                         nombre_ultimo_torneo=archivado.get('nombre', '')))
+                                         nombre_ultimo_torneo=archivado.get('nombre', ''),
+                                         display_names=torneo.get('display_names', {})))
             return make_response(render_template('organizando.html', torneo=torneo))
 
         if fase != 'torneo':
@@ -447,7 +452,8 @@ def crear_app():
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,
                              tipo_torneo=tipo_torneo,
-                             franjas_finales=build_franjas_finales(calendario_finales, {k: v for k, v in torneo.get('fixtures_finales', {}).items() if v})))
+                             franjas_finales=build_franjas_finales(calendario_finales, {k: v for k, v in torneo.get('fixtures_finales', {}).items() if v}),
+                             display_names=torneo.get('display_names', {})))
 
     @app.route('/cuadro')
     def cuadro_publico():

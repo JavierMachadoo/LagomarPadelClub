@@ -215,6 +215,9 @@ def _calcular_y_guardar_puntos(sb, torneo_id: str, datos_blob: dict) -> None:
     Lógica exclusiva: cada jugador recibe los puntos del máximo round alcanzado.
     Ambos integrantes de la pareja reciben los mismos puntos.
     """
+    if not datos_blob.get('cuenta_ranking', True):
+        return
+
     resultado = datos_blob.get('resultado_algoritmo') or {}
     grupos_por_categoria = resultado.get('grupos_por_categoria') or {}
     fixtures_finales = datos_blob.get('fixtures_finales') or {}

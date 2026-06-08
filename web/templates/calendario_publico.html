@@ -418,7 +418,7 @@
                                     <div class="hora-strip"><span>{{ hora }}</span></div>
                                     <div class="partido-body">
                                         <div class="partido-meta">
-                                            <span class="badge-cat" style="background:{{ bg_cat }};">{{ emojis.get(partido.categoria,'🎾') }} {{ partido.categoria }}</span>
+                                            <span class="badge-cat" style="background:{{ bg_cat }};">{{ emojis.get(partido.categoria,'🎾') }} {{ display_names.get(partido.categoria, partido.categoria) }}</span>
                                             {% if partido.grupo_letra %}<span class="badge-grupo">Grupo {{ partido.grupo_letra }}</span>{% endif %}
                                         </div>
                                         <div class="match-rows">
@@ -526,7 +526,7 @@
                                     <div class="hora-strip"><span>{{ hora }}</span></div>
                                     <div class="partido-body">
                                         <div class="partido-meta">
-                                            <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c1.categoria }}</span>
+                                            <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ display_names.get(c1.categoria, c1.categoria) }}</span>
                                             <span class="badge-fase">{{ fase_label.get(c1.fase, c1.fase) }}</span>
                                         </div>
                                         <div class="match-rows">
@@ -575,7 +575,7 @@
                                     <div class="hora-strip"><span>{{ hora }}</span></div>
                                     <div class="partido-body">
                                         <div class="partido-meta">
-                                            <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ c2.categoria }}</span>
+                                            <span class="badge-cat" style="background:{{ color }};">{{ emoji }} {{ display_names.get(c2.categoria, c2.categoria) }}</span>
                                             <span class="badge-fase">{{ fase_label.get(c2.fase, c2.fase) }}</span>
                                         </div>
                                         <div class="match-rows">
@@ -641,7 +641,7 @@
             {% set _ = categorias_presentes.append(cat_key) %}
         {% endfor %}
     {% endif %}
-    <script type="application/json" id="cal-config">{{ {"esJugador": es_jugador, "emojis": emojis, "categorias": categorias_presentes} | tojson }}</script>
+    <script type="application/json" id="cal-config">{{ {"esJugador": es_jugador, "emojis": emojis, "categorias": categorias_presentes, "display_names": display_names} | tojson }}</script>
 
 </div>
 {% endblock %}
@@ -813,7 +813,7 @@ function htmlSlotCard(slot, hora) {
                 <div class="hora-strip"><span>${hora || ''}</span></div>
                 <div class="partido-body">
                     <div class="partido-meta">
-                        <span class="badge-cat" style="background:${color};">${emoji} ${slot.categoria}</span>
+                        <span class="badge-cat" style="background:${color};">${emoji} ${(_cfg.display_names||{})[slot.categoria]||slot.categoria}</span>
                         <span class="badge-fase">${faseLabel}</span>
                     </div>
                     <div class="match-rows">

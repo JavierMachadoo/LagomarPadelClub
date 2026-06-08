@@ -216,6 +216,31 @@
         <h1 class="insc-title mb-1">Creación de inscripción</h1>
         <p class="insc-subtitle mb-3">{{ torneo.nombre or 'Torneo de Pádel' }}</p>
 
+        {% if torneo.tipo_torneo == 'mixto' %}
+        <div class="d-flex gap-3 align-items-start mb-4 p-3"
+             style="background:#fefce8; border-left:3px solid #eab308; border-radius:10px;">
+            <i class="bi bi-trophy-fill flex-shrink-0 mt-1" style="color:#ca8a04;"></i>
+            <div style="font-size:0.88rem; color:#713f12;">
+                <strong class="d-block mb-2">Torneo Mixto Especial — Categorías por nivel</strong>
+                <p class="mb-2">La categoría se asigna según la <strong>suma del nivel de la pareja</strong> y es responsabilidad del administrador. Las categorías son:</p>
+                <table class="table table-sm table-bordered mb-2" style="font-size:0.85rem;">
+                    <thead style="background:#fef9c3;">
+                        <tr>
+                            <th>Categoría</th>
+                            <th>Suma de niveles</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>A</strong></td><td>7 u 8</td></tr>
+                        <tr><td><strong>B</strong></td><td>9, 10 u 11</td></tr>
+                        <tr><td><strong>C</strong></td><td>12, 13 o 14</td></tr>
+                    </tbody>
+                </table>
+                <p class="mb-0">Este torneo <strong>no acumula puntos al ranking</strong> general.</p>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="d-flex gap-3 align-items-start mb-4 p-3"
              style="background:#fffbeb; border-left:3px solid #f59e0b; border-radius:10px;">
             <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" style="color:#d97706;"></i>

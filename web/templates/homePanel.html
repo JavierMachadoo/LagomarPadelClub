@@ -266,7 +266,7 @@
                     <i class="bi bi-trophy me-2"></i>Ver Grupos Generados
                 </a>
                 {% if fase_torneo != 'torneo' %}
-                <button class="btn-generar-grupos" style="font-size:1rem; padding:0.875rem 1.75rem; min-width:auto;" onclick="generarGruposManual()">
+                <button class="btn-ver-resultados" onclick="confirmarRegenerarGrupos()">
                     <i class="bi bi-arrow-clockwise me-2"></i>Regenerar Grupos
                 </button>
                 {% endif %}
@@ -1701,6 +1701,13 @@ function ejecutarAlgoritmoAutomatico() {
 function generarGruposManual() {
     // Se ejecuta desde los botones manuales — recarga /admin para mostrar estado actualizado
     _ejecutarAlgoritmo('/admin');
+}
+
+function confirmarRegenerarGrupos() {
+    Confirmar.show(
+        '¿Regenerar los grupos? Se recalcularán todos los grupos y el calendario.',
+        () => generarGruposManual()
+    );
 }
 
 function _ejecutarAlgoritmo(redirectUrl) {

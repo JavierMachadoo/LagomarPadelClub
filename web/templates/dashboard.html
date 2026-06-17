@@ -695,7 +695,7 @@
                             <button class="nav-link {% if loop.first %}active{% endif %}"
                                     id="series-{{ cat_id_map[cat] }}-tab" data-bs-toggle="tab"
                                     data-bs-target="#series-{{ cat_id_map[cat] }}" type="button" role="tab">
-                                {{ cat_emoji_map[cat] }} {{ cat }}
+                                {{ cat_emoji_map[cat] }} {{ display_names.get(cat, cat) }}
                             </button>
                         </li>
                         {% endfor %}
@@ -731,7 +731,7 @@
                 <div class="categoria-btn categoria-btn-{{ meta.css }}{% if loop.first %} active{% endif %}"
                      onclick="cambiarCategoria('{{ meta.abrev }}', event)">
                     <span class="categoria-emoji">{{ meta.emoji }}</span>
-                    <h3 class="categoria-nombre">{{ meta.abrev }}</h3>
+                    <h3 class="categoria-nombre">{{ display_names.get(cat_nombre, meta.abrev) }}</h3>
                     <p class="categoria-fases mb-0" id="fases-{{ meta.abrev }}">Cargando...</p>
                 </div>
                 {% endfor %}
@@ -1753,6 +1753,7 @@ document.getElementById('modalAgregarParejaRapida').addEventListener('hidden.bs.
 // Variables renderizadas por Jinja2 -- deben permanecer en el template
 const CATEGORIAS_TORNEO_FINALES = {{ categorias | tojson }};
 const CATS_ACTIVAS_FINALES = CATEGORIAS_TORNEO_FINALES.map(c => ({ "Tercera": "3era", "Cuarta": "4ta", "Quinta": "5ta", "Sexta": "6ta", "Séptima": "7ma", "Octava": "8va" })[c]).filter(Boolean);
+const GRUPOS_POR_CAT_COUNT = { {% for cat in categorias %}{{ cat | tojson }}: {{ (resultado.grupos_por_categoria.get(cat, []) | length) if resultado else 0 }}{% if not loop.last %}, {% endif %}{% endfor %} };
 </script>
 <script src="{{ url_for('static', filename='js/dashboard-grupos.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard-resultados.js') }}"></script>

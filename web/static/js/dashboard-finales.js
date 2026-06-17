@@ -130,23 +130,23 @@ function renderizarFixture(categoria) {
 }
 
 function crearPartidosVacios(categoria) {
-    const html = `
-        <div class="draw-grid">
-            <div class="round-column">
-                <div class="round-header-itf">Cuartos de Final<div class="position-badges"><small style="opacity:.85;font-size:.7rem;">Perdedores: 5° - 8° Lugar</small></div></div>
-                <div class="matches-column">${renderizarPartidoVacioITF()}${renderizarPartidoVacioITF()}${renderizarPartidoVacioITF()}${renderizarPartidoVacioITF()}</div>
-            </div>
-            <div class="round-column">
-                <div class="round-header-itf">Semifinales<div class="position-badges"><small style="opacity:.85;font-size:.7rem;">Perdedores: 3° - 4° Lugar</small></div></div>
-                <div class="matches-column">${renderizarPartidoVacioITF()}${renderizarPartidoVacioITF()}</div>
-            </div>
-            <div class="round-column">
-                <div class="round-header-itf">Final<div class="position-badges"><span class="badge bg-warning text-dark">🥇 1° Lugar</span><span class="badge bg-secondary">🥈 2° Lugar</span></div></div>
-                <div class="matches-column">${renderizarPartidoVacioITF()}</div>
-            </div>
-        </div>`;
+    const catLong = Object.keys(CAT_MAP_FINALES).find(k => CAT_MAP_FINALES[k] === categoria);
+    const numGrupos = (typeof GRUPOS_POR_CAT_COUNT !== 'undefined' && catLong)
+        ? (GRUPOS_POR_CAT_COUNT[catLong] || 0)
+        : 4;
+
+    const octavosSlot = `<div class="round-column octavos-col"><div class="round-header-itf">Octavos de Final</div><div class="matches-column">${Array(8).fill(renderizarPartidoVacioITF()).join('')}</div></div>`;
+    const cuartosSlot = `<div class="round-column"><div class="round-header-itf">Cuartos de Final<div class="position-badges"><small style="opacity:.85;font-size:.7rem;">Perdedores: 5° - 8° Lugar</small></div></div><div class="matches-column">${renderizarPartidoVacioITF()}${renderizarPartidoVacioITF()}${renderizarPartidoVacioITF()}${renderizarPartidoVacioITF()}</div></div>`;
+    const semisSlot  = `<div class="round-column"><div class="round-header-itf">Semifinales<div class="position-badges"><small style="opacity:.85;font-size:.7rem;">Perdedores: 3° - 4° Lugar</small></div></div><div class="matches-column">${renderizarPartidoVacioITF()}${renderizarPartidoVacioITF()}</div></div>`;
+    const finalSlot  = `<div class="round-column"><div class="round-header-itf">Final<div class="position-badges"><span class="badge bg-warning text-dark">🥇 1° Lugar</span><span class="badge bg-secondary">🥈 2° Lugar</span></div></div><div class="matches-column">${renderizarPartidoVacioITF()}</div></div>`;
+
+    let columns = '';
+    if (numGrupos >= 5) columns += octavosSlot;
+    if (numGrupos >= 3) columns += cuartosSlot;
+    columns += semisSlot + finalSlot;
+
     setTimeout(() => dibujarLineasConectoras(), 100);
-    return html;
+    return `<div class="draw-grid">${columns}</div>`;
 }
 
 function renderizarPartidoVacioITF() {

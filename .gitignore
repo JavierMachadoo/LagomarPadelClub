@@ -25,7 +25,7 @@ env/
 app.log
 data/torneos/*.json
 !data/torneos/.gitkeep
-data/uploads/
+data
 flask_session/
 
 # Test cache

@@ -695,6 +695,28 @@
         font-size: 0.85rem !important;
     }
     
+    /* ===== SELECTOR DE CATEGORÍAS (FINALES) ===== */
+    .categorias-selector {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
+        gap: 0.5rem !important;
+    }
+
+    .categoria-btn {
+        padding: 0.75rem 0.5rem !important;
+    }
+
+    .categoria-btn .categoria-emoji {
+        font-size: 1.5rem !important;
+    }
+
+    .categoria-btn .categoria-nombre {
+        font-size: 1rem !important;
+    }
+
+    .categoria-btn .categoria-fases {
+        font-size: 0.75rem !important;
+    }
+
     /* ===== FINALES MÓVIL ===== */
     .finales-categoria-card {
         padding: 1.25rem !important;

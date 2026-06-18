@@ -1678,6 +1678,7 @@ function toggleCuentaRanking(checked) {
     _saveTorneoSettings({ cuenta_ranking: checked });
 }
 
+
 function _saveTorneoSettings(patch) {
     fetch('/api/admin/torneo-settings', {
         method: 'POST',

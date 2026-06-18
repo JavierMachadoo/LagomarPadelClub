@@ -183,6 +183,15 @@ def obtener_calendario_finales():
 
         try:
             calendario_nuevo, _ = fixture_service.obtener_calendario(torneo)
+
+            fases_ocultas = set(torneo.get('fases_ocultas_calendario', []))
+            if fases_ocultas:
+                for key in ('cancha_1', 'cancha_2'):
+                    calendario_nuevo[key] = [
+                        p for p in (calendario_nuevo.get(key) or [])
+                        if f"{p.get('categoria')}|{p.get('fase')}" not in fases_ocultas
+                    ]
+
             calendario = _convertir_calendario_a_formato_legacy(calendario_nuevo)
             return jsonify({
                 'success': True,

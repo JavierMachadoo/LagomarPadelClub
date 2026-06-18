@@ -118,6 +118,31 @@ def obtener_calendario():
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
+@finales_bp.route('/fases-ocultas', methods=['PATCH'])
+def actualizar_fases_ocultas():
+    """Actualiza la lista de fases ocultas en el calendario público de finales."""
+    data = request.get_json() or {}
+    fases_ocultas = data.get('fases_ocultas')
+
+    if not isinstance(fases_ocultas, list):
+        return jsonify({'success': False, 'message': 'fases_ocultas debe ser una lista'}), 400
+
+    for item in fases_ocultas:
+        if not isinstance(item, str) or '|' not in item:
+            return jsonify({'success': False, 'message': f'Formato inválido: {item}'}), 400
+
+    try:
+        torneo = storage.cargar()
+        torneo['fases_ocultas_calendario'] = fases_ocultas
+        storage.guardar_con_version(torneo)
+        return jsonify({'success': True, 'fases_ocultas': fases_ocultas})
+    except ConflictError as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
+    except Exception as e:
+        logger.error('Error al actualizar fases ocultas: %s', e, exc_info=True)
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @finales_bp.route('/calendario/partido/<partido_id>', methods=['PUT'])
 def mover_partido_calendario(partido_id):
     data = request.get_json()

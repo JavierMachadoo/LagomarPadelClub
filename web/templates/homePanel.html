@@ -110,30 +110,6 @@
                                onchange="toggleCuentaRanking(this.checked)">
                     </div>
                 </div>
-                {% if fase_torneo == 'torneo' and mostrar_finales and torneo.get('fixtures_finales') %}
-                <div class="vr d-none d-md-block"></div>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <span style="font-size:0.85rem;" class="text-muted">
-                        <i class="bi bi-eye-slash me-1"></i>Ocultar del calendario:
-                    </span>
-                    {% set fo = torneo.get('fases_ocultas_calendario', []) %}
-                    {% for cat in torneo.get('fixtures_finales', {}).keys() %}
-                    {% for fase in ['Semifinal', 'Final'] %}
-                    {% set clave = cat + '|' + fase %}
-                    <div class="form-check form-switch mb-0 d-flex align-items-center gap-1">
-                        <input class="form-check-input" type="checkbox" role="switch"
-                               id="switchOcultar_{{ cat }}_{{ fase }}"
-                               {% if clave in fo %}checked{% endif %}
-                               onchange="toggleFaseOculta('{{ clave }}', this.checked)">
-                        <label class="form-check-label" style="font-size:0.8rem;"
-                               for="switchOcultar_{{ cat }}_{{ fase }}">
-                            {{ torneo.get('display_names', {}).get(cat, cat) }} — {{ fase }}
-                        </label>
-                    </div>
-                    {% endfor %}
-                    {% endfor %}
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -1702,31 +1678,6 @@ function toggleCuentaRanking(checked) {
     _saveTorneoSettings({ cuenta_ranking: checked });
 }
 
-const _fasesOcultas = new Set({{ torneo.get('fases_ocultas_calendario', []) | tojson }});
-
-async function toggleFaseOculta(clave, ocultar) {
-    if (ocultar) {
-        _fasesOcultas.add(clave);
-    } else {
-        _fasesOcultas.delete(clave);
-    }
-    try {
-        const resp = await fetch('/api/finales/fases-ocultas', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fases_ocultas: [..._fasesOcultas] })
-        });
-        const data = await resp.json();
-        if (!data.success) {
-            if (ocultar) _fasesOcultas.delete(clave); else _fasesOcultas.add(clave);
-            const switchEl = document.getElementById('switchOcultar_' + clave.replace('|', '_'));
-            if (switchEl) switchEl.checked = !ocultar;
-            Toast.error(data.message || 'Error al actualizar');
-        }
-    } catch (e) {
-        Toast.error('Error de conexión');
-    }
-}
 
 function _saveTorneoSettings(patch) {
     fetch('/api/admin/torneo-settings', {

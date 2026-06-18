@@ -759,13 +759,37 @@
         <div class="tab-pane fade" id="domingo-main" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <h4 class="mb-0"><i class="bi bi-calendar2-week-fill me-2 text-primary"></i>Calendario del Domingo</h4>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-secondary" onclick="cargarCalendarioDomingo()">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="restablecerCalendarioDomingo()">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i>Restablecer automático
-                    </button>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    {% if torneo.get('fixtures_finales') %}
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="text-muted" style="font-size:0.8rem;"><i class="bi bi-eye-slash me-1"></i>Ocultar del público:</span>
+                        {% set fo = torneo.get('fases_ocultas_calendario', []) %}
+                        {% for cat in torneo.get('fixtures_finales', {}).keys() %}
+                        {% for fase in ['Semifinal', 'Final'] %}
+                        {% set clave = cat + '|' + fase %}
+                        <div class="form-check form-switch mb-0 d-flex align-items-center gap-1">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   id="switchOcultar_{{ cat }}_{{ fase }}"
+                                   {% if clave in fo %}checked{% endif %}
+                                   onchange="toggleFaseOculta('{{ clave }}', this.checked)">
+                            <label class="form-check-label" style="font-size:0.8rem;"
+                                   for="switchOcultar_{{ cat }}_{{ fase }}">
+                                {{ torneo.get('display_names', {}).get(cat, cat) }} — {{ fase }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                        {% endfor %}
+                    </div>
+                    <div class="vr d-none d-md-block"></div>
+                    {% endif %}
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="cargarCalendarioDomingo()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="restablecerCalendarioDomingo()">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Restablecer automático
+                        </button>
+                    </div>
                 </div>
             </div>
             <p class="text-muted small mb-3">
@@ -1760,5 +1784,28 @@ const GRUPOS_POR_CAT_COUNT = { {% for cat in categorias %}{{ cat | tojson }}: {{
 <script src="{{ url_for('static', filename='js/dashboard-finales.js') }}"></script>
 {% if es_admin %}
 <script src="{{ url_for('static', filename='js/dashboard-domingo.js') }}"></script>
+<script>
+const _fasesOcultas = new Set({{ torneo.get('fases_ocultas_calendario', []) | tojson }});
+
+async function toggleFaseOculta(clave, ocultar) {
+    if (ocultar) { _fasesOcultas.add(clave); } else { _fasesOcultas.delete(clave); }
+    try {
+        const resp = await fetch('/api/finales/fases-ocultas', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fases_ocultas: [..._fasesOcultas] })
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            if (ocultar) _fasesOcultas.delete(clave); else _fasesOcultas.add(clave);
+            const switchEl = document.getElementById('switchOcultar_' + clave.replace('|', '_'));
+            if (switchEl) switchEl.checked = !ocultar;
+            Toast.error(data.message || 'Error al actualizar');
+        }
+    } catch (e) {
+        Toast.error('Error de conexión');
+    }
+}
+</script>
 {% endif %}
 {% endblock %}

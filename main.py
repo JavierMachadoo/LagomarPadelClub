@@ -427,7 +427,7 @@ def crear_app():
                                          emojis=EMOJI_CATEGORIA,
                                          torneo=torneo,
                                          tipo_torneo=tipo_torneo,
-                                         franjas_finales=build_franjas_finales(cal_arch, datos_blob.get('fixtures_finales', {})),
+                                         franjas_finales=build_franjas_finales(cal_arch, datos_blob.get('fixtures_finales', {}), fases_ocultas=datos_blob.get('fases_ocultas_calendario', [])),
                                          es_ultimo_torneo=True,
                                          nombre_ultimo_torneo=archivado.get('nombre', ''),
                                          display_names=torneo.get('display_names', {})))
@@ -452,7 +452,7 @@ def crear_app():
                              emojis=EMOJI_CATEGORIA,
                              torneo=torneo,
                              tipo_torneo=tipo_torneo,
-                             franjas_finales=build_franjas_finales(calendario_finales, {k: v for k, v in torneo.get('fixtures_finales', {}).items() if v}),
+                             franjas_finales=build_franjas_finales(calendario_finales, {k: v for k, v in torneo.get('fixtures_finales', {}).items() if v}, fases_ocultas=torneo.get('fases_ocultas_calendario', [])),
                              display_names=torneo.get('display_names', {})))
 
     @app.route('/cuadro')

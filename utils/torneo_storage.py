@@ -102,6 +102,7 @@ class TorneoStorage:
             'version': 0,
             'display_names': {},
             'cuenta_ranking': True,
+            'fases_ocultas_calendario': [],
         }
 
     def _crear_torneo_default(self) -> None:

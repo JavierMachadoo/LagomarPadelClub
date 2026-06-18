@@ -12,7 +12,11 @@ from typing import Optional, List, Tuple
 from utils.calendario_finales_builder import _resolver_ganador_nombre
 
 
-def build_franjas_finales(calendario: Optional[dict], fixtures: Optional[dict] = None) -> List[Tuple]:
+def build_franjas_finales(
+    calendario: Optional[dict],
+    fixtures: Optional[dict] = None,
+    fases_ocultas: Optional[List[str]] = None,
+) -> List[Tuple]:
     """Convierte el calendario persistido en lista de (hora, partido_c1, partido_c2).
 
     Diseñado para renderizar el panel de finales en Jinja2 con la misma
@@ -20,10 +24,12 @@ def build_franjas_finales(calendario: Optional[dict], fixtures: Optional[dict] =
     slot con `sets`, `ganador` y `ganador_nombre` matcheando por `partido_id`.
 
     Args:
-        calendario: calendario_finales (cancha_1, cancha_2, sin_asignar)
-        fixtures:   fixtures_finales — {categoria: fixture_dict} — opcional.
-                    Sin este param, los slots se devuelven sin enriquecer
-                    (backward-compat con call-sites que no pasan fixtures).
+        calendario:    calendario_finales (cancha_1, cancha_2, sin_asignar)
+        fixtures:      fixtures_finales — {categoria: fixture_dict} — opcional.
+                       Sin este param, los slots se devuelven sin enriquecer
+                       (backward-compat con call-sites que no pasan fixtures).
+        fases_ocultas: lista de strings "CATEGORIA|FASE" a excluir del resultado.
+                       Si es None o vacía, se muestran todos los slots.
 
     Returns:
         Lista de tuplas (hora_str, slot_c1_o_None, slot_c2_o_None)
@@ -31,6 +37,8 @@ def build_franjas_finales(calendario: Optional[dict], fixtures: Optional[dict] =
     """
     if not calendario:
         return []
+
+    ocultas: set = set(fases_ocultas) if fases_ocultas else set()
 
     # Construir índice partido_id → partido_dict
     partido_index: dict = {}
@@ -58,10 +66,17 @@ def build_franjas_finales(calendario: Optional[dict], fixtures: Optional[dict] =
             slot['ganador_nombre'] = _resolver_ganador_nombre(partido, ganador_dict)
         return slot
 
+    def _visible(slot: dict) -> bool:
+        if not ocultas:
+            return True
+        return f"{slot.get('categoria')}|{slot.get('fase')}" not in ocultas
+
     por_hora: dict = {}
     for p in calendario.get('cancha_1', []):
-        por_hora.setdefault(p['hora_inicio'], [None, None])[0] = _enriquecer(p)
+        if _visible(p):
+            por_hora.setdefault(p['hora_inicio'], [None, None])[0] = _enriquecer(p)
     for p in calendario.get('cancha_2', []):
-        por_hora.setdefault(p['hora_inicio'], [None, None])[1] = _enriquecer(p)
+        if _visible(p):
+            por_hora.setdefault(p['hora_inicio'], [None, None])[1] = _enriquecer(p)
 
     return [(h, slots[0], slots[1]) for h, slots in sorted(por_hora.items())]
